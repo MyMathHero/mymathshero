@@ -92,3 +92,13 @@
     color: rgba(255, 255, 255, 0.9);
   }
 }
+
+@keyframes heroSpeakPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 154, 26, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(196, 154, 26, 0); }
+}
+
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}

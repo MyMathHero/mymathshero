@@ -94,6 +94,39 @@ function buildQuestionDoc(q, skill, index) {
   }
 }
 
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const dryRun = searchParams.get('dryRun') === 'true'
+    if (!dryRun) {
+      return NextResponse.json({ error: 'Use ?dryRun=true or POST to generate' }, { status: 400 })
+    }
+
+    const target = parseInt(searchParams.get('targetPerSkill') || '20', 10)
+    const subject = searchParams.get('subject')
+    const db = await connectDB()
+    const skillGraph = getSkillGraph()
+      .filter(s => !subject || s.subject === subject)
+
+    const existingCounts = await db.collection('questions').aggregate([
+      { $group: { _id: '$skillId', count: { $sum: 1 } } },
+    ]).toArray()
+    const countMap = {}
+    for (const row of existingCounts) countMap[row._id] = row.count
+
+    const totalQuestions = await db.collection('questions').countDocuments()
+    const skillsBelow = skillGraph
+      .map(s => ({ skillId: s.id, name: s.name, subject: s.subject, current: countMap[s.id] ?? 0 }))
+      .filter(s => s.current < target)
+      .sort((a, b) => a.current - b.current)
+
+    return NextResponse.json({ totalQuestions, target, skillsBelow })
+  } catch (error) {
+    console.error('Generate questions dry-run error:', error.message)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json()
@@ -102,7 +135,9 @@ export async function POST(request) {
     // ── generateAll mode ──────────────────────────────────────────────────────
     if (body.generateAll) {
       const targetPerSkill = body.targetPerSkill ?? 10
+      const subjectFilter = body.subject
       const skillGraph = getSkillGraph()
+        .filter(s => !subjectFilter || s.subject === subjectFilter)
 
       // Count existing questions per skill in one aggregation
       const existingCounts = await db.collection('questions').aggregate([

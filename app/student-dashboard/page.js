@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import AskHero from '@/components/AskHero'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -189,6 +190,10 @@ export default function StudentDashboard() {
   // Anti-cheat: when the student leaves the tab during a question, force a new question.
   const [cheatWarning, setCheatWarning] = useState(false)
   const [questionSwitched, setQuestionSwitched] = useState(false)
+
+  // Ask Hero AI tutor panel state
+  const [showAskHero, setShowAskHero] = useState(false)
+  const [askHeroAttempts, setAskHeroAttempts] = useState(1)
 
   // ── Fetch progress on mount ─────────────────────────────────────────────────
   useEffect(() => {
@@ -933,11 +938,33 @@ export default function StudentDashboard() {
 
               {/* Empty state */}
               {practiceModal.empty ? (
-                <div className="text-center py-8">
-                  <span className="text-5xl block mb-4">📚</span>
-                  <h3 className="text-lg font-bold text-navy mb-2">No questions yet!</h3>
-                  <p className="text-sm text-gray-500 mb-4">Questions for this skill haven&apos;t been added yet.</p>
-                  <button onClick={closePractice} className="px-6 py-3 rounded-xl bg-electric text-white font-bold text-sm">Back to Skills</button>
+                <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+                  <h3 style={{ color: '#1B2B4B', fontWeight: 800,
+                    fontSize: 20, marginBottom: 8 }}>
+                    Hero is preparing questions!
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: 14,
+                    marginBottom: 8, lineHeight: 1.6 }}>
+                    Questions for this skill are being prepared by Hero.
+                    Please try another skill for now.
+                  </p>
+                  <p style={{ color: '#C49A1A', fontSize: 13,
+                    fontWeight: 600, marginBottom: 24 }}>
+                    Check back in a few minutes!
+                  </p>
+                  <button
+                    onClick={closePractice}
+                    style={{
+                      background: '#1B2B4B', color: 'white',
+                      border: '2px solid #C49A1A',
+                      borderRadius: 12, padding: '12px 32px',
+                      fontWeight: 700, fontSize: 15,
+                      cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    Try Another Skill
+                  </button>
                 </div>
               ) : (
                 <>
@@ -1005,17 +1032,57 @@ export default function StudentDashboard() {
                         })}
                       </div>
 
+                      {questionTimer >= 60 && !answerState && !showAskHero && (
+                        <div style={{
+                          background: '#FFFBEB',
+                          border: '1px solid #C49A1A',
+                          borderRadius: 10,
+                          padding: '10px 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: 12,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>🤖</span>
+                            <span style={{ color: '#1B2B4B', fontSize: 14, fontWeight: 600 }}>
+                              Looks like you might be stuck. Want help?
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setShowAskHero(true)
+                              setAskHeroAttempts(prev => prev + 1)
+                            }}
+                            style={{
+                              background: '#C49A1A', color: 'white',
+                              border: 'none', borderRadius: 8,
+                              padding: '6px 14px', fontWeight: 700,
+                              fontSize: 13, cursor: 'pointer',
+                            }}
+                          >
+                            Ask Hero
+                          </button>
+                        </div>
+                      )}
                       {!answerState && (
                         <button
-                          onClick={fetchHint}
-                          disabled={hintLoading}
-                          className="w-full flex items-center justify-center gap-2 mb-4 bg-[#1B2B4B] text-white border-2 border-[#C49A1A] rounded-xl px-6 py-3 font-bold text-sm disabled:opacity-60 hover:bg-[#0f1d3a] transition-colors"
+                          onClick={() => {
+                            setShowAskHero(true)
+                            setAskHeroAttempts(prev => prev + 1)
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center',
+                            gap: 8, background: '#1B2B4B', color: 'white',
+                            border: '2px solid #C49A1A', borderRadius: 12,
+                            padding: '10px 20px', fontWeight: 700,
+                            fontSize: 15, cursor: 'pointer',
+                            width: '100%', justifyContent: 'center',
+                            marginBottom: 12,
+                          }}
                         >
-                          {hintLoading ? (
-                            <><span style={{ display:'inline-block', width:14, height:14, border:'2px solid #fff', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />Asking Hero…</>
-                          ) : (
-                            <><span className="text-white">Ask</span> <span className="text-[#C49A1A]">Hero</span> <span className="text-[#C49A1A]">✦✦</span></>
-                          )}
+                          <span>🤖</span>
+                          <span>Ask <span style={{ color: '#C49A1A' }}>Hero</span> ✦✦</span>
                         </button>
                       )}
                       {showHint && !answerState && (
@@ -1149,6 +1216,19 @@ export default function StudentDashboard() {
             <button onClick={() => setShowMilestoneModal(false)} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white py-3 px-8 rounded-xl font-bold text-sm shadow-lg">Awesome! 🚀</button>
           </div>
         </div>
+      )}
+
+      {/* Ask Hero AI tutor panel */}
+      {showAskHero && practiceModal && (
+        <AskHero
+          question={practiceModal.question}
+          skillId={practiceModal.skillId || 'm_3_multiply100'}
+          studentId={authStudentId || 'student_test_001'}
+          questionId={practiceModal.questionId}
+          onClose={() => setShowAskHero(false)}
+          behaviour={answerState ? 'conceptual_gap' : 'confused'}
+          attemptNumber={askHeroAttempts}
+        />
       )}
 
       {/* Dev Mode Panel — only visible for isDev students */}
