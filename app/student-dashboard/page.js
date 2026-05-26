@@ -300,11 +300,16 @@ export default function StudentDashboard() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch(`/api/student/questions?skillId=${practiceModal.skillId}&limit=1`)
+        const grade = student?.grade ?? 3
+        const currentQid = practiceModal.questionId
+        const res = await fetch(`/api/student/questions?skillId=${practiceModal.skillId}&grade=${grade}&limit=5`)
         const data = await res.json()
         if (cancelled) return
         if (res.ok && data.questions?.length > 0) {
-          const q = data.questions[0]
+          // Prefer a question that differs from the current one
+          const q = data.questions.find(
+            x => (x.questionId || x.id) !== currentQid
+          ) || data.questions[0]
           setPracticeModal(prev => prev ? ({
             ...prev,
             questionId: q.questionId || q.id,
@@ -1223,6 +1228,7 @@ export default function StudentDashboard() {
         <AskHero
           question={practiceModal.question}
           skillId={practiceModal.skillId || 'm_3_multiply100'}
+          skillName={practiceModal.skillName}
           studentId={authStudentId || 'student_test_001'}
           questionId={practiceModal.questionId}
           onClose={() => setShowAskHero(false)}

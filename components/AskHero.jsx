@@ -13,9 +13,36 @@ const ROBOT_STATES = {
   complete:  { type: 'video', src: '/assets/robot/happyjumpingrobo.MP4', loop: false },
 }
 
+function formatSkillName(skillId) {
+  if (!skillId) return 'this skill'
+  const withoutPrefix = skillId.replace(/^[a-z]_\d+_/, '')
+  return withoutPrefix
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+    .replace(/100/g, '')
+    .trim()
+}
+
+function getStepByStepExplanation(question, answer) {
+  if (question.includes('×') || question.includes('x')) {
+    return `Think of it as groups. If you count up carefully you will get ${answer}.`
+  }
+  if (question.includes('+')) {
+    return `Try adding the numbers one at a time to reach ${answer}.`
+  }
+  if (question.includes('-')) {
+    return `Try counting down step by step to reach ${answer}.`
+  }
+  if (question.includes('÷')) {
+    return `Think about how many groups fit into the number to get ${answer}.`
+  }
+  return `The answer is ${answer}. Try to remember this pattern!`
+}
+
 export default function AskHero({
   question,
   skillId,
+  skillName,
   studentId,
   questionId,
   onClose,
@@ -33,6 +60,7 @@ export default function AskHero({
   const [practiceQuestion, setPracticeQuestion] = useState(null)
   const [practiceAnswer, setPracticeAnswer] = useState(null)
   const [practiceResult, setPracticeResult] = useState(null)
+  const [practiceAttempts, setPracticeAttempts] = useState(0)
   const chatEndRef = useRef(null)
   const mutedRef = useRef(false)
 
@@ -40,7 +68,8 @@ export default function AskHero({
 
   useEffect(() => {
     const greetTimer = setTimeout(() => {
-      const greeting = `Hi! I'm Hero, your personal maths tutor. I can see you're working on ${skillId.replace(/_/g, ' ')}. Let me help you out!`
+      const displayName = skillName || formatSkillName(skillId)
+      const greeting = `Hi! I'm Hero, your personal maths tutor. Let me help you with ${displayName}!`
       addHeroMessage(greeting, 'waving')
       setTimeout(() => fetchHint(), 1500)
     }, 500)
@@ -92,7 +121,7 @@ export default function AskHero({
       })
       const data = await res.json()
 
-      const heroMessage = `Here's a hint! ${data.hint} Try using this to work through the question. You've got this!`
+      const heroMessage = `${data.hint} Try using this to work through the question. You've got this!`
       addHeroMessage(heroMessage, 'talking')
       setStage('explaining')
 
@@ -131,6 +160,7 @@ export default function AskHero({
   async function handlePracticeAnswer(option) {
     if (practiceAnswer) return
     setPracticeAnswer(option)
+    setPracticeAttempts(prev => prev + 1)
     setLoading(true)
     setRobotState('thinking')
 
@@ -153,18 +183,32 @@ export default function AskHero({
 
       if (data.correct) {
         addHeroMessage(
-          "Excellent work! You got it right! Now go back and try the original question. I know you can do it!",
+          `Excellent! You got it right! Now go back and try the original question. You understand this now!`,
           'happy'
         )
         setStage('complete')
+      } else if (practiceAttempts < 1) {
+        const explanation = practiceQuestion.explanation ||
+          `Let me break this down. The answer is ${data.correctAnswer}. ${getStepByStepExplanation(practiceQuestion.question, data.correctAnswer)}`
+        addHeroMessage(
+          `Not quite! The correct answer is ${data.correctAnswer}. ${explanation} Let me give you one more try!`,
+          'sad'
+        )
+        setTimeout(() => {
+          setPracticeAnswer(null)
+          setPracticeResult(null)
+          setRobotState('idle')
+        }, 2500)
       } else {
         addHeroMessage(
-          `Not quite — the answer was ${data.correctAnswer}. ${practiceQuestion.explanation || 'Remember to think step by step!'} You are getting closer!`,
+          `The answer is ${data.correctAnswer}. That's okay — even heroes learn from mistakes! Go back and try the real question now. You know more than before!`,
           'sad'
         )
         setTimeout(() => setStage('complete'), 3000)
       }
-    } catch {} finally {
+    } catch {
+      setPracticeAnswer(null)
+    } finally {
       setLoading(false)
     }
   }
