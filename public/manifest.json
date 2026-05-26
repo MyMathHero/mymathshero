@@ -1,0 +1,21 @@
+{
+  "name": "MyMathsHero",
+  "short_name": "MathsHero",
+  "description": "Personalised AI Maths Learning — Prep to Year 6",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1B2B4B",
+  "theme_color": "#C49A1A",
+  "icons": [
+    {
+      "src": "/assets/logos/logo-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/logos/logo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
