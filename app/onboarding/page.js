@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 const BRAND_DARK = '#1B2B4B'
 const BRAND_GOLD = '#C49A1A'
@@ -17,7 +18,9 @@ function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
 
 const PATHS = [
   { id: 'parent',  emoji: '👨‍👩‍👧', label: "I'm a Parent",    desc: 'Create an account and add your child' },
-  { id: 'teacher', emoji: '📚',     label: "I'm a Teacher",   desc: 'Register and get your class set up' },
+  // Teacher registration — hidden until teachersEnabled flag is on. TeacherFlow
+  // component below is kept intact so it can be restored by toggling the flag.
+  { id: 'teacher', emoji: '📚',     label: "I'm a Teacher",   desc: 'Register and get your class set up', flag: 'teachersEnabled' },
   { id: 'join',    emoji: '🔑',     label: 'I have a join code', desc: 'Enter your 6-digit class code' },
 ]
 
@@ -562,7 +565,8 @@ function JoinFlow({ onBack }) {
   )
 }
 
-function PathPicker({ onSelect }) {
+function PathPicker({ onSelect, flags }) {
+  const visiblePaths = PATHS.filter(p => !p.flag || flags[p.flag])
   return (
     <Slide>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -584,7 +588,7 @@ function PathPicker({ onSelect }) {
       </div>
 
       <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {PATHS.map(p => (
+        {visiblePaths.map(p => (
           <button key={p.id} onClick={() => onSelect(p.id)} style={{
             background: '#FFFFFF',
             border: `2px solid ${BRAND_BORDER}`,
@@ -621,6 +625,7 @@ function PathPicker({ onSelect }) {
 
 export default function OnboardingPage() {
   const [path, setPath] = useState(null)
+  const { flags } = useFeatureFlags()
 
   return (
     <div style={{
@@ -630,9 +635,10 @@ export default function OnboardingPage() {
       justifyContent: 'center', padding: '32px 16px',
       fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
     }}>
-      {!path && <PathPicker onSelect={setPath} />}
+      {!path && <PathPicker onSelect={setPath} flags={flags} />}
       {path === 'parent'  && <ParentFlow  onBack={() => setPath(null)} />}
-      {path === 'teacher' && <TeacherFlow onBack={() => setPath(null)} />}
+      {/* Teacher path only reachable when teachersEnabled flag is on */}
+      {path === 'teacher' && flags.teachersEnabled && <TeacherFlow onBack={() => setPath(null)} />}
       {path === 'join'    && <JoinFlow    onBack={() => setPath(null)} />}
 
       <p style={{ color: BRAND_SUBTEXT, fontSize: 12, marginTop: 32 }}>

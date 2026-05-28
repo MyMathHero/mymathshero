@@ -158,6 +158,35 @@ function AdminDashboard() {
   const [genError, setGenError] = useState('')
   const [genProgress, setGenProgress] = useState('')
 
+  // Feature flags state
+  const [flags, setFlags] = useState({
+    teachersEnabled: false,
+    englishEnabled: false,
+    scienceEnabled: false,
+  })
+
+  useEffect(() => {
+    fetch('/api/admin/feature-flags')
+      .then(r => r.json())
+      .then(data => { if (data && !data.error) setFlags(f => ({ ...f, ...data })) })
+      .catch(() => {})
+  }, [])
+
+  async function toggleFlag(key) {
+    const updated = { ...flags, [key]: !flags[key] }
+    setFlags(updated)
+    try {
+      await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      })
+    } catch {
+      // Roll back on failure so the toggle reflects persisted state.
+      setFlags(flags)
+    }
+  }
+
   const fetchStats = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -427,6 +456,49 @@ function AdminDashboard() {
             )}
 
             <style>{`@keyframes _spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+
+        {/* Feature Flags Section */}
+        <div style={{ marginBottom: 40 }}>
+          <SectionTitle>🚦 Feature Flags</SectionTitle>
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 16, padding: 24,
+          }}>
+            <p style={{ color: '#94A3B8', fontSize: 14, marginBottom: 20 }}>
+              Toggle features on/off without code changes. Changes apply to all visitors.
+            </p>
+            {[
+              { key: 'teachersEnabled', label: 'Teacher Features', desc: 'Login, dashboard, onboarding, For Schools page' },
+              { key: 'englishEnabled', label: 'English Subject', desc: 'English questions and tabs' },
+              { key: 'scienceEnabled', label: 'Science Subject', desc: 'Science questions and tabs' },
+            ].map(flag => (
+              <div key={flag.key} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <div>
+                  <p style={{ fontWeight: 700, color: '#fff', margin: 0 }}>{flag.label}</p>
+                  <p style={{ color: '#94A3B8', fontSize: 13, margin: 0 }}>{flag.desc}</p>
+                </div>
+                <button
+                  onClick={() => toggleFlag(flag.key)}
+                  style={{
+                    background: flags[flag.key] ? '#22C55E' : 'rgba(255,255,255,0.1)',
+                    color: flags[flag.key] ? 'white' : '#94A3B8',
+                    border: 'none', borderRadius: 20,
+                    padding: '6px 20px', fontWeight: 700,
+                    cursor: 'pointer', fontSize: 14,
+                    transition: 'all 0.2s',
+                    minWidth: 64,
+                  }}
+                >
+                  {flags[flag.key] ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>

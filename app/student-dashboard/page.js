@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import AskHero from '@/components/AskHero'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
 
 const subjects = [
   { id: 'maths', name: 'Maths', emoji: '🔢', gradient: 'from-blue-500 to-indigo-600' },
-  { id: 'english', name: 'English', emoji: '📖', gradient: 'from-purple-500 to-fuchsia-600' },
-  { id: 'science', name: 'Science', emoji: '🔬', gradient: 'from-emerald-500 to-teal-600' },
+  // English/Science hidden until their flags are on (englishEnabled / scienceEnabled).
+  { id: 'english', name: 'English', emoji: '📖', gradient: 'from-purple-500 to-fuchsia-600', flag: 'englishEnabled' },
+  { id: 'science', name: 'Science', emoji: '🔬', gradient: 'from-emerald-500 to-teal-600', flag: 'scienceEnabled' },
 ]
 
 const subjectIcons = { maths: Calculator, english: BookOpen, science: FlaskConical }
@@ -145,6 +147,8 @@ function CelebrationOverlay({ show }) {
 
 export default function StudentDashboard() {
   const router = useRouter()
+  const { flags } = useFeatureFlags()
+  const visibleSubjects = subjects.filter(s => !s.flag || flags[s.flag])
 
   // ── Data state ─────────────────────────────────────────────────────────────
   const [student, setStudent] = useState(null)
@@ -162,6 +166,15 @@ export default function StudentDashboard() {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [activeSubject, setActiveSubject] = useState('maths')
+
+  // If the active subject gets hidden by a feature flag, fall back to Maths.
+  useEffect(() => {
+    if (!visibleSubjects.some(s => s.id === activeSubject)) {
+      setActiveSubject('maths')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flags])
+
   const [practiceModal, setPracticeModal] = useState(null)
   const [practiceLoading, setPracticeLoading] = useState(false)
   const [answerState, setAnswerState] = useState(null)
@@ -643,7 +656,7 @@ export default function StudentDashboard() {
           <div className="w-full lg:w-56 flex-shrink-0">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">🎮 Subjects</h3>
             <div className="space-y-2">
-              {subjects.map(sub => (
+              {visibleSubjects.map(sub => (
                 <button key={sub.id} onClick={() => setActiveSubject(sub.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 ${activeSubject === sub.id ? `bg-gradient-to-r ${sub.gradient} text-white shadow-lg` : 'bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-200'}`}>
                   <span className="text-xl">{sub.emoji}</span>{sub.name}{activeSubject === sub.id && <ChevronRight size={14} className="ml-auto" />}
                 </button>
@@ -1021,7 +1034,7 @@ export default function StudentDashboard() {
                             btnClass = 'bg-blue-50 border-blue-300 text-blue-700'; letterBg = 'bg-blue-400 text-white'
                           } else if (showResult) {
                             if (isAnswerCorrect) { btnClass = 'bg-green-50 border-green-400 text-green-700 font-bold scale-[1.01] shadow-md'; letterBg = 'bg-green-500 text-white' }
-                            else if (isAnswerWrong) { btnClass = 'bg-red-50 border-red-300 text-red-500'; letterBg = 'bg-red-400 text-white' }
+                            else if (isAnswerWrong) { btnClass = 'bg-amber-50 border-amber-300 text-amber-600'; letterBg = 'bg-amber-400 text-white' }
                             else { btnClass = 'bg-gray-50 border-gray-100 text-gray-300'; letterBg = 'bg-gray-100 text-gray-300' }
                           }
                           return (
@@ -1109,7 +1122,7 @@ export default function StudentDashboard() {
                       )}
 
                       {showResult && (
-                        <div className={`rounded-xl p-4 mb-4 ${answerState?.correct ? 'bg-green-50 border-2 border-green-300' : 'bg-red-50 border-2 border-red-200'}`}>
+                        <div className={`rounded-xl p-4 mb-4 ${answerState?.correct ? 'bg-green-50 border-2 border-green-300' : 'bg-amber-50 border-2 border-amber-300'}`}>
                           <div className="flex justify-center mb-2">
                             <RoboVideo
                               src={answerState?.correct ? '/assets/robot/happyjumpingrobo.MP4' : '/assets/robot/sadrobo.MP4'}
@@ -1124,8 +1137,8 @@ export default function StudentDashboard() {
                             </div>
                           ) : (
                             <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2"><span className="text-2xl">🤔</span><div><div className="font-extrabold text-red-600">Not quite!</div><div className="text-red-500 text-xs">Keep trying!</div></div></div>
-                              <div className="text-red-500 text-xl font-extrabold">{answerState.delta}</div>
+                              <div className="flex items-center gap-2"><span className="text-2xl">🤔</span><div><div className="font-extrabold text-amber-700">Why don&apos;t we try this way?</div><div className="text-amber-600 text-xs">Keep trying!</div></div></div>
+                              <div className="text-amber-600 text-xl font-extrabold">{answerState.delta}</div>
                             </div>
                           )}
                         </div>

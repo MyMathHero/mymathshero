@@ -2,10 +2,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 export default function Navbar() {
   // null = loading, false = anonymous, object = authed user
   const [authState, setAuthState] = useState(null)
+  const { flags } = useFeatureFlags()
   const pathname = usePathname()
 
   useEffect(() => {
@@ -83,7 +85,10 @@ export default function Navbar() {
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <Link href="/" style={linkStyle(pathname === '/')}>Home</Link>
           <Link href="/how-it-works" style={linkStyle(pathname === '/how-it-works')}>How It Works</Link>
-          <Link href="/for-schools" style={linkStyle(pathname === '/for-schools')}>For Schools</Link>
+          {/* For Schools — hidden until forSchoolsPage flag is on */}
+          {flags.forSchoolsPage && (
+            <Link href="/for-schools" style={linkStyle(pathname === '/for-schools')}>For Schools</Link>
+          )}
         </div>
 
         {/* Center — logo */}
@@ -98,7 +103,10 @@ export default function Navbar() {
         {/* Right — demos + auth */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'flex-end' }}>
           <Link href="/student-dashboard" style={linkStyle(pathname === '/student-dashboard')}>Student Demo</Link>
-          <Link href="/teacher-dashboard" style={linkStyle(pathname === '/teacher-dashboard')}>Teacher Demo</Link>
+          {/* Teacher Demo — hidden until teacherDemo flag is on */}
+          {flags.teacherDemo && (
+            <Link href="/teacher-dashboard" style={linkStyle(pathname === '/teacher-dashboard')}>Teacher Demo</Link>
+          )}
           <Link href="/login" style={{ color: '#1B2B4B', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
             Login
           </Link>

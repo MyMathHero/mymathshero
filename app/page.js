@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import RoboVideo from '@/components/RoboVideo'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Brain, CheckCircle2, BarChart3, BookOpen, Calculator, ArrowRight, Star, Sparkles, ChevronRight, Flag } from 'lucide-react'
 
 const trustBadges = [
@@ -31,8 +32,8 @@ const features = [
   },
   {
     icon: BarChart3,
-    title: 'Real Insights for Parents & Teachers',
-    description: 'Live dashboards show exactly where each child stands. Teachers see class heatmaps; parents receive weekly Hero Reports.',
+    title: 'Real Insights for Parents',
+    description: 'A live dashboard shows exactly where your child stands — skill heatmaps, weekly activity, and Hero Reports delivered straight to your inbox.',
   },
 ]
 
@@ -50,11 +51,12 @@ const subjects = [
 
 const testimonials = [
   { name: 'Sarah', role: 'Parent of Year 3 student', quote: 'My daughter used to dread maths homework. Now she asks to practice on MyMathsHero every evening. Her confidence has completely transformed.', stars: 5 },
-  { name: 'Mr. Johnson', role: 'Year 4 Teacher', quote: 'The class heatmap is a game-changer. I can see at a glance which students need extra help with fractions and who is ready to move on.', stars: 5 },
+  { name: 'David', role: 'Parent of Year 4 student', quote: 'The weekly Hero Report is a game-changer. I can see at a glance which skills my son has mastered and where he needs a little extra help.', stars: 5 },
   { name: 'Emma, Age 9', role: 'Student', quote: 'I love getting Hero Badges when I master a skill! And when I get stuck I just press Ask Hero and it shows me the steps.', stars: 5 },
 ]
 
 export default function LandingPage() {
+  const { flags } = useFeatureFlags()
   const [formData, setFormData] = useState({ name: '', email: '', role: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -305,7 +307,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-[#C49A1A]/10 text-[#C49A1A] text-sm font-semibold mb-4">Testimonials</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-[#1B2B4B] mb-4">Loved by Students, Parents & Teachers</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-[#1B2B4B] mb-4">Loved by Students &amp; Parents</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -385,9 +387,14 @@ export default function LandingPage() {
                 >
                   <option value="" className="bg-[#1B2B4B] text-white/40">I am a...</option>
                   <option value="Parent" className="bg-[#1B2B4B] text-white">Parent</option>
-                  <option value="Teacher" className="bg-[#1B2B4B] text-white">Teacher</option>
                   <option value="Student" className="bg-[#1B2B4B] text-white">Student</option>
-                  <option value="School Administrator" className="bg-[#1B2B4B] text-white">School Administrator</option>
+                  {/* Teacher / School options hidden until teachersEnabled flag is on */}
+                  {flags.teachersEnabled && (
+                    <>
+                      <option value="Teacher" className="bg-[#1B2B4B] text-white">Teacher</option>
+                      <option value="School Administrator" className="bg-[#1B2B4B] text-white">School Administrator</option>
+                    </>
+                  )}
                 </select>
               </div>
 

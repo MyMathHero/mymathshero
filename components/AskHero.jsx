@@ -191,7 +191,7 @@ export default function AskHero({
         const explanation = practiceQuestion.explanation ||
           `Let me break this down. The answer is ${data.correctAnswer}. ${getStepByStepExplanation(practiceQuestion.question, data.correctAnswer)}`
         addHeroMessage(
-          `Not quite! The correct answer is ${data.correctAnswer}. ${explanation} Let me give you one more try!`,
+          `Why don't we try this way? The answer is ${data.correctAnswer}. ${explanation} Let me give you one more try!`,
           'sad'
         )
         setTimeout(() => {

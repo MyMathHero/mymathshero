@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 const BRAND_DARK = '#1B2B4B'
 const BRAND_GOLD = '#C49A1A'
@@ -11,6 +12,7 @@ const BRAND_SUBTEXT = '#64748B'
 
 export default function DiagnosticPage() {
   const router = useRouter()
+  const { flags } = useFeatureFlags()
   const [stage, setStage] = useState('welcome') // welcome | quiz | results | submitting
   const [me, setMe] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -129,11 +131,11 @@ export default function DiagnosticPage() {
     if (aboveRate >= 0.6) label = `On track for Year ${grade + 1}`
     else if (atRate >= 0.6) label = `Working at Year ${grade} level`
     else label = `Building Year ${grade} foundations`
-    return [
-      { name: 'Maths', label, emoji: '🔢' },
-      { name: 'English', label: 'Coming soon', emoji: '📖' },
-      { name: 'Science', label: 'Coming soon', emoji: '🔬' },
-    ]
+    const summary = [{ name: 'Maths', label, emoji: '🔢' }]
+    // English/Science only appear once their flags are enabled.
+    if (flags.englishEnabled) summary.push({ name: 'English', label: 'Coming soon', emoji: '📖' })
+    if (flags.scienceEnabled) summary.push({ name: 'Science', label: 'Coming soon', emoji: '🔬' })
+    return summary
   })()
 
   return (

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 const BRAND_DARK = '#1B2B4B'
 const BRAND_GOLD = '#C49A1A'
@@ -23,16 +24,21 @@ const ROLES = [
     emoji: '👨‍👩‍👧',
     desc: 'Log in with your email and password',
   },
+  // Teacher login — hidden until teachersEnabled flag is on. Restore by toggling
+  // the flag in the admin console; the role config below is kept intentionally.
   {
     id: 'teacher',
     label: "I'm a Teacher",
     emoji: '📚',
     desc: 'Log in with your email and password',
+    flag: 'teachersEnabled',
   },
 ]
 
 export default function LoginPage() {
   const router = useRouter()
+  const { flags } = useFeatureFlags()
+  const visibleRoles = ROLES.filter(r => !r.flag || flags[r.flag])
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({ username: '', pin: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
@@ -109,7 +115,7 @@ export default function LoginPage() {
     }
   }
 
-  const activeRole = ROLES.find(r => r.id === selected)
+  const activeRole = visibleRoles.find(r => r.id === selected)
 
   return (
     <div style={{
@@ -158,7 +164,7 @@ export default function LoginPage() {
 
         {/* Role selector cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {ROLES.map(role => {
+          {visibleRoles.map(role => {
             const isSelected = selected === role.id
             return (
               <div key={role.id}>
