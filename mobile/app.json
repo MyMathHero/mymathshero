@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "MyMathsHero",
+    "slug": "mymathshero",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mymathshero.app",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#1B2B4B"
+      },
+      "package": "com.mymathshero.app",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#1B2B4B"
+        }
+      ]
+    ],
+    "scheme": "mymathshero",
+    "extra": {
+      "apiUrl": "https://mymathshero.com.au",
+      "eas": {
+        "projectId": "ab34858b-08fc-4a7e-a184-a01e1fa196f9"
+      }
+    }
+  }
+}

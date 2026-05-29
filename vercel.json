@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "regions": ["syd1"],
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_BASE_URL": "https://mymathshero.com.au"
+  }
+}

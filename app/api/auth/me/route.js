@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { getAuthCookie, verifyToken } from '@/lib/auth'
+import { getRequestToken, verifyToken } from '@/lib/auth'
 
 export async function GET(request) {
-  const token = getAuthCookie(request)
+  const token = getRequestToken(request)
 
   if (!token) {
     return NextResponse.json({ authenticated: false }, { status: 401 })

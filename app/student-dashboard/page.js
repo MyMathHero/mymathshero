@@ -155,6 +155,8 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true)
   const [skillsBySubject, setSkillsBySubject] = useState({ maths: [], english: [], science: [] })
   const [strandsBySubject, setStrandsBySubject] = useState({ maths: [], english: [], science: [] })
+  // Raw recommendation objects ({ id, name, currentScore, difficulty, subject, ... }) — powers Hero Challenges.
+  const [recommendations, setRecommendations] = useState([])
   const [weeklyActivity, setWeeklyActivity] = useState([])
   const [stats, setStats] = useState({ mastered: 0, inProgress: 0, accuracy: 0 })
   const [giftMilestone, setGiftMilestone] = useState({ target: 5, completed: 0, achieved: false })
@@ -192,6 +194,9 @@ export default function StudentDashboard() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [showMilestoneModal, setShowMilestoneModal] = useState(false)
   const [rightTab, setRightTab] = useState('progress')
+
+  // Speed Round mode — null when inactive, else { count, total, startTime, correct, finished, elapsedSec }
+  const [speedRound, setSpeedRound] = useState(null)
 
   const questionStartTimeRef = useRef(null)
   const [authStudentId, setAuthStudentId] = useState(STUDENT_ID)
@@ -257,6 +262,7 @@ export default function StudentDashboard() {
       setGiftMilestone(data.giftMilestone || { target: 5, completed: 0, achieved: false })
       setWeeklyActivity(data.weeklyActivity || [])
       setSkillsBySubject(groupRecommendationsBySubject(data.recommendations || []))
+      setRecommendations(data.recommendations || [])
       setStrandsBySubject(buildStrandsBySubject(data.strandBreakdown || {}))
 
       // Merge real earned badges with the full badge definitions
@@ -398,7 +404,7 @@ export default function StudentDashboard() {
   }
 
   // ── Open practice — fetch questions from API ───────────────────────────────
-  const openPractice = async (skill) => {
+  const openPractice = async (skill, opts = {}) => {
     setPracticeLoading(true)
     setAnswerState(null)
     setShowHint(false)
@@ -406,9 +412,17 @@ export default function StudentDashboard() {
     setAiHint(null)
     setShowSteps(false)
     setShowCelebration(false)
+    // Initialise (or clear) Speed Round mode for this session.
+    setSpeedRound(opts.speedRound
+      ? { count: 0, total: 5, startTime: Date.now(), correct: 0, finished: false, elapsedSec: 0 }
+      : null)
+
+    const grade = student?.grade ?? 3
 
     try {
-      const res = await fetch(`/api/student/questions?skillId=${skill.id}&limit=1`)
+      // Speed round / puzzle pull from a wider pool so questions vary.
+      const limit = opts.speedRound ? 5 : (opts.fallbackToSubject ? 5 : 1)
+      const res = await fetch(`/api/student/questions?skillId=${skill.id}&grade=${grade}&limit=${limit}`)
       const data = await res.json()
 
       if (!res.ok || !data.questions || data.questions.length === 0) {
@@ -419,12 +433,13 @@ export default function StudentDashboard() {
       const q = data.questions[0]
       setPracticeModal({
         skillId: skill.id,
-        skillName: skill.name,
+        skillName: opts.title || skill.name,
         questionId: q.questionId || q.id,
         question: q.question,
         options: q.options,
         hint: q.hint,
         steps: q.steps,
+        speedRound: !!opts.speedRound,
       })
       questionStartTimeRef.current = Date.now()
       // Start the visible per-question timer
@@ -508,6 +523,22 @@ export default function StudentDashboard() {
         }
         setTimeout(() => setStreakToast(null), 3500)
       }
+
+      // ── Speed Round: auto-advance through 5 questions, then show the result ──
+      if (speedRound && !speedRound.finished) {
+        const newCount = speedRound.count + 1
+        const newCorrect = speedRound.correct + (result.correct ? 1 : 0)
+        if (newCount >= speedRound.total) {
+          const elapsedSec = Math.max(1, Math.round((Date.now() - speedRound.startTime) / 1000))
+          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+          // Bonus reward for completing the speed round.
+          setCoins(prev => prev + 5)
+          setSpeedRound({ ...speedRound, count: newCount, correct: newCorrect, finished: true, elapsedSec })
+        } else {
+          setSpeedRound({ ...speedRound, count: newCount, correct: newCorrect })
+          setTimeout(() => { handleNextQuestion() }, 1500)
+        }
+      }
     } catch (e) {
       console.error('Failed to submit answer:', e)
       setAnswerState({ selected: optionIndex, loading: false, correct: false, correctIndex: -1, delta: 0 })
@@ -526,6 +557,76 @@ export default function StudentDashboard() {
     setAiHint(null)
     setShowSteps(false)
     setShowCelebration(false)
+    setSpeedRound(null)
+  }
+
+  // Load the next question for the SAME skill without closing the modal.
+  // Prefers a question different from the current one so it doesn't repeat.
+  const handleNextQuestion = async () => {
+    if (!practiceModal?.skillId) { closePractice(); return }
+    const skillId = practiceModal.skillId
+    const currentQid = practiceModal.questionId
+    const grade = student?.grade ?? 3
+
+    // Reset per-question UI state immediately.
+    setAnswerState(null)
+    setShowHint(false)
+    setHintLoading(false)
+    setAiHint(null)
+    setShowSteps(false)
+    setShowCelebration(false)
+
+    try {
+      const res = await fetch(`/api/student/questions?skillId=${skillId}&grade=${grade}&limit=5`)
+      const data = await res.json()
+      if (res.ok && data.questions?.length > 0) {
+        const next = data.questions.find(q => (q.questionId || q.id) !== currentQid) || data.questions[0]
+        setPracticeModal(prev => prev ? ({
+          ...prev,
+          questionId: next.questionId || next.id,
+          question: next.question,
+          options: next.options,
+          hint: next.hint,
+          steps: next.steps,
+        }) : prev)
+        // Restart the per-question timer.
+        questionStartTimeRef.current = Date.now()
+        if (timerRef.current) clearInterval(timerRef.current)
+        setQuestionTimer(0)
+        setCheatWarning(false)
+        timerRef.current = setInterval(() => {
+          setQuestionTimer(prev => prev + 1)
+        }, 1000)
+      }
+    } catch {
+      // On failure, leave the modal open with state reset so the student can retry.
+    }
+  }
+
+  // ── Today's Hero Challenges — activity launchers ──────────────────────────
+  // Lowest-scoring started skill (score > 0), used by the Weak Spot Trainer.
+  const weakestSkill = recommendations
+    .filter(s => (s.currentScore ?? 0) > 0)
+    .sort((a, b) => (a.currentScore ?? 0) - (b.currentScore ?? 0))[0] || null
+
+  function openDailyPuzzle() {
+    // Pick the hardest recommended skill so the "puzzle" feels like a challenge.
+    const hardSkill = [...recommendations].sort((a, b) => (b.difficulty ?? 0) - (a.difficulty ?? 0))[0]
+    if (hardSkill) openPractice(hardSkill, { title: '🧩 Daily Puzzle', fallbackToSubject: true })
+  }
+
+  function openSpeedRound() {
+    const skill = recommendations[0]
+    if (skill) openPractice(skill, { speedRound: true, title: '⚡ Speed Round' })
+  }
+
+  function openHeroPick() {
+    const skill = recommendations[0]
+    if (skill) openPractice(skill)
+  }
+
+  function openWeakSpot() {
+    if (weakestSkill) openPractice(weakestSkill)
   }
 
   const fetchHint = async () => {
@@ -716,6 +817,83 @@ export default function StudentDashboard() {
                 )
               })}
             </div>
+
+            {/* Today's Hero Challenges */}
+            {recommendations.length > 0 && (
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-navy mb-1">Today&apos;s Hero Challenges</h2>
+                <p className="text-sm text-gray-500 mb-4">Special activities to keep learning fun</p>
+
+                {/* A) Daily Maths Puzzle */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #1B2B4B, #2D4A7A)',
+                  borderRadius: 16, padding: 20,
+                  border: '2px solid #C49A1A',
+                  marginBottom: 12, cursor: 'pointer',
+                }} onClick={openDailyPuzzle}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 32 }}>🧩</span>
+                    <div>
+                      <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Daily Maths Puzzle</p>
+                      <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: 0 }}>New puzzle every day — can you solve it?</p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                  </div>
+                </div>
+
+                {/* B) Speed Round */}
+                <div style={{
+                  background: 'white', borderRadius: 16, padding: 20,
+                  border: '2px solid #E2E8F0', marginBottom: 12, cursor: 'pointer',
+                }} onClick={openSpeedRound}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 32 }}>⚡</span>
+                    <div>
+                      <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Speed Round</p>
+                      <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>5 questions — beat your best time!</p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                  </div>
+                </div>
+
+                {/* C) Hero's Pick */}
+                <div style={{
+                  background: '#FFFBEB', borderRadius: 16, padding: 20,
+                  border: '2px solid #C49A1A', marginBottom: 12, cursor: 'pointer',
+                }} onClick={openHeroPick}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 32 }}>🤖</span>
+                    <div>
+                      <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero&apos;s Pick</p>
+                      <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>Hero thinks you should practise this today</p>
+                      <p style={{ color: '#C49A1A', fontSize: 12, fontWeight: 700, margin: 0 }}>{recommendations[0]?.name || 'Loading...'}</p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                  </div>
+                </div>
+
+                {/* D) Weak Spot Trainer */}
+                {weakestSkill && (
+                  <div style={{
+                    background: 'white', borderRadius: 16, padding: 20,
+                    border: '2px solid #E2E8F0', marginBottom: 12, cursor: 'pointer',
+                  }} onClick={openWeakSpot}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 32 }}>🎯</span>
+                      <div>
+                        <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Weak Spot Trainer</p>
+                        <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>Level up your weakest skill</p>
+                        <p style={{ color: '#EF4444', fontSize: 12, fontWeight: 700, margin: 0 }}>
+                          {weakestSkill.name} — Score: {Math.round(weakestSkill.currentScore)}/100
+                        </p>
+                      </div>
+                      <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Today's Missions */}
             <div className="bg-white rounded-2xl p-5 border-2 border-dashed border-electric/30 shadow-sm mb-6">
               <h3 className="font-bold text-navy text-sm mb-3">🎯 Today&apos;s Missions</h3>
@@ -984,6 +1162,37 @@ export default function StudentDashboard() {
                     Try Another Skill
                   </button>
                 </div>
+              ) : speedRound?.finished ? (
+                <div style={{ textAlign: 'center', padding: '24px 8px' }}>
+                  <div className="flex justify-center mb-2">
+                    <RoboVideo src="/assets/robot/happyjumpingrobo.MP4" width={160} loop={false} />
+                  </div>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>⚡</div>
+                  <h3 style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+                    Speed Round Complete!
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: 15, marginBottom: 6, lineHeight: 1.5 }}>
+                    You answered {speedRound.total} questions in {speedRound.elapsedSec} seconds!
+                  </p>
+                  <p style={{ color: '#1B2B4B', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                    {speedRound.correct} of {speedRound.total} correct
+                  </p>
+                  <p style={{ color: '#C49A1A', fontSize: 14, fontWeight: 800, marginBottom: 24 }}>
+                    +5 bonus coins earned! 🪙
+                  </p>
+                  <button
+                    onClick={closePractice}
+                    style={{
+                      background: '#1B2B4B', color: 'white',
+                      border: '2px solid #C49A1A',
+                      borderRadius: 12, padding: '12px 32px',
+                      fontWeight: 700, fontSize: 15,
+                      cursor: 'pointer', width: '100%',
+                    }}
+                  >
+                    Done!
+                  </button>
+                </div>
               ) : (
                 <>
                   <div className="mb-5">
@@ -1150,10 +1359,17 @@ export default function StudentDashboard() {
                           <Lightbulb size={16} /> Show Me How
                         </button>
                       )}
-                      {showResult && (
-                        <button onClick={closePractice} className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg ${answerState?.correct ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' : 'bg-[#1B2B4B] text-white'}`}>
+                      {/* Speed round auto-advances, so hide the manual button until it finishes. */}
+                      {showResult && !(speedRound && !speedRound.finished) && !(speedRound && speedRound.finished) && (
+                        <button onClick={handleNextQuestion} className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg ${answerState?.correct ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' : 'bg-[#1B2B4B] text-white'}`}>
                           {answerState?.correct ? '🚀 Next Question!' : '💪 Try Another!'} <ArrowRight size={16} />
                         </button>
+                      )}
+                      {/* Speed Round progress indicator while active. */}
+                      {speedRound && !speedRound.finished && (
+                        <p className="text-center text-xs font-bold text-[#C49A1A] mt-2">
+                          ⚡ Question {Math.min(speedRound.count + 1, speedRound.total)} of {speedRound.total} — next one loads automatically!
+                        </p>
                       )}
                     </>
                   )}

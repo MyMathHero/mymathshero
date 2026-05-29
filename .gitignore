@@ -77,7 +77,12 @@ agenthub/agents/youtube/db
 
 memory/test_credentials.md
 
-# Mobile development
+# Mobile development (Expo app in mobile/)
+mobile/.expo/
+mobile/dist/
+mobile/ios/
+mobile/android/
+mobile/google-play-key.json
 android-sdk/node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node

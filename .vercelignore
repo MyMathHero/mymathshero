@@ -1,0 +1,7 @@
+mobile/
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+README.md
+.env.local
