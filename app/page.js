@@ -423,6 +423,187 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section style={{
+        padding: '80px 24px',
+        background: '#F0F4F8',
+      }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <h2 style={{
+              fontSize: 36, fontWeight: 800,
+              color: '#1B2B4B', marginBottom: 12,
+            }}>
+              Simple, honest pricing
+            </h2>
+            <p style={{ color: '#64748B', fontSize: 16 }}>
+              Cancel anytime. No lock-in contracts.
+            </p>
+          </div>
+
+          {/* Pre-launch banner */}
+          <div style={{
+            background: '#1B2B4B',
+            borderRadius: 16,
+            padding: '20px 32px',
+            textAlign: 'center',
+            marginBottom: 40,
+            border: '2px solid #C49A1A',
+          }}>
+            <p style={{
+              color: '#C49A1A', fontWeight: 800,
+              fontSize: 16, margin: 0,
+            }}>
+              🎉 Founding Family Offer — First 1,000 families only
+            </p>
+            <p style={{
+              color: 'white', fontSize: 28,
+              fontWeight: 800, margin: '8px 0 4px',
+            }}>
+              $19.99 for your entire first year
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, margin: 0 }}>
+              Full Premium access · +$10 per additional child
+            </p>
+          </div>
+
+          {/* Two plan cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 24,
+          }}>
+            {/* Standard Plan */}
+            <div style={{
+              background: 'white',
+              borderRadius: 20,
+              padding: 36,
+              border: '2px solid #E2E8F0',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            }}>
+              <p style={{
+                color: '#64748B', fontWeight: 700,
+                fontSize: 13, textTransform: 'uppercase',
+                letterSpacing: 1, marginBottom: 8,
+              }}>
+                Standard
+              </p>
+              <div style={{ marginBottom: 24 }}>
+                <span style={{
+                  fontSize: 48, fontWeight: 800, color: '#1B2B4B',
+                }}>$14.99</span>
+                <span style={{ color: '#64748B' }}>/month</span>
+                <p style={{ color: '#64748B', fontSize: 13, margin: '4px 0 0' }}>
+                  or $149.90/year (2 months free)
+                </p>
+              </div>
+              <div style={{ marginBottom: 28 }}>
+                {[
+                  '✅ All Maths curriculum content',
+                  '✅ Diagnostic assessment',
+                  '✅ Hero Points + badges',
+                  '✅ Hero League leaderboard',
+                  '✅ Weekly Hero Report',
+                  '✅ Limited Arcade rewards',
+                  '❌ Ask Hero AI tutor',
+                ].map((f, i) => (
+                  <p key={i} style={{
+                    fontSize: 14, color: '#334155',
+                    marginBottom: 8,
+                  }}>{f}</p>
+                ))}
+              </div>
+              <p style={{
+                fontSize: 13, color: '#64748B', marginBottom: 16,
+              }}>
+                +$10/month per additional child
+              </p>
+              <a href="/onboarding" style={{
+                display: 'block', textAlign: 'center',
+                background: 'white', color: '#1B2B4B',
+                border: '2px solid #1B2B4B', borderRadius: 12,
+                padding: '14px 24px', fontWeight: 700,
+                textDecoration: 'none', fontSize: 15,
+              }}>
+                Get Started
+              </a>
+            </div>
+
+            {/* Premium Plan */}
+            <div style={{
+              background: '#1B2B4B',
+              borderRadius: 20,
+              padding: 36,
+              border: '2px solid #C49A1A',
+              boxShadow: '0 8px 32px rgba(27,43,75,0.3)',
+              position: 'relative',
+            }}>
+              <div style={{
+                position: 'absolute', top: -14,
+                left: '50%', transform: 'translateX(-50%)',
+                background: '#C49A1A', color: 'white',
+                padding: '4px 20px', borderRadius: 20,
+                fontSize: 12, fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}>
+                MOST POPULAR
+              </div>
+              <p style={{
+                color: '#C49A1A', fontWeight: 700,
+                fontSize: 13, textTransform: 'uppercase',
+                letterSpacing: 1, marginBottom: 8,
+              }}>
+                Premium
+              </p>
+              <div style={{ marginBottom: 24 }}>
+                <span style={{
+                  fontSize: 48, fontWeight: 800, color: 'white',
+                }}>$24.99</span>
+                <span style={{ color: 'rgba(255,255,255,0.6)' }}>/month</span>
+                <p style={{
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: 13, margin: '4px 0 0',
+                }}>
+                  or $249.90/year (2 months free)
+                </p>
+              </div>
+              <div style={{ marginBottom: 28 }}>
+                {[
+                  '✅ Everything in Standard',
+                  '✅ Ask Hero AI tutor',
+                  '✅ Voice explanations',
+                  '✅ Full Arcade access',
+                  '✅ Step-by-step whiteboard',
+                  '✅ Priority support',
+                  '✅ Early access to new features',
+                ].map((f, i) => (
+                  <p key={i} style={{
+                    fontSize: 14, color: 'rgba(255,255,255,0.85)',
+                    marginBottom: 8,
+                  }}>{f}</p>
+                ))}
+              </div>
+              <p style={{
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.6)',
+                marginBottom: 16,
+              }}>
+                +$10/month per additional child
+              </p>
+              <a href="/onboarding" style={{
+                display: 'block', textAlign: 'center',
+                background: '#C49A1A', color: 'white',
+                border: '2px solid #C49A1A', borderRadius: 12,
+                padding: '14px 24px', fontWeight: 700,
+                textDecoration: 'none', fontSize: 15,
+              }}>
+                Start Free Month →
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   )

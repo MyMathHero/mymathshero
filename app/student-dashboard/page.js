@@ -194,6 +194,8 @@ export default function StudentDashboard() {
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [showMilestoneModal, setShowMilestoneModal] = useState(false)
   const [rightTab, setRightTab] = useState('progress')
+  // Main bottom-nav tab (home / league / badges / profile).
+  const [activeTab, setActiveTab] = useState('home')
 
   // Speed Round mode — null when inactive, else { count, total, startTime, correct, finished, elapsedSec }
   const [speedRound, setSpeedRound] = useState(null)
@@ -321,7 +323,7 @@ export default function StudentDashboard() {
       try {
         const grade = student?.grade ?? 3
         const currentQid = practiceModal.questionId
-        const res = await fetch(`/api/student/questions?skillId=${practiceModal.skillId}&grade=${grade}&limit=5`)
+        const res = await fetch(`/api/student/questions?skillId=${practiceModal.skillId}&studentId=${authStudentId}&grade=${grade}&limit=10`)
         const data = await res.json()
         if (cancelled) return
         if (res.ok && data.questions?.length > 0) {
@@ -420,9 +422,9 @@ export default function StudentDashboard() {
     const grade = student?.grade ?? 3
 
     try {
-      // Speed round / puzzle pull from a wider pool so questions vary.
-      const limit = opts.speedRound ? 5 : (opts.fallbackToSubject ? 5 : 1)
-      const res = await fetch(`/api/student/questions?skillId=${skill.id}&grade=${grade}&limit=${limit}`)
+      // Pull a wider pool so questions vary (server randomizes + excludes mastered).
+      const limit = opts.speedRound ? 5 : 10
+      const res = await fetch(`/api/student/questions?skillId=${skill.id}&studentId=${authStudentId}&grade=${grade}&limit=${limit}`)
       const data = await res.json()
 
       if (!res.ok || !data.questions || data.questions.length === 0) {
@@ -577,7 +579,7 @@ export default function StudentDashboard() {
     setShowCelebration(false)
 
     try {
-      const res = await fetch(`/api/student/questions?skillId=${skillId}&grade=${grade}&limit=5`)
+      const res = await fetch(`/api/student/questions?skillId=${skillId}&studentId=${authStudentId}&grade=${grade}&limit=10`)
       const data = await res.json()
       if (res.ok && data.questions?.length > 0) {
         const next = data.questions.find(q => (q.questionId || q.id) !== currentQid) || data.questions[0]
@@ -720,38 +722,118 @@ export default function StudentDashboard() {
         .shimmer-bg { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
       `}</style>
 
-      {/* Game HUD */}
-      <div className="bg-[#1B2B4B] border-b-4 border-[#C49A1A] shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#C49A1A] flex items-center justify-center text-2xl sm:text-3xl shadow-lg border-2 border-white/20">{student?.avatar || '🦊'}</div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">Hero HQ — Hi {student?.name || 'Alex'}! 👋</h1>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-white/60 font-medium">Lvl {level}</span>
-                  <div className="w-20 h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-[#C49A1A] rounded-full" style={{ width: `${levelProgress}%` }} /></div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-[#C49A1A] text-[#1B2B4B] shadow-lg"><span className="text-base">🔥</span><span className="text-sm font-bold">{streak}</span></div>
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#C49A1A] text-white shadow-lg" title="Hero Points"><span className="text-base">⚡</span><span className="text-sm font-bold">{totalXp.toLocaleString()}</span></div>
-              {/* Feature 1: Coin counter */}
-              <button onClick={() => setShowShop(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-lg hover:scale-105 transition-transform">
-                <Coins size={16} /><span className="text-sm font-bold">{coins}</span>
-              </button>
-              {/* Feature 8: Avatar Customisation Button */}
-              <button onClick={() => router.push('/avatar-customisation')} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg hover:scale-105 transition-transform" title="Customise Avatar">
-                <Sparkles size={16} />
-              </button>
-              <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"><span className="text-base">👑</span><span className="text-sm font-bold">#3</span></div>
-            </div>
+      {/* A) Sticky top header bar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 50,
+        background: '#1B2B4B',
+        padding: '12px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+      }}>
+        <img src="/assets/logos/logo-icon.png"
+          style={{ height: 36 }} alt="MyMathsHero" />
+        <div style={{ textAlign: 'center', flex: 1, padding: '0 12px' }}>
+          <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>
+            {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
+          </p>
+          <p style={{ color: '#C49A1A', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {/* Coin counter — preserved as a button so it opens the shop */}
+          <button
+            onClick={() => setShowShop(true)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'center' }}
+            title="Open Avatar Shop"
+          >
+            <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 14, margin: 0 }}>
+              🪙 {coins}
+            </p>
+          </button>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: '#FF6B35', fontWeight: 800, fontSize: 14, margin: 0 }}>
+              🔥 {streak}
+            </p>
           </div>
+          {/* Avatar customisation — preserve existing affordance */}
+          <button
+            onClick={() => router.push('/avatar-customisation')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            title="Customise Avatar"
+          >
+            <Sparkles size={18} color="#C49A1A" />
+          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* B) Hero stats bar */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1B2B4B 0%, #2D4A7A 100%)',
+        padding: '16px 20px',
+        display: 'flex',
+        gap: 12,
+        overflowX: 'auto',
+      }}>
+        {[
+          { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡' },
+          { label: 'Mastered', value: stats?.mastered ?? 0, emoji: '🏆' },
+          { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
+          { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
+        ].map((s, i) => (
+          <div key={i} style={{
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: 12,
+            padding: '10px 16px',
+            minWidth: 90,
+            textAlign: 'center',
+            border: '1px solid rgba(196,154,26,0.3)',
+            flexShrink: 0,
+          }}>
+            <p style={{ fontSize: 20, margin: '0 0 2px' }}>{s.emoji}</p>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>{s.value}</p>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, margin: 0 }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* C) Subject tabs (only renders on Home) */}
+      {activeTab === 'home' && (
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          padding: '16px 20px 8px',
+          background: 'white',
+          borderBottom: '1px solid #E2E8F0',
+          overflowX: 'auto',
+        }}>
+          {visibleSubjects.map(sub => (
+            <button
+              key={sub.id}
+              onClick={() => setActiveSubject(sub.id)}
+              style={{
+                background: activeSubject === sub.id ? '#1B2B4B' : '#F0F4F8',
+                color: activeSubject === sub.id ? 'white' : '#64748B',
+                border: 'none',
+                borderRadius: 20,
+                padding: '8px 20px',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flexShrink: 0,
+              }}
+            >
+              {sub.emoji} {sub.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'home' && (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ paddingBottom: 96 }}>
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar */}
           <div className="w-full lg:w-56 flex-shrink-0">
@@ -1076,6 +1158,171 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* League tab — focused leaderboard view */}
+      {activeTab === 'league' && (
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-navy text-base flex items-center gap-2">
+                <Trophy size={18} className="text-[#C49A1A]" />
+                {leaderboardTabs[activeLeaderboardTab]?.period === 'alltime' ? 'All-Time Hero League' : 'Monthly Hero League'}
+              </h3>
+              {leaderboardTabs[activeLeaderboardTab]?.period !== 'alltime' && (
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <Clock size={12} />
+                  <span>Resets in {leaderboard.daysUntilReset}d</span>
+                </div>
+              )}
+            </div>
+
+            {leaderboard.lastChampion && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
+                <span className="text-base">{leaderboard.lastChampion.avatar}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-bold text-amber-700">Last Month&apos;s Champion 🏆</span>
+                  <p className="text-xs text-amber-800 font-semibold truncate">{leaderboard.lastChampion.name}</p>
+                </div>
+                <span className="text-[10px] text-amber-600 font-bold">{leaderboard.lastChampion.xp.toLocaleString()} Hero Points</span>
+              </div>
+            )}
+
+            <div className="flex gap-1 mb-4 overflow-x-auto">
+              {leaderboardTabs.map((tab, i) => (
+                <button key={i} onClick={() => setActiveLeaderboardTab(i)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {leaderboard.currentStudentRank && (
+              <div className="text-center text-[11px] text-gray-400 mb-3">
+                Your rank: <span className="font-bold text-electric">#{leaderboard.currentStudentRank}</span>
+                {leaderboard.totalInCohort ? ` of ${leaderboard.totalInCohort}` : ''}
+              </div>
+            )}
+
+            {leaderboardLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="w-6 h-6 border-2 border-electric border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {leaderboard.currentStudentRank && leaderboard.currentStudentRank <= 3 && (
+                  <div className="flex justify-center mb-2">
+                    <img src="/assets/robot/HeroEnjoying.png" alt="Hero celebrating" style={{ width: 100, mixBlendMode: 'multiply' }} />
+                  </div>
+                )}
+                {leaderboard.leaderboard.map((entry, i) => (
+                  <LeaderboardRow key={i} entry={entry} />
+                ))}
+                {leaderboard.currentStudentRow && (
+                  <>
+                    <div className="text-center text-[10px] text-gray-300 py-1">• • •</div>
+                    <LeaderboardRow entry={leaderboard.currentStudentRow} />
+                  </>
+                )}
+                {leaderboard.leaderboard.length === 0 && (
+                  <p className="text-center text-xs text-gray-400 py-4">No activity this month yet. Start practising!</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Badges tab — focused badge grid */}
+      {activeTab === 'badges' && (
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-navy text-base">🏅 Hero Badges</h3>
+              <span className="text-xs text-gray-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {badges.map((badge) => (
+                <div key={badge.id} className={`flex flex-col items-center text-center p-2 rounded-xl transition-all ${badge.earned ? 'hover:scale-105 cursor-default' : 'opacity-40 grayscale'}`}>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-1.5 shadow-md ${badge.earned ? `bg-gradient-to-br ${badge.color} ring-2 ring-white border border-[#C49A1A]` : 'bg-gray-200'}`}>
+                    {badge.earned ? badge.emoji : '🔒'}
+                  </div>
+                  <span className="text-[11px] font-bold text-navy leading-tight">{badge.name}</span>
+                  {badge.earned && badge.earnedAt
+                    ? <span className="text-[9px] text-emerald-500 mt-0.5">{new Date(badge.earnedAt).toLocaleDateString('en-AU', { day:'numeric', month:'short' })}</span>
+                    : <span className="text-[9px] text-gray-400 mt-0.5 leading-tight">{badge.description}</span>
+                  }
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile tab — student info + logout */}
+      {activeTab === 'profile' && (
+        <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{
+              width: 96, height: 96, borderRadius: '50%',
+              background: '#FFFBEB', border: '3px solid #C49A1A',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 56, margin: '0 auto 16px',
+            }}>{student?.avatar || '🦊'}</div>
+            <h2 style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
+              {student?.name || 'Hero'}
+            </h2>
+            <p style={{ color: '#C49A1A', fontWeight: 700, fontSize: 14, margin: 0 }}>
+              Grade {student?.grade ?? '—'} · Level {level} Hero
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 16 }}>
+            {[
+              { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡' },
+              { label: 'Coins', value: coins, emoji: '🪙' },
+              { label: 'Streak', value: `${streak}🔥`, emoji: '🔥' },
+              { label: 'Mastered', value: stats?.mastered ?? 0, emoji: '🏆' },
+              { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
+              { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
+            ].map((s, i) => (
+              <div key={i} className="bg-white rounded-xl p-3 border border-gray-100" style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 22, margin: '0 0 2px' }}>{s.emoji}</p>
+                <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 18, margin: 0 }}>{s.value}</p>
+                <p style={{ color: '#64748B', fontSize: 11, margin: 0 }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => router.push('/avatar-customisation')}
+            style={{
+              width: '100%', background: 'white', color: '#1B2B4B',
+              border: '2px solid #C49A1A', borderRadius: 12,
+              padding: '12px 16px', fontWeight: 700, fontSize: 14,
+              cursor: 'pointer', marginBottom: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            <Sparkles size={16} /> Customise Avatar
+          </button>
+
+          <button
+            onClick={async () => {
+              try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
+              window.location.href = '/login'
+            }}
+            style={{
+              width: '100%', background: '#1B2B4B', color: 'white',
+              border: '2px solid #C49A1A', borderRadius: 12,
+              padding: '12px 16px', fontWeight: 700, fontSize: 14,
+              cursor: 'pointer',
+            }}
+          >
+            Log out
+          </button>
+        </div>
+      )}
 
       {/* Streak Toast */}
       {streakToast && (
@@ -1484,6 +1731,57 @@ export default function StudentDashboard() {
           <button onClick={handleTriggerGift} style={devBtnStyle}>Trigger Hero Quest</button>
         </div>
       )}
+
+      {/* F) Bottom navigation bar */}
+      <div style={{
+        position: 'fixed',
+        bottom: 0, left: 0, right: 0,
+        background: 'white',
+        borderTop: '1px solid #E2E8F0',
+        display: 'flex',
+        padding: '10px 0 20px',
+        zIndex: 50,
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+      }}>
+        {[
+          { emoji: '🏠', label: 'Home', tab: 'home' },
+          { emoji: '🏆', label: 'League', tab: 'league' },
+          { emoji: '🎖️', label: 'Badges', tab: 'badges' },
+          { emoji: '👤', label: 'Profile', tab: 'profile' },
+        ].map((item, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveTab(item.tab)}
+            style={{
+              flex: 1,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
+              padding: '4px 0',
+            }}
+          >
+            <span style={{ fontSize: 22 }}>{item.emoji}</span>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: activeTab === item.tab ? '#C49A1A' : '#94A3B8',
+            }}>
+              {item.label}
+            </span>
+            {activeTab === item.tab && (
+              <div style={{
+                width: 4, height: 4,
+                borderRadius: '50%',
+                background: '#C49A1A',
+              }} />
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

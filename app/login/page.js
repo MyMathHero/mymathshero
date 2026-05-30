@@ -263,7 +263,7 @@ export default function LoginPage() {
                             style={inputStyle()}
                           />
                         </div>
-                        <div style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 8 }}>
                           <label style={labelStyle}>Password</label>
                           <input
                             name="password"
@@ -275,6 +275,15 @@ export default function LoginPage() {
                             required
                             style={inputStyle()}
                           />
+                        </div>
+                        <div style={{ textAlign: 'right', marginBottom: 16 }}>
+                          <a
+                            href="/forgot-password"
+                            style={{ color: '#C49A1A', fontSize: 13,
+                              textDecoration: 'none', fontWeight: 600 }}
+                          >
+                            Forgot password?
+                          </a>
                         </div>
                       </>
                     )}

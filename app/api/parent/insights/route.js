@@ -90,7 +90,7 @@ Be positive, specific and encouraging. Mention one strength and one area to focu
             'X-Title': 'MyMathsHero',
           },
           body: JSON.stringify({
-            model: 'anthropic/claude-haiku-4-5',
+            model: 'anthropic/claude-sonnet-4-5',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 120,
             temperature: 0.6,

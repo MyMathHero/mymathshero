@@ -39,7 +39,7 @@ export async function POST(request) {
             'X-Title': 'MyMathsHero',
           },
           body: JSON.stringify({
-            model: 'qwen/qwen-2.5-7b-instruct',
+            model: 'anthropic/claude-haiku-4-5',
             messages: [
               {
                 role: 'system',

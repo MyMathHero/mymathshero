@@ -388,7 +388,7 @@ function AdminDashboard() {
                 </p>
                 <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
                   Checks every skill in the curriculum graph and generates questions for any with fewer than 10.
-                  Uses <strong style={{ color: '#60A5FA' }}>qwen/qwen-2.5-72b-instruct</strong> via OpenRouter.
+                  Uses <strong style={{ color: '#60A5FA' }}>anthropic/claude-haiku-4-5</strong> via OpenRouter.
                   Currently <strong style={{ color: '#60A5FA' }}>{s?.questions ?? '…'}</strong> questions in the bank.
                 </p>
               </div>

@@ -78,7 +78,7 @@ export default function HowItWorksPage() {
             Deep Dive
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-            How <span className="text-electric">MyMathsHero</span> Works
+            How <span style={{ color: '#C49A1A' }}>MyMathsHero</span> Works
           </h1>
           <p className="text-lg sm:text-xl text-white/70 max-w-2xl mx-auto">
             From diagnostic to mastery — here's how our AI creates a truly personalised learning experience.

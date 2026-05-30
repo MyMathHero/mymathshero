@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
+import { sendWelcomeEmail } from '@/lib/email'
 
 let client
 let db
@@ -196,6 +197,24 @@ async function handleRoute(request, { params }) {
 
       await db.collection('children').insertOne(child)
       await db.collection('parents').updateOne({ id: parent_id }, { $push: { children: child.id } })
+
+      // Fire-and-forget welcome email (don't block the response on email).
+      ;(async () => {
+        try {
+          const parent = await db.collection('parents').findOne({ id: parent_id })
+          if (parent?.email) {
+            await sendWelcomeEmail({
+              parentEmail: parent.email,
+              parentName: parent.name || 'there',
+              childName: child.name,
+              childGrade: child.grade,
+            })
+          }
+        } catch (err) {
+          console.error('Welcome email failed:', err.message)
+        }
+      })()
+
       const { _id, ...cleanChild } = child
       return handleCORS(NextResponse.json({ message: 'Child added successfully!', data: cleanChild }, { status: 201 }))
     }

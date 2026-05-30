@@ -69,7 +69,7 @@ export default function AskHero({
   useEffect(() => {
     const greetTimer = setTimeout(() => {
       const displayName = skillName || formatSkillName(skillId)
-      const greeting = `Hi! I'm Hero, your personal maths tutor. Let me help you with ${displayName}!`
+      const greeting = `Hi! I'm Hero, your personal maths tutor.`
       addHeroMessage(greeting, 'waving')
       setTimeout(() => fetchHint(), 1500)
     }, 500)

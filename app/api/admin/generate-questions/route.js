@@ -44,7 +44,7 @@ async function generateForSkill(skill, count) {
       'X-Title': 'MyMathsHero Question Generator',
     },
     body: JSON.stringify({
-      model: 'qwen/qwen-2.5-72b-instruct',
+      model: 'anthropic/claude-haiku-4-5',
       messages: [
         {
           role: 'system',

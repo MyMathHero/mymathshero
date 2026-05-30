@@ -100,9 +100,12 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Right — demos + auth */}
+        {/* Right — auth */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'flex-end' }}>
-          <Link href="/student-dashboard" style={linkStyle(pathname === '/student-dashboard')}>Student Demo</Link>
+          {/* Student Demo — hidden until studentDemo flag is on */}
+          {flags.studentDemo && (
+            <Link href="/student-dashboard" style={linkStyle(pathname === '/student-dashboard')}>Student Demo</Link>
+          )}
           {/* Teacher Demo — hidden until teacherDemo flag is on */}
           {flags.teacherDemo && (
             <Link href="/teacher-dashboard" style={linkStyle(pathname === '/teacher-dashboard')}>Teacher Demo</Link>
