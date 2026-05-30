@@ -12,13 +12,26 @@ const api = axios.create({
 })
 
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync('auth_token')
-  if (token) {
-    config.headers['Cookie'] = `mymathshero_token=${token}`
-    config.headers['Authorization'] = `Bearer ${token}`
+  try {
+    const token = await SecureStore.getItemAsync('auth_token')
+    if (token) {
+      config.headers['Cookie'] = `mymathshero_token=${token}`
+      config.headers['Authorization'] = `Bearer ${token}`
+    }
+  } catch {
+    // SecureStore read failed (e.g. keychain unavailable) — continue without auth.
   }
   return config
 })
+
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Log but don't crash. Callers decide how to handle the rejection.
+    console.error('API Error:', error?.message || 'Unknown error')
+    return Promise.reject(error)
+  }
+)
 
 export const authAPI = {
   login: (data: any) => api.post('/api/auth/login', data),

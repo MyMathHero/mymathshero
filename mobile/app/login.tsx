@@ -40,27 +40,38 @@ export default function Login() {
       const data = res.data
 
       if (data.success) {
-        await SecureStore.setItemAsync('auth_token', data.token || '')
-        await SecureStore.setItemAsync('user_role', role)
-        await SecureStore.setItemAsync('user_id', data.user?.id || '')
-        await SecureStore.setItemAsync('user_name', data.user?.name || '')
-        await SecureStore.setItemAsync('user_grade', String(data.user?.grade || 3))
+        // Write all session keys in parallel so a slow keychain doesn't
+        // serialise the writes one-by-one.
+        await Promise.all([
+          SecureStore.setItemAsync('auth_token', data.token || ''),
+          SecureStore.setItemAsync('user_role', role),
+          SecureStore.setItemAsync('user_id', data.user?.id || ''),
+          SecureStore.setItemAsync('user_name', data.user?.name || ''),
+          SecureStore.setItemAsync('user_grade', String(data.user?.grade || 3)),
+        ])
 
-        if (role === 'student') {
-          if (!data.user?.diagnosticComplete) {
-            router.replace('/student/diagnostic')
+        try {
+          if (role === 'student') {
+            if (!data.user?.diagnosticComplete) {
+              router.replace('/student/diagnostic')
+            } else {
+              router.replace('/student/dashboard')
+            }
           } else {
-            router.replace('/student/dashboard')
+            router.replace('/parent/dashboard')
           }
-        } else {
-          router.replace('/parent/dashboard')
+        } catch (navErr) {
+          console.error('Navigation after login failed:', navErr)
         }
       } else {
         Alert.alert('Login Failed', data.error || 'Please check your details')
       }
     } catch (err: any) {
-      Alert.alert('Connection Error',
-        'Could not connect to MyMathsHero. Please check your internet.')
+      console.error('Login error:', err)
+      Alert.alert(
+        'Connection Error',
+        'Could not connect to MyMathsHero. Please check your internet and try again.'
+      )
     } finally {
       setLoading(false)
     }

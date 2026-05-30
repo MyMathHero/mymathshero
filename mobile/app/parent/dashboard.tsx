@@ -27,18 +27,32 @@ export default function ParentDashboard() {
 
   async function loadParent() {
     try {
-      const id = await SecureStore.getItemAsync('user_id') || ''
-      const name = await SecureStore.getItemAsync('user_name') || 'Parent'
-      if (!id) { router.replace('/login'); return }
+      const id = await SecureStore.getItemAsync('user_id')
+      const name = (await SecureStore.getItemAsync('user_name')) || 'Parent'
+      if (!id) {
+        router.replace('/login')
+        return
+      }
       setParentId(id)
       setParentName(name)
+
       const res = await parentAPI.children(id)
-      const kids = res.data.children || []
+      const kids = res?.data?.children || []
       setChildren(kids)
       if (kids.length > 0) setActiveChild(kids[0])
       else setLoading(false)
-    } catch {
-      router.replace('/login')
+    } catch (err) {
+      // Network failure — don't kick the user back to login just because
+      // the API hiccupped. Only redirect if there's no auth at all.
+      console.error('Parent dashboard load error:', err)
+      try {
+        const token = await SecureStore.getItemAsync('auth_token')
+        if (!token) {
+          router.replace('/login')
+          return
+        }
+      } catch {}
+      setLoading(false)
     }
   }
 

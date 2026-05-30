@@ -20,19 +20,27 @@ export default function StudentDashboard() {
 
   async function loadData() {
     try {
-      const id = await SecureStore.getItemAsync('user_id') || ''
-      if (!id) { router.replace('/login'); return }
+      const id = await SecureStore.getItemAsync('user_id')
+      if (!id) {
+        router.replace('/login')
+        return
+      }
+
       const res = await studentAPI.progress(id)
-      const data = res.data
-      setStudent(data.student)
-      // Maths only
+      const data = res?.data || {}
+      setStudent(data.student || null)
+
       const mathsRecs = (data.recommendations || []).filter(
-        (s: any) => s.subject === 'Maths' || s.subject === 'Mathematics'
+        (s: any) => s?.subject === 'Maths' || s?.subject === 'Mathematics'
       )
       setRecommendations(mathsRecs)
-      setStats(data.stats)
-    } catch {
-      router.replace('/login')
+      setStats(data.stats || null)
+    } catch (err) {
+      // Don't redirect to /login on transient network errors — only on missing auth.
+      console.error('Dashboard load error:', err)
+      setStudent(null)
+      setRecommendations([])
+      setStats(null)
     } finally {
       setLoading(false)
       setRefreshing(false)
