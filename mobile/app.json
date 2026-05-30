@@ -9,7 +9,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mymathshero.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +32,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#1B2B4B"
         }
-      ] 
+      ]
     ],
     "scheme": "mymathshero",
     "extra": {
