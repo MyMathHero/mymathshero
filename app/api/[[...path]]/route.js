@@ -1,16 +1,19 @@
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, sendEmail } from '@/lib/email'
 
 let client
 let db
 
+// Use the same env-var names + default DB name as every other route in this
+// codebase. Reading the wrong env (MONGO_URL / DB_NAME) was the cause of the
+// "Internal server error" on the waitlist form — Mongo connected to undefined.
 async function connectToMongo() {
   if (!client) {
-    client = new MongoClient(process.env.MONGO_URL)
+    client = new MongoClient(process.env.MONGODB_URI)
     await client.connect()
-    db = client.db(process.env.DB_NAME)
+    db = client.db(process.env.DB_NAME || 'mymathshero')
   }
   return db
 }
@@ -25,6 +28,69 @@ function handleCORS(response) {
 
 export async function OPTIONS() {
   return handleCORS(new NextResponse(null, { status: 200 }))
+}
+
+// ── Waitlist email HTML ──────────────────────────────────────────────────────
+// Branded confirmation sent to the user, and an admin alert sent to admin@.
+
+function waitlistConfirmationHtml(entry) {
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F0F4F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1B2B4B;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:#1B2B4B;border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;">
+      <div style="font-size:28px;font-weight:800;color:white;letter-spacing:-0.5px;">
+        MyMaths<span style="color:#C49A1A;">Hero</span>
+      </div>
+      <div style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:4px;">Personalised AI Maths Learning</div>
+    </div>
+    <div style="height:4px;background:linear-gradient(90deg,#C49A1A,#F0C040,#C49A1A);"></div>
+    <div style="background:white;padding:40px;">
+      <h1 style="font-size:24px;font-weight:800;color:#1B2B4B;margin:0 0 16px;">You're on the list! 🎉</h1>
+      <p style="font-size:15px;line-height:1.7;color:#334155;margin:0 0 16px;">Hi ${entry.name},</p>
+      <p style="font-size:15px;line-height:1.7;color:#334155;margin:0 0 16px;">
+        Thanks for joining the MyMathsHero waitlist as a <strong>${entry.role}</strong>!
+        We'll be in touch soon with early access details.
+      </p>
+      <div style="background:#FFFBEB;border:1px solid #C49A1A;border-radius:12px;padding:20px;margin:20px 0;">
+        <p style="margin:0;font-weight:700;color:#1B2B4B;">What happens next?</p>
+        <p style="margin:8px 0 0;font-size:14px;color:#334155;">
+          We'll email you when MyMathsHero opens to your group, along with your founding-family offer.
+        </p>
+      </div>
+      <p style="font-size:14px;color:#64748B;margin:24px 0 0;">
+        Questions? Just reply to this email — we read every one.
+      </p>
+    </div>
+    <div style="background:#1B2B4B;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
+      <p style="color:rgba(255,255,255,0.5);font-size:12px;line-height:1.6;margin:0;">
+        © ${new Date().getFullYear()} MyMathsHero · Melbourne, Australia
+      </p>
+      <p style="margin:8px 0 0;">
+        <a href="https://mymathshero.com.au" style="color:#C49A1A;text-decoration:none;font-size:12px;">mymathshero.com.au</a>
+      </p>
+    </div>
+  </div>
+</body></html>`
+}
+
+function waitlistAdminAlertHtml(entry) {
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F0F4F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1B2B4B;">
+  <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+    <div style="background:#1B2B4B;border-radius:16px;padding:32px 40px;">
+      <p style="margin:0;color:#C49A1A;font-size:11px;font-weight:700;letter-spacing:1px;">ADMIN ALERT</p>
+      <h1 style="margin:8px 0 16px;color:white;font-size:22px;font-weight:800;">New waitlist signup</h1>
+      <table style="width:100%;border-collapse:collapse;background:rgba(255,255,255,0.05);border-radius:8px;">
+        <tr><td style="padding:10px 14px;color:rgba(255,255,255,0.6);font-size:13px;width:80px;">Name</td><td style="padding:10px 14px;color:white;font-size:14px;font-weight:600;">${entry.name}</td></tr>
+        <tr><td style="padding:10px 14px;color:rgba(255,255,255,0.6);font-size:13px;border-top:1px solid rgba(255,255,255,0.08);">Email</td><td style="padding:10px 14px;color:white;font-size:14px;font-weight:600;border-top:1px solid rgba(255,255,255,0.08);">${entry.email}</td></tr>
+        <tr><td style="padding:10px 14px;color:rgba(255,255,255,0.6);font-size:13px;border-top:1px solid rgba(255,255,255,0.08);">Role</td><td style="padding:10px 14px;color:#C49A1A;font-size:14px;font-weight:800;border-top:1px solid rgba(255,255,255,0.08);">${entry.role}</td></tr>
+        <tr><td style="padding:10px 14px;color:rgba(255,255,255,0.6);font-size:13px;border-top:1px solid rgba(255,255,255,0.08);">Joined</td><td style="padding:10px 14px;color:white;font-size:14px;border-top:1px solid rgba(255,255,255,0.08);">${entry.created_at.toISOString()}</td></tr>
+      </table>
+    </div>
+  </div>
+</body></html>`
 }
 
 async function handleRoute(request, { params }) {
@@ -78,6 +144,32 @@ async function handleRoute(request, { params }) {
       }
 
       await db.collection('waitlist').insertOne(entry)
+
+      // Fire-and-forget emails: confirmation to user + admin alert. Don't block
+      // the response on Resend latency; never let an email failure 500 the form.
+      ;(async () => {
+        try {
+          await sendEmail({
+            to: entry.email,
+            subject: 'You\'re on the MyMathsHero waitlist! 🎉',
+            from: 'hello',
+            html: waitlistConfirmationHtml(entry),
+          })
+        } catch (err) {
+          console.error('Waitlist confirmation email failed:', err?.message || err)
+        }
+        try {
+          await sendEmail({
+            to: 'admin@mymathshero.com.au',
+            subject: `New waitlist signup: ${entry.name} (${entry.role})`,
+            from: 'admin',
+            html: waitlistAdminAlertHtml(entry),
+          })
+        } catch (err) {
+          console.error('Waitlist admin alert failed:', err?.message || err)
+        }
+      })()
+
       const { _id, ...cleanEntry } = entry
       return handleCORS(NextResponse.json({ message: 'Successfully joined the waitlist!', data: cleanEntry }, { status: 201 }))
     }
