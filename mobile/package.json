@@ -5,7 +5,10 @@
   "dependencies": {
     "axios": "^1.16.1",
     "expo": "~56.0.8",
+    "expo-asset": "~56.0.15",
+    "expo-audio": "~56.0.11",
     "expo-constants": "~56.0.16",
+    "expo-file-system": "~56.0.7",
     "expo-haptics": "~56.0.3",
     "expo-linking": "~56.0.13",
     "expo-router": "~56.2.8",
@@ -13,6 +16,7 @@
     "expo-speech": "~56.0.3",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
+    "expo-video": "~56.1.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",

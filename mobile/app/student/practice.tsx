@@ -9,6 +9,7 @@ import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AskHeroSheet from '../../components/AskHeroSheet'
+import HeroRobot from '../../components/HeroRobot'
 
 export default function Practice() {
   const router = useRouter()
@@ -232,7 +233,7 @@ export default function Practice() {
   if (questions.length === 0) {
     return (
       <View style={styles.loading}>
-        <Text style={{ fontSize: 48 }}>🤖</Text>
+        <HeroRobot mood="thinking" size={140} />
         <Text style={styles.loadingText}>Hero is preparing questions!</Text>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -312,20 +313,25 @@ export default function Practice() {
         {result && (
           <View style={[styles.resultCard,
             result.correct ? styles.resultCorrect : styles.resultWrong]}>
-            <Text style={styles.resultEmoji}>
-              {result.correct ? '🎉' : '😅'}
-            </Text>
+            <HeroRobot
+              mood={result.correct ? 'celebrating' : 'sad'}
+              size={80}
+              background="#1B2B4B"
+              rounded
+            />
             <Text style={styles.resultTitle}>
-              {result.correct ? 'Correct! Amazing!' : "Why don't we try this way?"}
+              {result.correct ? '🎉 Correct! Amazing!' : "Why don't we try this way?"}
             </Text>
-            {!result.correct && (
+            {!result.correct && result.correctAnswer && (
               <Text style={styles.resultAnswer}>
-                The answer is: {result.correctAnswer}
+                The answer is: <Text style={styles.resultAnswerStrong}>{result.correctAnswer}</Text>
               </Text>
             )}
-            <Text style={styles.resultXP}>
-              +{result.xpGained || 0} Hero Points
-            </Text>
+            <View style={styles.resultXpPill}>
+              <Text style={styles.resultXpText}>
+                +{result.xpGained || (result.correct ? 10 : 2)} Hero Points ⚡
+              </Text>
+            </View>
           </View>
         )}
 
@@ -368,8 +374,21 @@ export default function Practice() {
           </TouchableOpacity>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Floating Ask Hero CTA — always visible during an unanswered question.
+          Sibling of ScrollView so position:absolute uses the screen frame. */}
+      {!result && (
+        <TouchableOpacity
+          onPress={() => setShowAskHero(true)}
+          style={styles.floatingAsk}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.floatingAskEmoji}>🤖</Text>
+          <Text style={styles.floatingAskText}>Ask Hero</Text>
+        </TouchableOpacity>
+      )}
 
       <AskHeroSheet
         visible={showAskHero}
@@ -377,6 +396,7 @@ export default function Practice() {
         question={q?.question || ''}
         skillId={skillId}
         questionId={q?.questionId || ''}
+        grade={parseInt(grade || '3', 10)}
       />
     </SafeAreaView>
   )
@@ -438,4 +458,32 @@ const styles = StyleSheet.create({
   nextBtn: { backgroundColor: '#1B2B4B', borderRadius: 14, padding: 18,
     alignItems: 'center', borderWidth: 2, borderColor: '#C49A1A', marginTop: 8 },
   nextBtnText: { color: 'white', fontSize: 17, fontWeight: '800' },
+  resultAnswerStrong: { fontWeight: '800', color: '#1B2B4B' },
+  resultXpPill: {
+    backgroundColor: '#C49A1A', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 6, marginTop: 10,
+  },
+  resultXpText: { color: 'white', fontWeight: '800' },
+  floatingAsk: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    backgroundColor: '#1B2B4B',
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 2,
+    borderColor: '#C49A1A',
+    shadowColor: '#C49A1A',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+    zIndex: 100,
+  },
+  floatingAskEmoji: { fontSize: 20 },
+  floatingAskText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
 })

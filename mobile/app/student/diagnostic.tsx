@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import HeroRobot from '../../components/HeroRobot'
 
 export default function Diagnostic() {
   const router = useRouter()
@@ -68,8 +69,8 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <Text style={styles.emoji}>🤖</Text>
-          <Text style={styles.title}>
+          <HeroRobot mood="waving" size={150} background="#1B2B4B" rounded />
+          <Text style={[styles.title, { marginTop: 12 }]}>
             Hi! I&apos;m <Text style={styles.gold}>Hero</Text>
           </Text>
           <Text style={styles.sub}>
@@ -97,8 +98,8 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <Text style={styles.emoji}>🎉</Text>
-          <Text style={styles.title}>
+          <HeroRobot mood="celebrating" size={150} background="#1B2B4B" rounded />
+          <Text style={[styles.title, { marginTop: 12 }]}>
             All <Text style={styles.gold}>Done!</Text>
           </Text>
           <Text style={styles.sub}>
@@ -122,8 +123,8 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <Text style={styles.emoji}>🤖</Text>
-          <Text style={styles.sub}>No assessment questions available right now.</Text>
+          <HeroRobot mood="thinking" size={120} background="#1B2B4B" rounded />
+          <Text style={[styles.sub, { marginTop: 12 }]}>No assessment questions available right now.</Text>
           <TouchableOpacity style={styles.startBtn}
             onPress={() => router.replace('/student/dashboard')}>
             <Text style={styles.startBtnText}>Continue to Hero HQ →</Text>
@@ -138,7 +139,10 @@ export default function Diagnostic() {
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Assessment</Text>
-        <Text style={styles.topCount}>{current + 1} / {questions.length}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <HeroRobot mood="thinking" size={40} />
+          <Text style={styles.topCount}>{current + 1} / {questions.length}</Text>
+        </View>
       </View>
 
       <View style={{ backgroundColor: '#1B2B4B' }}>

@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import HeroRobot from '../../components/HeroRobot'
+import { theme } from '../../lib/theme'
 
 export default function League() {
   const router = useRouter()
@@ -26,14 +28,28 @@ export default function League() {
     load()
   }, [])
 
+  // Find this student's rank in the leaderboard, 1-indexed. 999 if not found.
+  const leaderboard: any[] = data?.leaderboard || []
+  const userIndex = leaderboard.findIndex((e: any) => e.studentId === myId)
+  const userRank = userIndex >= 0 ? userIndex + 1 : 999
+  const topThree = userRank <= 3
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.headerTopRow}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Hero League 🏆</Text>
         <View style={{ width: 48 }} />
+      </View>
+
+      {/* Celebratory header with robot — celebrating if top 3 */}
+      <View style={styles.heroHeader}>
+        <HeroRobot mood={topThree ? 'celebrating' : 'waving'} size={80} />
+        <Text style={styles.heroHeaderTitle}>Hero League 🏆</Text>
+        <Text style={styles.heroHeaderSub}>
+          {topThree ? `You're #${userRank} this month — keep it up!` : 'Top heroes this month'}
+        </Text>
       </View>
       {loading ? (
         <View style={styles.center}>
@@ -63,12 +79,18 @@ export default function League() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F4F8' },
-  header: { flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', padding: 16,
-    backgroundColor: '#1B2B4B' },
-  back: { color: '#C49A1A', fontWeight: '700', fontSize: 15 },
-  title: { color: 'white', fontWeight: '800', fontSize: 18 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 16,
+    paddingTop: 12, backgroundColor: theme.colors.navy },
+  back: { color: theme.colors.gold, fontWeight: '700', fontSize: 15 },
+  heroHeader: {
+    backgroundColor: theme.colors.navy,
+    paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  heroHeaderTitle: { color: 'white', fontWeight: '800', fontSize: 20, marginTop: 8 },
+  heroHeaderSub: { color: theme.colors.gold, fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1, padding: 16 },
   resetText: { color: '#64748B', fontSize: 13,

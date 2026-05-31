@@ -32,7 +32,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#1B2B4B"
         }
-      ]
+      ],
+      "expo-video",
+      "expo-audio",
+      "expo-asset"
     ],
     "scheme": "mymathshero",
     "extra": {
