@@ -3,13 +3,15 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, ActivityIndicator,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, usePathname } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+import * as Haptics from 'expo-haptics'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function StudentDashboard() {
   const router = useRouter()
+  const pathname = usePathname()
   const [student, setStudent] = useState<any>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
@@ -229,22 +231,36 @@ export default function StudentDashboard() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom tab bar */}
+      {/* Bottom tab bar — haptic + gold active state */}
       <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tab}>
-          <Text style={styles.tabEmoji}>🏠</Text>
-          <Text style={[styles.tabLabel, { color: '#C49A1A' }]}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}
-          onPress={() => router.push('/student/league')}>
-          <Text style={styles.tabEmoji}>🏆</Text>
-          <Text style={styles.tabLabel}>League</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}
-          onPress={() => router.push('/student/profile')}>
-          <Text style={styles.tabEmoji}>👤</Text>
-          <Text style={styles.tabLabel}>Profile</Text>
-        </TouchableOpacity>
+        {[
+          { key: 'home',    label: 'Home',    emoji: '🏠', route: '/student/dashboard' },
+          { key: 'league',  label: 'League',  emoji: '🏆', route: '/student/league' },
+          { key: 'profile', label: 'Profile', emoji: '👤', route: '/student/profile' },
+        ].map(tab => {
+          const isActive = pathname === tab.route
+            || (tab.key === 'home' && (pathname === '/student/dashboard' || pathname === '/'))
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={styles.tab}
+              onPress={async () => {
+                try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) } catch {}
+                if (!isActive) router.push(tab.route as any)
+              }}
+              activeOpacity={0.7}
+            >
+              {isActive && <View style={styles.tabIndicator} />}
+              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+              <Text style={[
+                styles.tabLabel,
+                isActive && { color: '#C49A1A', fontWeight: '800' },
+              ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
       </View>
     </SafeAreaView>
   )
@@ -311,6 +327,12 @@ const styles = StyleSheet.create({
     padding: 12, alignItems: 'center',
     borderWidth: 1.5, borderColor: '#C49A1A' },
   practiceBtnText: { color: 'white', fontWeight: '700', fontSize: 14 },
+  tabIndicator: {
+    width: 32, height: 3,
+    backgroundColor: '#C49A1A',
+    borderRadius: 2,
+    marginBottom: 4,
+  },
   tabBar: { flexDirection: 'row', backgroundColor: 'white',
     borderTopWidth: 1, borderTopColor: '#E2E8F0',
     paddingBottom: 20, paddingTop: 10 },

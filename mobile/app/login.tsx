@@ -180,10 +180,7 @@ export default function Login() {
 
           <TouchableOpacity
             style={styles.signupRow}
-            onPress={() => Alert.alert(
-              'Create Account',
-              'Visit mymathshero.com.au to create your account, then log in here.'
-            )}
+            onPress={() => router.push('/register')}
           >
             <Text style={styles.signupText}>
               Don&apos;t have an account?{' '}

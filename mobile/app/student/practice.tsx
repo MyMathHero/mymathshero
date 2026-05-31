@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, ScrollView, ActivityIndicator, Platform,
+  AppState, AppStateStatus,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import AskHeroSheet from '../../components/AskHeroSheet'
 
 export default function Practice() {
   const router = useRouter()
@@ -29,8 +31,12 @@ export default function Practice() {
   const [showNudge, setShowNudge] = useState(false)
   const [speedRoundDone, setSpeedRoundDone] = useState(false)
   const [speedCorrect, setSpeedCorrect] = useState(0)
+  const [showAskHero, setShowAskHero] = useState(false)
+  const [cheatWarning, setCheatWarning] = useState(false)
   const timerRef = useRef<any>(null)
   const totalTimerRef = useRef<any>(null)
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
+  const cheatCountRef = useRef(0)
 
   useEffect(() => { loadQuestions() }, [])
 
@@ -49,6 +55,65 @@ export default function Practice() {
     const t = setTimeout(() => handleNext(result.correct), 1500)
     return () => clearTimeout(t)
   }, [result, isSpeedRound])
+
+  // Anti-cheat: detect backgrounding during an unanswered question. If the
+  // student goes away and comes back: warn, swap to a different question.
+  // After 3 offences end the session.
+  useEffect(() => {
+    if (questions.length === 0) return
+    const sub = AppState.addEventListener('change', handleAppStateChange)
+    return () => sub.remove()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, currentIndex, result])
+
+  function handleAppStateChange(nextState: AppStateStatus) {
+    const prev = appStateRef.current
+    appStateRef.current = nextState
+
+    // Backgrounded while a question is open and unanswered.
+    if (prev === 'active' && nextState !== 'active' && !result) {
+      cheatCountRef.current += 1
+    }
+
+    // Returned to the app — punish if they backgrounded.
+    if (prev !== 'active' && nextState === 'active' && cheatCountRef.current > 0) {
+      // After 3 offences, end the session.
+      if (cheatCountRef.current >= 3) {
+        Alert.alert(
+          'Session Ended',
+          'You left the app too many times during questions. Your session has ended.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        )
+        return
+      }
+      setCheatWarning(true)
+      setSelected(null)
+      setResult(null)
+      setTimer(0)
+      loadDifferentQuestion()
+    }
+  }
+
+  // Fetch a fresh question that isn't the one the student just left.
+  async function loadDifferentQuestion() {
+    try {
+      const res = await studentAPI.questions(skillId, parseInt(grade || '3'))
+      const incoming: any[] = res?.data?.questions || []
+      if (incoming.length === 0) return
+      const currentQid = questions[currentIndex]?.questionId
+      const different = incoming.find(q => q.questionId !== currentQid) || incoming[0]
+      // Replace the current slot in-place so we keep the index/total in sync.
+      setQuestions(prev => {
+        const next = [...prev]
+        next[currentIndex] = different
+        return next
+      })
+    } catch (err) {
+      console.error('loadDifferentQuestion failed:', err)
+      // If we can't fetch a new one, leaving state reset is still better than
+      // letting the student see the old one with a cheat warning.
+    }
+  }
 
   function startTimer() {
     setTimer(0)
@@ -211,10 +276,30 @@ export default function Practice() {
       </View>
 
       <ScrollView style={styles.scroll}>
-        {/* Nudge */}
+        {/* Nudge — opens in-app Ask Hero bottom sheet */}
         {showNudge && !result && (
           <View style={styles.nudge}>
-            <Text style={styles.nudgeText}>🤖 Stuck? Visit mymathshero.com.au for Ask Hero!</Text>
+            <Text style={styles.nudgeText}>
+              🤖 Stuck? Ask Hero for help!
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowAskHero(true)}
+              style={styles.nudgeBtn}
+            >
+              <Text style={styles.nudgeBtnText}>Ask Hero ✦</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Anti-cheat warning — shown after student backgrounded the app */}
+        {cheatWarning && (
+          <View style={styles.cheatBanner}>
+            <Text style={styles.cheatBannerText}>
+              ⚠️ You left the app — here&apos;s a different question.
+            </Text>
+            <TouchableOpacity onPress={() => setCheatWarning(false)}>
+              <Text style={styles.cheatBannerDismiss}>dismiss</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -285,6 +370,14 @@ export default function Practice() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <AskHeroSheet
+        visible={showAskHero}
+        onClose={() => setShowAskHero(false)}
+        question={q?.question || ''}
+        skillId={skillId}
+        questionId={q?.questionId || ''}
+      />
     </SafeAreaView>
   )
 }
@@ -309,8 +402,18 @@ const styles = StyleSheet.create({
   progressInner: { height: 4, backgroundColor: '#C49A1A' },
   scroll: { flex: 1, padding: 16 },
   nudge: { backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14,
-    marginBottom: 12, borderWidth: 1.5, borderColor: '#C49A1A' },
-  nudgeText: { color: '#1B2B4B', fontSize: 13, fontWeight: '600' },
+    marginBottom: 12, borderWidth: 1.5, borderColor: '#C49A1A',
+    flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nudgeText: { color: '#1B2B4B', fontSize: 13, fontWeight: '600', flex: 1 },
+  nudgeBtn: { backgroundColor: '#C49A1A', borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 6 },
+  nudgeBtnText: { color: 'white', fontWeight: '700', fontSize: 13 },
+  cheatBanner: { backgroundColor: '#FEF3C7', borderRadius: 12,
+    padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#F59E0B',
+    flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cheatBannerText: { flex: 1, color: '#92400E', fontSize: 13, fontWeight: '600' },
+  cheatBannerDismiss: { color: '#92400E', fontSize: 12,
+    textDecorationLine: 'underline' },
   questionCard: { backgroundColor: 'white', borderRadius: 16, padding: 22,
     marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0',
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },

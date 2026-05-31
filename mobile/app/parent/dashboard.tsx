@@ -119,21 +119,52 @@ export default function ParentDashboard() {
     )
   }
 
+  const statTiles = [
+    { label: 'Questions', value: stats.totalQuestionsThisWeek ?? totalWeek, emoji: '📝', color: '#2563EB' },
+    { label: 'Accuracy',  value: `${stats.accuracy || 0}%`,                emoji: '🎯', color: '#22C55E' },
+    { label: 'Mastered',  value: stats.mastered || 0,                     emoji: '🏆', color: '#C49A1A' },
+    { label: 'Sessions',  value: student?.sessions_completed || 0,        emoji: '📚', color: '#8B5CF6' },
+  ]
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Parent Hub</Text>
-          <Text style={styles.subTitle}>Welcome back, {parentName}</Text>
+        <View style={styles.headerTopRow}>
+          <View>
+            <Text style={styles.eyebrow}>PARENT HUB</Text>
+            <Text style={styles.welcome}>Welcome back</Text>
+            {parentName ? <Text style={styles.welcomeSub}>{parentName}</Text> : null}
+          </View>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Text style={styles.logoutText}>Log out</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Log out</Text>
-        </TouchableOpacity>
+
+        {/* Child card */}
+        {activeChild && (
+          <View style={styles.activeChildCard}>
+            <View style={styles.activeChildAvatar}>
+              <Text style={{ fontSize: 24 }}>{activeChild.avatar || '🧒'}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activeChildName}>{activeChild.name}</Text>
+              <Text style={styles.activeChildMeta}>
+                Grade {activeChild.grade} · Maths
+              </Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={styles.activeChildStreak}>
+                🔥 {student?.streak ?? activeChild?.streak ?? 0}
+              </Text>
+              <Text style={styles.activeChildStreakLabel}>streak</Text>
+            </View>
+          </View>
+        )}
       </View>
 
-      {/* Child selector */}
-      {children.length > 0 && (
+      {/* Child selector (only shown when more than one) */}
+      {children.length > 1 && (
         <View style={styles.childRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 8, paddingHorizontal: 12 }}>
@@ -158,23 +189,22 @@ export default function ParentDashboard() {
         <View style={styles.empty}>
           <Text style={{ fontSize: 48 }}>👨‍👩‍👧</Text>
           <Text style={styles.emptyText}>No children added yet.</Text>
-          <Text style={styles.emptySub}>Visit mymathshero.com.au to add a child to your account.</Text>
+          <Text style={styles.emptySub}>
+            Add a child from your account on mymathshero.com.au to get started.
+          </Text>
         </View>
       ) : (
         <ScrollView
           style={styles.scroll}
+          showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C49A1A" />}
         >
-          {/* Stats */}
+          {/* Stats tiles */}
           <View style={styles.statsGrid}>
-            {[
-              { label: 'Questions This Week', value: totalWeek },
-              { label: 'Accuracy', value: `${stats.accuracy || 0}%` },
-              { label: 'Skills Mastered', value: stats.mastered || 0 },
-              { label: 'Streak', value: `${student?.streak || 0} 🔥` },
-            ].map((s, i) => (
+            {statTiles.map((s, i) => (
               <View key={i} style={styles.statCard}>
-                <Text style={styles.statValue}>{s.value}</Text>
+                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+                <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
                 <Text style={styles.statLabel}>{s.label}</Text>
               </View>
             ))}
@@ -182,30 +212,67 @@ export default function ParentDashboard() {
 
           {/* AI Insight */}
           <View style={styles.insightCard}>
-            <Text style={styles.insightTitle}>🤖 Hero&apos;s Daily Insight</Text>
+            <View style={styles.insightHeader}>
+              <Text style={{ fontSize: 20 }}>🤖</Text>
+              <Text style={styles.insightTitle}>Hero&apos;s Daily Insight</Text>
+            </View>
             <Text style={styles.insightText}>
               {insight || `${student?.name || 'Your child'} is making great progress! Keep encouraging daily practice.`}
             </Text>
           </View>
 
-          {/* Skills Heatmap */}
-          <Text style={styles.sectionTitle}>Maths Skills</Text>
-          {mathsSkills.length === 0 ? (
-            <Text style={styles.emptySub}>No skill data yet — once your child practises, progress appears here.</Text>
-          ) : (
-            mathsSkills.map((skill: any) => (
-              <View key={skill.id} style={styles.skillRow}>
-                <Text style={styles.skillName} numberOfLines={1}>{skill.name}</Text>
-                <View style={styles.skillBarOuter}>
-                  <View style={[styles.skillBarInner, {
-                    width: `${Math.min(100, skill.score || 0)}%` as any,
-                    backgroundColor: heatColor(skill.score || 0),
-                  }]} />
-                </View>
-                <Text style={styles.skillScore}>{skill.score || 0}</Text>
+          {/* Maths Skills Overview */}
+          {mathsSkills.length > 0 && (
+            <View style={styles.cardSection}>
+              <Text style={styles.cardSectionTitle}>📊 Maths Skills Overview</Text>
+              {mathsSkills.slice(0, 6).map((skill: any) => {
+                const score = Math.round(skill.score || 0)
+                const color = heatColor(score)
+                return (
+                  <View key={skill.id} style={{ marginBottom: 12 }}>
+                    <View style={styles.skillHeaderRow}>
+                      <Text style={styles.skillNameText} numberOfLines={1}>
+                        {skill.name || skill.skillId}
+                      </Text>
+                      <Text style={[styles.skillScoreText, { color }]}>
+                        {score}/100
+                      </Text>
+                    </View>
+                    <View style={styles.skillBarOuter}>
+                      <View style={[styles.skillBarInner, {
+                        width: `${score}%` as any,
+                        backgroundColor: color,
+                      }]} />
+                    </View>
+                  </View>
+                )
+              })}
+              <View style={styles.legendRow}>
+                {[
+                  { color: '#22C55E', label: 'Mastered' },
+                  { color: '#C49A1A', label: 'Progressing' },
+                  { color: '#CBD5E1', label: 'Needs work' },
+                ].map((l, i) => (
+                  <View key={i} style={styles.legendItem}>
+                    <View style={[styles.legendDot, { backgroundColor: l.color }]} />
+                    <Text style={styles.legendLabel}>{l.label}</Text>
+                  </View>
+                ))}
               </View>
-            ))
+            </View>
           )}
+
+          {/* Hero Report */}
+          <View style={styles.cardSection}>
+            <Text style={styles.cardSectionTitle}>📧 Hero Report</Text>
+            <Text style={styles.cardBody}>
+              Weekly progress reports are sent to your email
+              automatically every Sunday.
+            </Text>
+            <Text style={styles.cardFooter}>
+              For detailed analytics visit mymathshero.com.au
+            </Text>
+          </View>
 
           <View style={{ height: 60 }} />
         </ScrollView>
@@ -220,41 +287,76 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center' },
   loadingLogo: { fontSize: 32, fontWeight: '800', color: 'white' },
   loadingText: { color: '#C49A1A', marginTop: 12, fontWeight: '600' },
-  header: { flexDirection: 'row', alignItems: 'center',
-    padding: 20, paddingBottom: 14, backgroundColor: '#1B2B4B' },
-  title: { fontSize: 24, fontWeight: '800', color: 'white' },
-  subTitle: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
-  logoutBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-  logoutText: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
+
+  header: { backgroundColor: '#1B2B4B', padding: 20, paddingBottom: 16 },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start' },
+  eyebrow: { color: 'rgba(255,255,255,0.6)', fontSize: 11,
+    fontWeight: '700', letterSpacing: 1 },
+  welcome: { color: 'white', fontWeight: '800', fontSize: 22, marginTop: 2 },
+  welcomeSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },
+  logoutBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  logoutText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+
+  activeChildCard: { backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14, padding: 14, marginTop: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: 'rgba(196,154,26,0.3)' },
+  activeChildAvatar: { width: 48, height: 48, borderRadius: 24,
+    backgroundColor: '#C49A1A', alignItems: 'center', justifyContent: 'center' },
+  activeChildName: { color: 'white', fontWeight: '800', fontSize: 16 },
+  activeChildMeta: { color: '#C49A1A', fontSize: 12, fontWeight: '600' },
+  activeChildStreak: { color: 'white', fontWeight: '800', fontSize: 15 },
+  activeChildStreakLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 },
+
   childRow: { backgroundColor: '#1B2B4B', paddingBottom: 12 },
   childChip: { flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1,
-    borderColor: 'transparent' },
+    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'transparent' },
   childChipActive: { borderColor: '#C49A1A', backgroundColor: 'rgba(196,154,26,0.25)' },
   childEmoji: { fontSize: 22 },
   childName: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
   childGrade: { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
-  scroll: { flex: 1, padding: 16 },
+
+  scroll: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emptyText: { fontSize: 17, fontWeight: '700', color: '#1B2B4B', marginTop: 12 },
   emptySub: { fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 6 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  statCard: { width: '47%', backgroundColor: 'white', borderRadius: 14,
-    padding: 14, borderWidth: 1, borderColor: '#E2E8F0' },
-  statValue: { fontSize: 24, fontWeight: '800', color: '#1B2B4B' },
-  statLabel: { fontSize: 11, color: '#64748B', marginTop: 2 },
+
+  statsGrid: { flexDirection: 'row', gap: 10, padding: 16 },
+  statCard: { flex: 1, backgroundColor: 'white', borderRadius: 12,
+    padding: 12, alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statValue: { fontSize: 18, fontWeight: '800', marginTop: 4 },
+  statLabel: { fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
+
   insightCard: { backgroundColor: '#1B2B4B', borderRadius: 16, padding: 18,
-    marginBottom: 20, borderWidth: 2, borderColor: '#C49A1A' },
-  insightTitle: { color: '#C49A1A', fontWeight: '800', fontSize: 15, marginBottom: 8 },
-  insightText: { color: 'white', fontSize: 14, lineHeight: 21 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1B2B4B', marginBottom: 12 },
-  skillRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  skillName: { width: 130, fontSize: 13, fontWeight: '600', color: '#1B2B4B' },
-  skillBarOuter: { flex: 1, height: 18, backgroundColor: '#E2E8F0',
-    borderRadius: 9, overflow: 'hidden' },
-  skillBarInner: { height: '100%', borderRadius: 9 },
-  skillScore: { width: 32, textAlign: 'right', fontSize: 13,
-    fontWeight: '700', color: '#1B2B4B' },
+    marginHorizontal: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: '#C49A1A' },
+  insightHeader: { flexDirection: 'row', alignItems: 'center',
+    gap: 8, marginBottom: 10 },
+  insightTitle: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
+  insightText: { color: 'white', fontSize: 14, lineHeight: 22 },
+
+  cardSection: { backgroundColor: 'white', borderRadius: 16, padding: 18,
+    marginHorizontal: 16, marginBottom: 16,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  cardSectionTitle: { fontSize: 16, fontWeight: '800',
+    color: '#1B2B4B', marginBottom: 16 },
+  cardBody: { fontSize: 13, color: '#64748B', lineHeight: 20, marginBottom: 12 },
+  cardFooter: { fontSize: 12, color: '#C49A1A', fontWeight: '600' },
+
+  skillHeaderRow: { flexDirection: 'row',
+    justifyContent: 'space-between', marginBottom: 4 },
+  skillNameText: { fontSize: 13, fontWeight: '600', color: '#1B2B4B', flex: 1 },
+  skillScoreText: { fontSize: 12, fontWeight: '800', marginLeft: 8 },
+  skillBarOuter: { height: 8, backgroundColor: '#F0F4F8',
+    borderRadius: 4, overflow: 'hidden' },
+  skillBarInner: { height: '100%', borderRadius: 4 },
+
+  legendRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLabel: { fontSize: 11, color: '#64748B' },
 })

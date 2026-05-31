@@ -54,6 +54,8 @@ export const studentAPI = {
     api.get(`/api/student/diagnostic?grade=${grade}&subject=Maths`),
   submitDiagnostic: (data: any) =>
     api.post('/api/student/diagnostic', data),
+  changePin: (studentId: string, newPin: string) =>
+    api.post('/api/student/change-pin', { studentId, newPin }),
 }
 
 export const parentAPI = {
