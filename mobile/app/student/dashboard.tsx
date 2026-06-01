@@ -118,7 +118,7 @@ export default function StudentDashboard() {
 
         {/* Greeting + waving robot */}
         <View style={s.greetingRow}>
-          <HeroRobot mood="waving" size={90} />
+          <HeroRobot mood="waving" size={80} containerStyle="circle" />
           <View style={{ flex: 1 }}>
             <Text style={s.greetingHi}>Good day, Hero! 👋</Text>
             <Text style={s.greetingName}>{firstName}</Text>
@@ -224,7 +224,7 @@ export default function StudentDashboard() {
         {/* D) Hero Missions with robot */}
         <View style={s.section}>
           <View style={s.missionsHeading}>
-            <HeroRobot mood="thinking" size={40} background="#1B2B4B" rounded />
+            <HeroRobot mood="thinking" size={36} containerStyle="card" />
             <Text style={s.sectionTitle}>Hero Missions ✦</Text>
           </View>
           <Text style={s.sectionSub}>AI-selected skills personalised for you</Text>

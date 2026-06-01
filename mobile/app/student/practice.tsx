@@ -233,7 +233,7 @@ export default function Practice() {
   if (questions.length === 0) {
     return (
       <View style={styles.loading}>
-        <HeroRobot mood="thinking" size={140} />
+        <HeroRobot mood="thinking" size={120} containerStyle="circle" />
         <Text style={styles.loadingText}>Hero is preparing questions!</Text>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -316,8 +316,7 @@ export default function Practice() {
             <HeroRobot
               mood={result.correct ? 'celebrating' : 'sad'}
               size={80}
-              background="#1B2B4B"
-              rounded
+              containerStyle="card"
             />
             <Text style={styles.resultTitle}>
               {result.correct ? '🎉 Correct! Amazing!' : "Why don't we try this way?"}

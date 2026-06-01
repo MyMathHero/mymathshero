@@ -45,7 +45,7 @@ export default function League() {
 
       {/* Celebratory header with robot — celebrating if top 3 */}
       <View style={styles.heroHeader}>
-        <HeroRobot mood={topThree ? 'celebrating' : 'waving'} size={80} />
+        <HeroRobot mood={topThree ? 'celebrating' : 'waving'} size={70} containerStyle="circle" />
         <Text style={styles.heroHeaderTitle}>Hero League 🏆</Text>
         <Text style={styles.heroHeaderSub}>
           {topThree ? `You're #${userRank} this month — keep it up!` : 'Top heroes this month'}

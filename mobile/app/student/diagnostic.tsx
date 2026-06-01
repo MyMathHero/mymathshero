@@ -69,7 +69,7 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <HeroRobot mood="waving" size={150} background="#1B2B4B" rounded />
+          <HeroRobot mood="waving" size={140} containerStyle="card" />
           <Text style={[styles.title, { marginTop: 12 }]}>
             Hi! I&apos;m <Text style={styles.gold}>Hero</Text>
           </Text>
@@ -98,7 +98,7 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <HeroRobot mood="celebrating" size={150} background="#1B2B4B" rounded />
+          <HeroRobot mood="celebrating" size={140} containerStyle="card" />
           <Text style={[styles.title, { marginTop: 12 }]}>
             All <Text style={styles.gold}>Done!</Text>
           </Text>
@@ -123,7 +123,7 @@ export default function Diagnostic() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
-          <HeroRobot mood="thinking" size={120} background="#1B2B4B" rounded />
+          <HeroRobot mood="thinking" size={60} containerStyle="card" />
           <Text style={[styles.sub, { marginTop: 12 }]}>No assessment questions available right now.</Text>
           <TouchableOpacity style={styles.startBtn}
             onPress={() => router.replace('/student/dashboard')}>
@@ -140,7 +140,7 @@ export default function Diagnostic() {
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Assessment</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <HeroRobot mood="thinking" size={40} />
+          <HeroRobot mood="thinking" size={36} containerStyle="circle" />
           <Text style={styles.topCount}>{current + 1} / {questions.length}</Text>
         </View>
       </View>

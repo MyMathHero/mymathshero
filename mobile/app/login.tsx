@@ -95,7 +95,7 @@ export default function Login() {
         >
           {/* Hero section */}
           <View style={s.hero}>
-            <HeroRobot mood="waving" size={140} />
+            <HeroRobot mood="waving" size={120} containerStyle="circle" />
             <Text style={s.heroLogo}>
               MyMaths<Text style={{ color: theme.colors.gold }}>Hero</Text>
             </Text>

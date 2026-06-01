@@ -1,25 +1,21 @@
-import { useEffect, useState } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import { useEffect } from 'react'
+import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 
 export default function Index() {
   const router = useRouter()
-  const [ready, setReady] = useState(false)
 
-  // Production builds of expo-router can throw "Attempted to navigate before
-  // mounting the Root Layout component" if router.replace fires synchronously
-  // during the first render. A short delay lets the Stack finish mounting.
+  // The splash overlay in _layout.tsx is what the user sees first; this screen
+  // just decides where to send them once auth is checked.
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 100)
+    // Small delay to ensure the router has fully mounted on iPad before
+    // we issue a replace() — guards against the "navigate before root layout
+    // mounted" error in production iOS builds.
+    const timer = setTimeout(() => { checkAuth() }, 200)
     return () => clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    if (!ready) return
-    checkAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready])
+  }, [])
 
   async function checkAuth() {
     try {
@@ -38,38 +34,18 @@ export default function Index() {
       } else {
         router.replace('/login')
       }
-    } catch (error) {
-      console.error('Auth check failed:', error)
-      // Never crash — always fall back to login.
+    } catch {
       try { router.replace('/login') } catch {}
     }
   }
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>
-        MyMaths<Text style={styles.gold}>Hero</Text>
-      </Text>
-      <ActivityIndicator
-        color="#C49A1A"
-        size="large"
-        style={{ marginTop: 24 }}
-      />
-    </View>
-  )
+  // Empty navy view — the splash is on top covering this anyway.
+  return <View style={styles.container} />
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1B2B4B',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  logo: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: 'white',
-  },
-  gold: { color: '#C49A1A' },
 })

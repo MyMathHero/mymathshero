@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { studentAPI } from '../../lib/api'
+import HeroRobot from '../../components/HeroRobot'
 
 export default function Profile() {
   const router = useRouter()
@@ -108,8 +109,8 @@ export default function Profile() {
       <ScrollView style={{ flex: 1 }}>
         {/* Hero Identity Card */}
         <View style={p.heroCard}>
-          <View style={p.avatarCircle}>
-            <Text style={p.avatarEmoji}>{student?.avatar || '🦸'}</Text>
+          <View style={{ marginBottom: 12 }}>
+            <HeroRobot mood="happy" size={80} containerStyle="circle" />
           </View>
           <Text style={p.heroName}>{student?.name || 'Hero'}</Text>
           <Text style={p.heroGrade}>
@@ -247,11 +248,6 @@ const p = StyleSheet.create({
   heroCard: { backgroundColor: '#1B2B4B', margin: 16,
     borderRadius: 20, padding: 24, alignItems: 'center',
     borderWidth: 2, borderColor: '#C49A1A' },
-  avatarCircle: { width: 80, height: 80, borderRadius: 40,
-    backgroundColor: 'rgba(196,154,26,0.2)',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: '#C49A1A', marginBottom: 12 },
-  avatarEmoji: { fontSize: 44 },
   heroName: { color: 'white', fontWeight: '800', fontSize: 22, marginBottom: 4 },
   heroGrade: { color: '#C49A1A', fontSize: 14, fontWeight: '600', marginBottom: 2 },
   heroLevel: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 14 },

@@ -253,7 +253,7 @@ export default function AskHeroSheet({
         {/* Hero header */}
         <View style={s.header}>
           <View style={s.robotContainer}>
-            <HeroRobot mood={robotMood} size={56} background="#162240" rounded />
+            <HeroRobot mood={robotMood} size={48} containerStyle="circle" />
             {speaking && <View style={s.speakingRing} />}
           </View>
 

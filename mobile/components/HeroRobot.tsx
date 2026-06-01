@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react'
-import { View, Animated, StyleSheet, Easing } from 'react-native'
+import { View, Animated, Easing } from 'react-native'
 import { useVideoPlayer, VideoView } from 'expo-video'
 
 export type RobotMood = 'happy' | 'thinking' | 'sad' | 'waving' | 'celebrating'
@@ -8,38 +8,31 @@ interface Props {
   mood?: RobotMood
   size?: number
   style?: any
-  // Container background. React Native has no mix-blend-mode, so the only way
-  // to hide the baked-in white video background on light screens is to draw
-  // a coloured container behind the video. Set to '#1B2B4B' (navy) on light
-  // backgrounds; leave undefined when the parent screen is already navy.
-  background?: string
-  // Render the container as a circle (size/2 radius). Default rounded
-  // rectangle (16px).
-  rounded?: boolean
-  // 'contain' keeps the full robot but may leave inner whitespace.
-  // 'cover' fills the container but can crop the robot. Defaults to 'contain'.
-  fillMode?: 'contain' | 'cover'
+  // How the robot's white video background is handled:
+  //   'circle' — white circle "spotlight" on navy backgrounds (e.g. dashboard
+  //               header, login). The white video edges become part of the design.
+  //   'card'   — white rounded card with subtle border on light backgrounds.
+  //   'none'   — raw output (only safe on white backgrounds).
+  containerStyle?: 'circle' | 'card' | 'none'
 }
 
-// Asset bundle map. Verified present in mobile/assets/:
+// Assets verified present in mobile/assets/:
 //   HeroHappy.png, HeroSad.png, wavingrobo.mp4, thinkinggotidearobo.mp4,
 //   happyjumpingrobo.mp4 (used for both "happy" video moments and "celebrating")
-const ROBOT_SOURCES: Record<RobotMood, { type: 'video' | 'image', src: any }> = {
-  happy:        { type: 'image', src: require('../assets/HeroHappy.png') },
-  sad:          { type: 'image', src: require('../assets/HeroSad.png') },
-  thinking:     { type: 'video', src: require('../assets/thinkinggotidearobo.mp4') },
-  waving:       { type: 'video', src: require('../assets/wavingrobo.mp4') },
-  celebrating:  { type: 'video', src: require('../assets/happyjumpingrobo.mp4') },
+const VIDEO_ASSETS: Partial<Record<RobotMood, any>> = {
+  waving:       require('../assets/wavingrobo.mp4'),
+  celebrating:  require('../assets/happyjumpingrobo.mp4'),
+  thinking:     require('../assets/thinkinggotidearobo.mp4'),
 }
 
-// Inner video-mode component. Remounted via `key={mood}` from the parent so
-// useVideoPlayer always loads the freshly selected source instead of being
-// stuck on whatever it loaded on first render.
-function VideoRobot({
-  source, size, fillMode,
-}: {
-  source: any; size: number; fillMode: 'contain' | 'cover'
-}) {
+const IMAGE_ASSETS: Partial<Record<RobotMood, any>> = {
+  happy: require('../assets/HeroHappy.png'),
+  sad:   require('../assets/HeroSad.png'),
+}
+
+// Inner video component — remounted with key={mood} so useVideoPlayer always
+// loads the freshly selected source instead of staying on first-render src.
+function RobotVideo({ source, size }: { source: any; size: number }) {
   const player = useVideoPlayer(source, p => {
     p.loop = true
     p.muted = true
@@ -49,26 +42,26 @@ function VideoRobot({
     <VideoView
       player={player}
       style={{ width: size, height: size }}
-      contentFit={fillMode}
+      contentFit="contain"
       nativeControls={false}
     />
   )
 }
 
-// Inner image-mode component with a gentle bounce.
-function ImageRobot({ source, size }: { source: any; size: number }) {
+// Inner image component with gentle bounce.
+function RobotImage({ source, size }: { source: any; size: number }) {
   const bounce = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(bounce, {
-          toValue: -8, duration: 800,
+          toValue: -6, duration: 900,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.sin),
         }),
         Animated.timing(bounce, {
-          toValue: 0, duration: 800,
+          toValue: 0, duration: 900,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.sin),
         }),
@@ -81,10 +74,10 @@ function ImageRobot({ source, size }: { source: any; size: number }) {
   return (
     <Animated.Image
       source={source}
-      style={[
-        styles.image,
-        { width: size, height: size, transform: [{ translateY: bounce }] },
-      ]}
+      style={{
+        width: size, height: size,
+        transform: [{ translateY: bounce }],
+      }}
       resizeMode="contain"
     />
   )
@@ -94,33 +87,72 @@ export default function HeroRobot({
   mood = 'waving',
   size = 120,
   style,
-  background,
-  rounded = false,
-  fillMode = 'contain',
+  containerStyle = 'none',
 }: Props) {
-  const entry = ROBOT_SOURCES[mood] || ROBOT_SOURCES.waving
+  const videoSrc = VIDEO_ASSETS[mood]
+  const imageSrc = IMAGE_ASSETS[mood]
+  const isVideo = !!videoSrc
 
-  const containerStyle = {
-    width: size,
-    height: size,
-    backgroundColor: background || 'transparent',
-    borderRadius: rounded ? size / 2 : 16,
-    overflow: 'hidden' as const,
+  // Decide what to render. Prefer the mood's own asset; fall back to a video
+  // mood (waving) if the mood has neither (shouldn't happen — defensive).
+  const robotNode = isVideo
+    ? <RobotVideo key={mood} source={videoSrc} size={size} />
+    : imageSrc
+      ? <RobotImage source={imageSrc} size={size} />
+      : <RobotVideo key={mood + '_fallback'} source={VIDEO_ASSETS.waving} size={size} />
+
+  if (containerStyle === 'circle') {
+    // White spotlight circle — designed for NAVY backgrounds.
+    const outer = size + 24
+    return (
+      <View style={[{
+        width: outer,
+        height: outer,
+        borderRadius: outer / 2,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        shadowColor: '#C49A1A',
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 8,
+      }, style]}>
+        {robotNode}
+      </View>
+    )
   }
 
+  if (containerStyle === 'card') {
+    // White rounded card — designed for LIGHT backgrounds (#F0F4F8/white).
+    const outer = size + 16
+    return (
+      <View style={[{
+        width: outer,
+        height: outer,
+        borderRadius: 20,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        borderWidth: 2,
+        borderColor: '#E2E8F0',
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+      }, style]}>
+        {robotNode}
+      </View>
+    )
+  }
+
+  // 'none' — raw output, only safe on white backgrounds.
   return (
-    <View style={[containerStyle, style]}>
-      {entry.type === 'video' ? (
-        // The key forces a fresh useVideoPlayer instance each time the mood
-        // switches between video sources — no manual replaceAsync needed.
-        <VideoRobot key={mood} source={entry.src} size={size} fillMode={fillMode} />
-      ) : (
-        <ImageRobot source={entry.src} size={size} />
-      )}
+    <View style={[{ width: size, height: size, overflow: 'hidden' }, style]}>
+      {robotNode}
     </View>
   )
 }
-
-const styles = StyleSheet.create({
-  image: { resizeMode: 'contain' },
-})
