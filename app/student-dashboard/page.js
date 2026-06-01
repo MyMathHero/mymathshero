@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import AskHero from '@/components/AskHero'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
+import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -215,6 +216,18 @@ export default function StudentDashboard() {
   const [showAskHero, setShowAskHero] = useState(false)
   const [askHeroAttempts, setAskHeroAttempts] = useState(1)
 
+  // Hero Missions category filter (null = show all)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+
+  // Skill mastery exam — { skill, phase, questions?, timeLimit?, timeLeft?, currentIndex?, answers?, passMark?, result? }
+  const [examModal, setExamModal] = useState(null)
+  const examTimerRef = useRef(null)
+
+  // AI nudge popup (rotates every 2 minutes)
+  const [heroNudge, setHeroNudge] = useState(null)
+  const nudgeTimerRef = useRef(null)
+  const nudgeCountRef = useRef(0)
+
   // ── Fetch progress on mount ─────────────────────────────────────────────────
   useEffect(() => {
     async function initDashboard() {
@@ -263,8 +276,14 @@ export default function StudentDashboard() {
       setStats(data.stats || { mastered: 0, inProgress: 0, accuracy: 0 })
       setGiftMilestone(data.giftMilestone || { target: 5, completed: 0, achieved: false })
       setWeeklyActivity(data.weeklyActivity || [])
-      setSkillsBySubject(groupRecommendationsBySubject(data.recommendations || []))
-      setRecommendations(data.recommendations || [])
+      // Maths-only — defence in depth (API already filters), drop any leaked e_/s_.
+      const mathsRecs = (data.recommendations || []).filter(s => {
+        const id = s.id || s.skillId || ''
+        const subject = s.subject || ''
+        return id.startsWith('m_') || subject === 'Maths' || subject === 'Mathematics'
+      })
+      setSkillsBySubject(groupRecommendationsBySubject(mathsRecs))
+      setRecommendations(mathsRecs)
       setStrandsBySubject(buildStrandsBySubject(data.strandBreakdown || {}))
 
       // Merge real earned badges with the full badge definitions
@@ -297,6 +316,28 @@ export default function StudentDashboard() {
   }
 
   useEffect(() => { fetchLeaderboard(activeLeaderboardTab) }, [activeLeaderboardTab])
+
+  // Hero AI nudge — rotate a motivational popup every 2 minutes while the tab is visible.
+  useEffect(() => {
+    if (!student || !recommendations?.length) return
+    nudgeTimerRef.current = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        nudgeCountRef.current += 1
+        const nudge = getHeroNudge(student, recommendations, stats)
+        if (nudge) {
+          setHeroNudge(nudge)
+          setTimeout(() => setHeroNudge(null), 8000)
+        }
+      }
+    }, 120000)
+    return () => {
+      if (nudgeTimerRef.current) {
+        clearInterval(nudgeTimerRef.current)
+        nudgeTimerRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.id, recommendations.length, stats?.mastered])
 
   // ── Anti-cheat: tab/visibility switch during a live question ─────────────
   useEffect(() => {
@@ -661,6 +702,205 @@ export default function StudentDashboard() {
     }
   }
 
+  // Click a category card. If recommendations include a skill in that
+  // category, just filter the list. If not, open practice on the most
+  // age-appropriate skill from SKILL_ID_MAP so the student isn't stuck on a
+  // "tap to start" dead end.
+  function handleCategoryClick(categoryKey) {
+    setSelectedCategory(categoryKey)
+
+    const catSkills = recommendations.filter(s => {
+      const info = getSkillInfo(s.id || s.skillId)
+      return info && info.category === categoryKey
+    })
+
+    if (catSkills.length > 0) return
+
+    const matchingSkillIds = Object.entries(SKILL_ID_MAP)
+      .filter(([, data]) => data.category === categoryKey)
+      .map(([id]) => id)
+
+    if (matchingSkillIds.length === 0) return
+
+    // Prefer a skill at the student's grade; otherwise grab any.
+    const gradePrefix = `m_${student?.grade || 3}_`
+    const gradeSkill = matchingSkillIds.find(id => id.startsWith(gradePrefix))
+      || matchingSkillIds[0]
+
+    const info = getSkillInfo(gradeSkill)
+    if (!info) return
+
+    openPractice({
+      id: gradeSkill,
+      skillId: gradeSkill,
+      name: info.name,
+      currentScore: 0,
+      mastered: false,
+    })
+  }
+
+  // ── Skill Mastery Exam ────────────────────────────────────────────────────
+  function openSkillExam(skill) {
+    setExamModal({ skill, phase: 'loading' })
+    fetchExamQuestions(skill)
+  }
+
+  async function fetchExamQuestions(skill) {
+    try {
+      const skillId = skill.id || skill.skillId
+      const res = await fetch(
+        `/api/student/skill-exam?skillId=${encodeURIComponent(skillId)}&studentId=${encodeURIComponent(authStudentId)}`
+      )
+      const data = await res.json()
+      if (!data.eligible) {
+        setExamModal(null)
+        setStreakToast({
+          message: `Practice more to unlock the ${getSkillInfo(skillId)?.name || 'this'} exam! Score needed: 70+`,
+        })
+        setTimeout(() => setStreakToast(null), 4000)
+        return
+      }
+      setExamModal({
+        skill,
+        questions: data.questions,
+        timeLimit: data.timeLimit,
+        timeLeft: data.timeLimit,
+        currentIndex: 0,
+        answers: [],
+        phase: 'intro',
+        passMark: data.passMark,
+      })
+    } catch {
+      setExamModal(null)
+    }
+  }
+
+  function startExamTimer() {
+    if (examTimerRef.current) clearInterval(examTimerRef.current)
+    examTimerRef.current = setInterval(() => {
+      setExamModal(prev => {
+        if (!prev || prev.phase !== 'exam') {
+          clearInterval(examTimerRef.current)
+          return prev
+        }
+        if (prev.timeLeft <= 1) {
+          clearInterval(examTimerRef.current)
+          // Submit on next tick to avoid setState-in-setState.
+          setTimeout(() => submitExam(prev.answers, prev), 0)
+          return { ...prev, timeLeft: 0 }
+        }
+        return { ...prev, timeLeft: prev.timeLeft - 1 }
+      })
+    }, 1000)
+  }
+
+  async function submitExam(answers, snapshot) {
+    if (examTimerRef.current) {
+      clearInterval(examTimerRef.current)
+      examTimerRef.current = null
+    }
+    const current = snapshot || examModal
+    if (!current) return
+    setExamModal(prev => prev ? ({ ...prev, phase: 'loading' }) : prev)
+    try {
+      const res = await fetch('/api/student/skill-exam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: authStudentId,
+          skillId: current.skill.id || current.skill.skillId,
+          answers,
+          totalQuestions: current.questions?.length || answers.length,
+          timeTakenSeconds: (current.timeLimit || 300) - (current.timeLeft || 0),
+        }),
+      })
+      const result = await res.json()
+      setExamModal(prev => prev ? ({ ...prev, phase: 'result', result }) : prev)
+      if (result?.passed) {
+        setTotalXp(prev => prev + (result.xpEarned || 50))
+        setCoins(prev => prev + (result.coinsEarned || 20))
+      }
+    } catch {
+      setExamModal(null)
+    }
+  }
+
+  // ── AI Hero Nudge ─────────────────────────────────────────────────────────
+  function getHeroNudge(currentStudent, recs, currentStats) {
+    const nudges = []
+    if (recs?.length > 0) {
+      const sorted = [...recs].sort((a, b) => (a.currentScore || 0) - (b.currentScore || 0))
+      const weakest = sorted[0]
+      const strongest = sorted[sorted.length - 1]
+
+      if (weakest) {
+        const info = getSkillInfo(weakest.id || weakest.skillId)
+        if (info) {
+          nudges.push({
+            emoji: '🎯',
+            title: 'Weak Spot Alert!',
+            message: `Your ${info.name} needs work (score: ${Math.round(weakest.currentScore || 0)}/100). Let's improve it now!`,
+            action: 'Practice Now',
+            skill: weakest,
+            color: '#FEF3C7',
+            borderColor: '#F59E0B',
+          })
+        }
+      }
+      const readyForExam = recs.find(s => (s.currentScore || 0) >= 70 && !s.mastered)
+      if (readyForExam) {
+        const info = getSkillInfo(readyForExam.id || readyForExam.skillId)
+        if (info) {
+          nudges.push({
+            emoji: '🏆',
+            title: 'Ready for Mastery Exam!',
+            message: `You've scored ${Math.round(readyForExam.currentScore)}/100 in ${info.name}. Take the mastery exam to level up!`,
+            action: 'Take Exam!',
+            skill: readyForExam,
+            isExam: true,
+            color: '#DCFCE7',
+            borderColor: '#22C55E',
+          })
+        }
+      }
+      if (strongest && (strongest.currentScore || 0) >= 80) {
+        const info = getSkillInfo(strongest.id || strongest.skillId)
+        if (info) {
+          nudges.push({
+            emoji: '⚡',
+            title: "You're on fire!",
+            message: `Amazing work on ${info.name}! You're at ${Math.round(strongest.currentScore)}/100. Keep it up Hero!`,
+            action: 'Continue',
+            skill: strongest,
+            color: '#EFF6FF',
+            borderColor: '#2563EB',
+          })
+        }
+      }
+    }
+    if (currentStudent?.streak > 0) {
+      nudges.push({
+        emoji: '🔥',
+        title: `${currentStudent.streak}-day streak!`,
+        message: `You're on a ${currentStudent.streak}-day learning streak! Don't break it — practice at least one skill today!`,
+        action: 'Practice Now',
+        skill: recs?.[0],
+        color: '#FFF7ED',
+        borderColor: '#EA580C',
+      })
+    }
+    nudges.push({
+      emoji: '🤖',
+      title: 'Hero says...',
+      message: `You've answered ${currentStats?.totalQuestions || 0} questions total! Every question makes you smarter. Keep going! 💪`,
+      action: "Let's Go!",
+      skill: recs?.[0],
+      color: '#F5F3FF',
+      borderColor: '#7C3AED',
+    })
+    return nudges.length > 0 ? nudges[nudgeCountRef.current % nudges.length] : null
+  }
+
   const buyItem = (item) => {
     if (coins >= item.cost && !shopOwnedItems.includes(item.id)) {
       setCoins(prev => prev - item.cost)
@@ -875,29 +1115,235 @@ export default function StudentDashboard() {
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1"><h2 className="text-lg font-bold text-navy">Hero Missions for You</h2><span className="text-xl">{currentSubject?.emoji}</span></div>
-            <p className="text-sm text-gray-500 mb-5">AI-selected skills Hero picked just for you</p>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              {currentSkills.length === 0 ? (
-                <div className="col-span-3 text-center py-10 text-gray-400 text-sm">
-                  <span className="text-3xl block mb-2">🎉</span>
-                  You&apos;ve mastered all {currentSubject?.name} skills available for now!
+            {/* === HERO MISSIONS SECTION === */}
+            <div style={{
+              background: 'white',
+              borderRadius: 20,
+              padding: 24,
+              border: '1px solid #E2E8F0',
+              marginBottom: 24,
+            }}>
+              {/* Section header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between',
+                alignItems: 'flex-start', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 800,
+                    color: '#1B2B4B', margin: '0 0 4px' }}>
+                    Hero Missions ✦
+                  </h2>
+                  <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>
+                    AI-selected skills personalised for you
+                  </p>
                 </div>
-              ) : currentSkills.map((skill, i) => {
-                const SubjectIcon = subjectIcons[activeSubject]
-                return (
-                  <button key={skill.id || i} onClick={() => openPractice(skill)} className={`relative rounded-2xl p-5 border-2 transition-all duration-300 text-left group hover:scale-[1.02] hover:shadow-lg ${skill.status === 'Almost There!' ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:border-green-400' : skill.status === 'Continue' ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200 hover:border-amber-400' : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-400'}`}>
-                    <div className={`w-10 h-10 rounded-xl ${subjectIconBgs[activeSubject]} flex items-center justify-center mb-3`}><SubjectIcon size={20} className={subjectIconColors[activeSubject]} /></div>
-                    <h3 className="font-bold text-navy text-sm mb-1">{skill.name}</h3>
-                    <span className={`inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full mb-3 ${skill.status === 'New' ? 'bg-blue-500 text-white' : skill.status === 'Continue' ? 'bg-amber-500 text-white' : 'bg-green-500 text-white'}`}>
-                      {skill.status === 'New' ? '✨ New' : skill.status === 'Continue' ? '🔄 Continue' : '🏆 Almost!'}
-                    </span>
-                    <div className="flex justify-between text-xs mb-1"><span className="text-gray-500">SmartScore</span><span className="font-bold text-navy">{skill.score}/100</span></div>
-                    <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full ${skill.score >= 70 ? 'bg-gradient-to-r from-green-400 to-emerald-500' : skill.score >= 40 ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}`} style={{ width: `${skill.score}%` }} /></div>
-                    <div className="flex items-center gap-1 text-xs text-electric font-bold opacity-0 group-hover:opacity-100 transition-opacity mt-2">Play! <ArrowRight size={12} /></div>
-                  </button>
-                )
-              })}
+                <select
+                  value={selectedCategory || 'all'}
+                  onChange={e => setSelectedCategory(
+                    e.target.value === 'all' ? null : e.target.value
+                  )}
+                  style={{
+                    border: '1px solid #E2E8F0', borderRadius: 8,
+                    padding: '6px 12px', fontSize: 13,
+                    color: '#1B2B4B', background: 'white',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">All Categories</option>
+                  {Object.entries(SKILL_CATEGORIES).map(([key, cat]) => (
+                    <option key={key} value={key}>
+                      {cat.emoji} {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Recommended skills (AI-selected) */}
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8',
+                  textTransform: 'uppercase', letterSpacing: '0.5px',
+                  marginBottom: 12 }}>
+                  🤖 Recommended for you
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {recommendations
+                    .filter(skill => getSkillInfo(skill.id || skill.skillId) !== null)
+                    .filter(skill => {
+                      if (!selectedCategory) return true
+                      const info = getSkillInfo(skill.id || skill.skillId)
+                      return info && info.category === selectedCategory
+                    })
+                    .slice(0, 5)
+                    .map((skill, i) => {
+                      const info = getSkillInfo(skill.id || skill.skillId)
+                      if (!info) return null
+                      const score = Math.round(skill.currentScore || 0)
+                      const isReady = score >= 70
+
+                      return (
+                        <div key={skill.id || i} style={{
+                          display: 'flex', alignItems: 'center', gap: 14,
+                          padding: '14px 16px', borderRadius: 14,
+                          border: `1px solid ${info.lightColor}`,
+                          background: info.lightColor,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => openPractice(skill)}
+                        >
+                          {/* Category icon */}
+                          <div style={{
+                            width: 44, height: 44, borderRadius: 12,
+                            background: info.color, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            fontSize: 22, flexShrink: 0,
+                          }}>
+                            {info.emoji}
+                          </div>
+
+                          {/* Skill info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex',
+                              alignItems: 'center', gap: 8,
+                              marginBottom: 4, flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 700,
+                                color: '#1B2B4B', fontSize: 15 }}>
+                                {info.name}
+                              </span>
+                              <span style={{
+                                background: info.color, color: 'white',
+                                fontSize: 10, fontWeight: 700,
+                                padding: '2px 8px', borderRadius: 10,
+                              }}>
+                                {info.categoryLabel}
+                              </span>
+                              {skill.mastered && (
+                                <span style={{ fontSize: 14 }}>✅</span>
+                              )}
+                            </div>
+                            <div style={{ height: 6,
+                              background: 'rgba(0,0,0,0.08)',
+                              borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%', borderRadius: 3,
+                                width: `${score}%`,
+                                background: score >= 80 ? '#22C55E'
+                                  : score >= 50 ? info.color : '#E2E8F0',
+                                transition: 'width 0.5s ease',
+                              }} />
+                            </div>
+                          </div>
+
+                          {/* Score */}
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 18, fontWeight: 800,
+                              color: info.color }}>{score}</div>
+                            <div style={{ fontSize: 10, color: '#94A3B8' }}>
+                              /100
+                            </div>
+                          </div>
+
+                          {/* Exam unlock button */}
+                          {isReady && !skill.mastered && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                openSkillExam(skill)
+                              }}
+                              style={{
+                                background: '#1B2B4B', color: '#C49A1A',
+                                border: '2px solid #C49A1A',
+                                borderRadius: 10, padding: '6px 12px',
+                                fontSize: 12, fontWeight: 700,
+                                cursor: 'pointer', whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              🏆 Take Exam!
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  {recommendations.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: 24,
+                      color: '#94A3B8', fontSize: 13 }}>
+                      <span style={{ fontSize: 28, display: 'block', marginBottom: 6 }}>🎉</span>
+                      You&apos;ve mastered all available skills for now!
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ALL CATEGORIES BROWSER */}
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8',
+                  textTransform: 'uppercase', letterSpacing: '0.5px',
+                  marginBottom: 14 }}>
+                  📚 All Maths Categories
+                </p>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                  gap: 10,
+                }}>
+                  {Object.entries(SKILL_CATEGORIES).map(([key, cat]) => {
+                    const catSkills = recommendations.filter(s => {
+                      const info = getSkillInfo(s.id || s.skillId)
+                      return info?.category === key
+                    })
+                    const avgScore = catSkills.length > 0
+                      ? Math.round(catSkills.reduce(
+                          (sum, s) => sum + (s.currentScore || 0), 0
+                        ) / catSkills.length)
+                      : 0
+                    const masteredCount = catSkills.filter(s => s.mastered).length
+
+                    return (
+                      <div
+                        key={key}
+                        onClick={() => handleCategoryClick(key)}
+                        style={{
+                          background: selectedCategory === key
+                            ? cat.lightColor : 'white',
+                          border: `2px solid ${selectedCategory === key
+                            ? cat.color : '#E2E8F0'}`,
+                          borderRadius: 14, padding: 14,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ fontSize: 28, marginBottom: 6 }}>
+                          {cat.emoji}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700,
+                          color: '#1B2B4B', marginBottom: 4 }}>
+                          {cat.label}
+                        </div>
+                        {catSkills.length > 0 ? (
+                          <>
+                            <div style={{ height: 4, background: '#F0F4F8',
+                              borderRadius: 2, overflow: 'hidden',
+                              marginBottom: 4 }}>
+                              <div style={{
+                                height: '100%', width: `${avgScore}%`,
+                                background: cat.color, borderRadius: 2,
+                              }} />
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748B' }}>
+                              {masteredCount}/{catSkills.length} mastered
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{
+                            fontSize: 11, color: '#C49A1A',
+                            fontWeight: 700, marginTop: 4,
+                          }}>
+                            Tap to start →
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Today's Hero Challenges */}
@@ -1729,6 +2175,295 @@ export default function StudentDashboard() {
           <button onClick={handleSimulate10} style={devBtnStyle}>Simulate 10 Questions</button>
           <button onClick={handleAwardAllBadges} style={devBtnStyle}>Award All Badges</button>
           <button onClick={handleTriggerGift} style={devBtnStyle}>Trigger Hero Quest</button>
+        </div>
+      )}
+
+      {/* SKILL MASTERY EXAM MODAL */}
+      {examModal && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          zIndex: 200, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 24,
+            padding: 32, maxWidth: 560, width: '100%',
+            maxHeight: '90vh', overflowY: 'auto',
+            border: '3px solid #C49A1A',
+          }}>
+            {examModal.phase === 'loading' && (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <div style={{ fontSize: 48 }}>🤖</div>
+                <p style={{ fontWeight: 700, color: '#1B2B4B' }}>
+                  Preparing your exam...
+                </p>
+              </div>
+            )}
+
+            {examModal.phase === 'intro' && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <div style={{ fontSize: 56, marginBottom: 12 }}>🏆</div>
+                  <h2 style={{ fontSize: 24, fontWeight: 800,
+                    color: '#1B2B4B', marginBottom: 8 }}>
+                    Mastery Exam!
+                  </h2>
+                  <p style={{ color: '#64748B', fontSize: 15 }}>
+                    {getSkillInfo(examModal.skill.id || examModal.skill.skillId)?.name || examModal.skill.name}
+                  </p>
+                </div>
+
+                <div style={{ background: '#F0F4F8', borderRadius: 14,
+                  padding: 20, marginBottom: 24 }}>
+                  {[
+                    `📝 ${examModal.questions?.length || 10} questions`,
+                    `⏱️ ${(examModal.timeLimit || 300) / 60} minute time limit`,
+                    `✅ Score 70% or higher to master this skill`,
+                    `⚡ Earn 50 Hero Points + 20 coins if you pass!`,
+                  ].map((item, i) => (
+                    <p key={i} style={{ margin: '6px 0',
+                      fontSize: 14, color: '#1B2B4B',
+                      fontWeight: 600 }}>{item}</p>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    onClick={() => setExamModal(null)}
+                    style={{ flex: 1, padding: 14,
+                      background: 'white', border: '2px solid #E2E8F0',
+                      borderRadius: 12, fontWeight: 700,
+                      cursor: 'pointer', color: '#64748B' }}
+                  >
+                    Not Yet
+                  </button>
+                  <button
+                    onClick={() => {
+                      setExamModal(prev => prev ? ({ ...prev, phase: 'exam' }) : prev)
+                      startExamTimer()
+                    }}
+                    style={{ flex: 2, padding: 14,
+                      background: '#1B2B4B', border: '2px solid #C49A1A',
+                      borderRadius: 12, fontWeight: 800,
+                      cursor: 'pointer', color: 'white',
+                      fontSize: 16 }}
+                  >
+                    🚀 Start Exam!
+                  </button>
+                </div>
+              </>
+            )}
+
+            {examModal.phase === 'exam' && examModal.questions && (
+              <>
+                <div style={{ display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center', marginBottom: 20 }}>
+                  <span style={{ fontWeight: 800, fontSize: 14,
+                    color: '#1B2B4B' }}>
+                    Question {examModal.currentIndex + 1}/{examModal.questions.length}
+                  </span>
+                  <span style={{
+                    fontWeight: 800, fontSize: 16,
+                    color: examModal.timeLeft < 60 ? '#EF4444' : '#1B2B4B',
+                    fontFamily: 'monospace',
+                  }}>
+                    ⏱️ {Math.floor((examModal.timeLeft || 0) / 60)}:
+                    {String((examModal.timeLeft || 0) % 60).padStart(2, '0')}
+                  </span>
+                </div>
+
+                <div style={{ height: 6, background: '#F0F4F8',
+                  borderRadius: 3, overflow: 'hidden', marginBottom: 20 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3,
+                    background: '#C49A1A',
+                    width: `${(examModal.currentIndex /
+                      examModal.questions.length) * 100}%`,
+                    transition: 'width 0.3s',
+                  }} />
+                </div>
+
+                <div style={{ background: '#F8FAFC', borderRadius: 16,
+                  padding: 20, marginBottom: 20,
+                  border: '1px solid #E2E8F0' }}>
+                  <p style={{ fontSize: 18, fontWeight: 700,
+                    color: '#1B2B4B', lineHeight: 1.5, margin: 0 }}>
+                    {examModal.questions[examModal.currentIndex]?.question}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {examModal.questions[examModal.currentIndex]?.options?.map((opt, i) => (
+                    <button key={i}
+                      onClick={() => {
+                        const newAnswers = [...examModal.answers, {
+                          questionId: examModal.questions[examModal.currentIndex].questionId,
+                          answer: opt,
+                        }]
+                        if (examModal.currentIndex < examModal.questions.length - 1) {
+                          setExamModal(prev => prev ? ({
+                            ...prev,
+                            answers: newAnswers,
+                            currentIndex: prev.currentIndex + 1,
+                          }) : prev)
+                        } else {
+                          submitExam(newAnswers, { ...examModal, answers: newAnswers })
+                        }
+                      }}
+                      style={{
+                        padding: '14px 18px', textAlign: 'left',
+                        background: 'white', border: '2px solid #E2E8F0',
+                        borderRadius: 12, fontWeight: 600,
+                        fontSize: 15, cursor: 'pointer',
+                        color: '#1B2B4B',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                      }}
+                    >
+                      <span style={{ width: 28, height: 28,
+                        borderRadius: 8, background: '#F0F4F8',
+                        display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontWeight: 800,
+                        fontSize: 13, flexShrink: 0 }}>
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {examModal.phase === 'result' && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <div style={{ fontSize: 64, marginBottom: 12 }}>
+                    {examModal.result?.passed ? '🎉' : '💪'}
+                  </div>
+                  <h2 style={{ fontSize: 28, fontWeight: 800,
+                    color: '#1B2B4B', marginBottom: 8 }}>
+                    {examModal.result?.passed
+                      ? 'Skill Mastered!'
+                      : 'Keep Practising!'}
+                  </h2>
+                  <div style={{ fontSize: 48, fontWeight: 800,
+                    color: examModal.result?.passed ? '#22C55E' : '#C49A1A' }}>
+                    {examModal.result?.score}%
+                  </div>
+                  <p style={{ color: '#64748B', marginTop: 8 }}>
+                    {examModal.result?.correct}/{examModal.result?.total} correct
+                  </p>
+                </div>
+
+                {examModal.result?.passed && (
+                  <div style={{ background: '#DCFCE7',
+                    borderRadius: 14, padding: 16,
+                    textAlign: 'center', marginBottom: 20,
+                    border: '1px solid #22C55E' }}>
+                    <p style={{ fontWeight: 800, color: '#166534',
+                      fontSize: 16, margin: 0 }}>
+                      🏆 +50 Hero Points · 🪙 +20 Coins earned!
+                    </p>
+                  </div>
+                )}
+
+                {!examModal.result?.passed && (
+                  <div style={{ background: '#FFFBEB',
+                    borderRadius: 14, padding: 16,
+                    marginBottom: 20,
+                    border: '1px solid #C49A1A' }}>
+                    <p style={{ fontWeight: 700, color: '#1B2B4B',
+                      fontSize: 14, margin: 0 }}>
+                      🤖 Hero says: Keep practising this skill to
+                      improve your score. You need 70% to master it.
+                      You can do it! 💪
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setExamModal(null)
+                    fetchProgress(authStudentId)
+                  }}
+                  style={{ width: '100%', padding: 16,
+                    background: '#1B2B4B', color: 'white',
+                    border: '2px solid #C49A1A', borderRadius: 14,
+                    fontWeight: 800, fontSize: 16, cursor: 'pointer' }}
+                >
+                  {examModal.result?.passed
+                    ? 'Continue to Next Skill →'
+                    : 'Keep Practising 💪'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* HERO AI NUDGE POPUP */}
+      {heroNudge && (
+        <div style={{
+          position: 'fixed',
+          bottom: 96, right: 24,
+          zIndex: 300,
+          maxWidth: 320,
+          background: heroNudge.color,
+          border: `2px solid ${heroNudge.borderColor}`,
+          borderRadius: 20,
+          padding: 20,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          animation: 'slideInRight 0.4s ease',
+        }}>
+          <style>{`
+            @keyframes slideInRight {
+              from { transform: translateX(120%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+          `}</style>
+          <button
+            onClick={() => setHeroNudge(null)}
+            style={{ position: 'absolute', top: 10, right: 12,
+              background: 'none', border: 'none',
+              cursor: 'pointer', fontSize: 16, color: '#94A3B8' }}
+          >✕</button>
+          <div style={{ display: 'flex', gap: 10,
+            alignItems: 'flex-start', marginBottom: 12 }}>
+            <span style={{ fontSize: 28 }}>{heroNudge.emoji}</span>
+            <div>
+              <p style={{ fontWeight: 800, color: '#1B2B4B',
+                fontSize: 15, margin: '0 0 4px' }}>
+                {heroNudge.title}
+              </p>
+              <p style={{ color: '#334155', fontSize: 13,
+                lineHeight: 1.5, margin: 0 }}>
+                {heroNudge.message}
+              </p>
+            </div>
+          </div>
+          {heroNudge.skill && (
+            <button
+              onClick={() => {
+                setHeroNudge(null)
+                if (heroNudge.isExam) {
+                  openSkillExam(heroNudge.skill)
+                } else {
+                  openPractice(heroNudge.skill)
+                }
+              }}
+              style={{
+                width: '100%', padding: '10px 16px',
+                background: '#1B2B4B', color: 'white',
+                border: `2px solid ${heroNudge.borderColor}`,
+                borderRadius: 10, fontWeight: 700,
+                fontSize: 14, cursor: 'pointer',
+              }}
+            >
+              {heroNudge.action} →
+            </button>
+          )}
         </div>
       )}
 

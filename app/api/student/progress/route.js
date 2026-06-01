@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server'
 import { getRecommendations, getSkillTreeForGrade, getSkillGraph } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
 
+// Belt-and-braces: ensure nothing non-Maths leaks to the client. The recommender
+// already filters at source, but if SKILL_GRAPH or scoreMap ever gets repolluted
+// with e_/s_ entries, this stops them at the API boundary.
+function mathsOnly(arr) {
+  return (arr || []).filter(s => {
+    const id = s?.id || s?.skillId || ''
+    const subject = s?.subject || ''
+    return id.startsWith('m_') || subject === 'Maths' || subject === 'Mathematics'
+  })
+}
+
 let client
 async function connectDB() {
   if (!client) {
@@ -62,15 +73,15 @@ export async function GET(request) {
     // 4. Calculate weekly activity (questions per day)
     const weeklyActivity = buildWeeklyActivity(recentSessions)
 
-    // 5. Get recommendations
-    const recommendations = getRecommendations(
+    // 5. Get recommendations (Maths only)
+    const recommendations = mathsOnly(getRecommendations(
       student.grade || 3,
       scoreMap,
       5
-    )
+    ))
 
-    // 6. Get skill tree
-    const skillTree = getSkillTreeForGrade(student.grade || 3, scoreMap)
+    // 6. Get skill tree (Maths only)
+    const skillTree = mathsOnly(getSkillTreeForGrade(student.grade || 3, scoreMap))
 
     // 7. Calculate strand breakdown
     const strandBreakdown = buildStrandBreakdown(skillScores)

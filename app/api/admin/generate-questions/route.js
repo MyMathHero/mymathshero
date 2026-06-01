@@ -1,6 +1,26 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { getSkillGraph } from '@/lib/recommender'
+import { SKILL_ID_MAP } from '@/lib/skillNames'
+
+// Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
+// taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
+// admin generator should cover everything the UI can show.
+function getMathsSkills() {
+  return Object.entries(SKILL_ID_MAP)
+    .filter(([id]) => id.startsWith('m_'))
+    .map(([id, info]) => {
+      const gradeMatch = id.match(/^m_(\d+)_/)
+      return {
+        id,
+        name: info.name,
+        subject: 'Maths',
+        grade: gradeMatch ? parseInt(gradeMatch[1], 10) : 3,
+        difficulty: 0.5,
+        category: info.category,
+      }
+    })
+}
 
 let client
 async function connectDB() {
@@ -105,7 +125,9 @@ export async function GET(request) {
     const target = parseInt(searchParams.get('targetPerSkill') || '20', 10)
     const subject = searchParams.get('subject')
     const db = await connectDB()
-    const skillGraph = getSkillGraph()
+    // Use the broader SKILL_ID_MAP taxonomy so the dry-run reflects all Maths
+    // skills the dashboard knows about, not just the small SKILL_GRAPH set.
+    const skillGraph = getMathsSkills()
       .filter(s => !subject || s.subject === subject)
 
     const existingCounts = await db.collection('questions').aggregate([
@@ -136,7 +158,8 @@ export async function POST(request) {
     if (body.generateAll) {
       const targetPerSkill = body.targetPerSkill ?? 10
       const subjectFilter = body.subject
-      const skillGraph = getSkillGraph()
+      // Maths only — source from SKILL_ID_MAP so coverage matches the dashboard.
+      const skillGraph = getMathsSkills()
         .filter(s => !subjectFilter || s.subject === subjectFilter)
 
       // Count existing questions per skill in one aggregation
@@ -196,14 +219,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'skillId or generateAll is required' }, { status: 400 })
     }
 
-    const skillGraph = getSkillGraph()
-    const skill = skillGraph.find(s => s.id === skillId) ?? {
-      id: skillId,
-      name: skillId,
-      subject: subject || 'General',
-      grade: grade ?? 3,
-      difficulty: 0.5,
+    // Maths-only — refuse legacy English/Science requests outright.
+    if (!skillId.startsWith('m_')) {
+      return NextResponse.json({
+        error: 'Only Maths skills are supported (skillId must start with m_)',
+      }, { status: 400 })
     }
+
+    // Resolve from SKILL_ID_MAP first (broader taxonomy), then fall back to the
+    // legacy SKILL_GRAPH, then a synthesised stub.
+    const mapInfo = SKILL_ID_MAP[skillId]
+    const gradeFromId = parseInt(skillId.match(/^m_(\d+)_/)?.[1] || '3', 10)
+    const skill = mapInfo
+      ? { id: skillId, name: mapInfo.name, subject: 'Maths', grade: gradeFromId, difficulty: 0.5 }
+      : (getSkillGraph().find(s => s.id === skillId) ?? {
+          id: skillId,
+          name: skillId,
+          subject: subject || 'Maths',
+          grade: grade ?? gradeFromId,
+          difficulty: 0.5,
+        })
 
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json({

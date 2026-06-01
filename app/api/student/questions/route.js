@@ -22,6 +22,12 @@ export async function GET(request) {
       return NextResponse.json({ error: 'skillId is required' }, { status: 400 })
     }
 
+    // Reject non-Maths skill IDs immediately. The platform is Maths-only —
+    // e_*/s_* must never be served, even if a legacy client requests them.
+    if (!skillId.startsWith('m_')) {
+      return NextResponse.json({ questions: [], total: 0 })
+    }
+
     const db = await connectDB()
 
     // Resolve subject/grade for this skill (used for AI top-up + grade fallback).
@@ -43,7 +49,16 @@ export async function GET(request) {
       answeredCorrectlyIds = [...new Set(answered.map(e => e.questionId).filter(Boolean))]
     }
 
-    const baseMatch = { skillId, active: { $ne: false } }
+    const baseMatch = {
+      skillId,
+      active: { $ne: false },
+      // Spec: enforce Maths subject in the query so a mistyped/legacy question
+      // doc with the wrong subject can't slip through.
+      $or: [
+        { subject: { $in: ['Maths', 'Mathematics', 'Math'] } },
+        { subject: { $exists: false } }, // tolerate older docs without a subject
+      ],
+    }
     const unmasteredMatch = answeredCorrectlyIds.length > 0
       ? { ...baseMatch, id: { $nin: answeredCorrectlyIds } }
       : baseMatch

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator,
+  StyleSheet, RefreshControl, ActivityIndicator, Alert,
 } from 'react-native'
 import { useRouter, usePathname } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
@@ -10,6 +10,102 @@ import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
 import HeroRobot from '../../components/HeroRobot'
+import {
+  getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP, type SkillCategoryKey,
+} from '../../lib/skillNames'
+
+interface NudgeMessage {
+  emoji: string
+  title: string
+  message: string
+  action: string
+  skill?: any
+  isExam?: boolean
+  color: string
+  borderColor: string
+}
+
+function buildNudges(
+  currentStudent: any,
+  recs: any[],
+  currentStats: any
+): NudgeMessage[] {
+  const nudges: NudgeMessage[] = []
+  if (recs.length > 0) {
+    const sorted = [...recs].sort(
+      (a, b) => (a.currentScore || 0) - (b.currentScore || 0)
+    )
+    const weakest = sorted[0]
+    const strongest = sorted[sorted.length - 1]
+    if (weakest) {
+      const info = getSkillInfo(weakest.id || weakest.skillId)
+      if (info) {
+        nudges.push({
+          emoji: '🎯',
+          title: 'Weak Spot Alert!',
+          message: `Your ${info.name} needs work (${Math.round(weakest.currentScore || 0)}/100). Let's improve it!`,
+          action: 'Practice Now',
+          skill: weakest,
+          color: '#FEF3C7',
+          borderColor: '#F59E0B',
+        })
+      }
+    }
+    const readyForExam = recs.find(
+      s => (s.currentScore || 0) >= 70 && !s.mastered
+    )
+    if (readyForExam) {
+      const info = getSkillInfo(readyForExam.id || readyForExam.skillId)
+      if (info) {
+        nudges.push({
+          emoji: '🏆',
+          title: 'Ready for Mastery Exam!',
+          message: `${Math.round(readyForExam.currentScore)}/100 in ${info.name}. Take the exam to level up!`,
+          action: 'Take Exam!',
+          skill: readyForExam,
+          isExam: true,
+          color: '#DCFCE7',
+          borderColor: '#22C55E',
+        })
+      }
+    }
+    if (strongest && (strongest.currentScore || 0) >= 80) {
+      const info = getSkillInfo(strongest.id || strongest.skillId)
+      if (info) {
+        nudges.push({
+          emoji: '⚡',
+          title: "You're on fire!",
+          message: `Amazing work on ${info.name}! ${Math.round(strongest.currentScore)}/100. Keep it up!`,
+          action: 'Continue',
+          skill: strongest,
+          color: '#EFF6FF',
+          borderColor: '#2563EB',
+        })
+      }
+    }
+  }
+  if (currentStudent?.streak > 0) {
+    nudges.push({
+      emoji: '🔥',
+      title: `${currentStudent.streak}-day streak!`,
+      message: `Don't break your ${currentStudent.streak}-day streak — practise at least one skill today!`,
+      action: 'Practice Now',
+      skill: recs[0],
+      color: '#FFF7ED',
+      borderColor: '#EA580C',
+    })
+  }
+  nudges.push({
+    emoji: '🤖',
+    title: 'Hero says...',
+    message: `${currentStats?.totalQuestionsThisWeek || 0} questions this week! Every one makes you smarter. 💪`,
+    action: "Let's Go!",
+    skill: recs[0],
+    color: '#F5F3FF',
+    borderColor: '#7C3AED',
+  })
+  return nudges
+}
 
 export default function StudentDashboard() {
   const router = useRouter()
@@ -19,6 +115,13 @@ export default function StudentDashboard() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<SkillCategoryKey | null>(null)
+
+  // AI nudge banner
+  const [heroNudge, setHeroNudge] = useState<NudgeMessage | null>(null)
+  const nudgeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const nudgeDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nudgeCountRef = useRef(0)
 
   useEffect(() => { loadData() }, [])
 
@@ -34,9 +137,12 @@ export default function StudentDashboard() {
       const data = res?.data || {}
       setStudent(data.student || null)
 
-      const mathsRecs = (data.recommendations || []).filter(
-        (s: any) => s?.subject === 'Maths' || s?.subject === 'Mathematics'
-      )
+      // Maths only — strict guard so any e_*/s_* legacy entries are dropped.
+      const mathsRecs = (data.recommendations || []).filter((s: any) => {
+        const id = s?.id || s?.skillId || ''
+        const subject = s?.subject || ''
+        return id.startsWith('m_') || subject === 'Maths' || subject === 'Mathematics'
+      })
       setRecommendations(mathsRecs)
       setStats(data.stats || null)
     } catch (err) {
@@ -54,6 +160,58 @@ export default function StudentDashboard() {
     setRefreshing(true)
     loadData()
   }, [])
+
+  // Rotate the nudge banner every 2 minutes; auto-dismiss after 6s. Spec: simple useEffect timer.
+  useEffect(() => {
+    if (!student || recommendations.length === 0) return
+    nudgeTimerRef.current = setInterval(() => {
+      nudgeCountRef.current += 1
+      const nudges = buildNudges(student, recommendations, stats)
+      if (nudges.length === 0) return
+      const next = nudges[nudgeCountRef.current % nudges.length]
+      setHeroNudge(next)
+      if (nudgeDismissRef.current) clearTimeout(nudgeDismissRef.current)
+      nudgeDismissRef.current = setTimeout(() => setHeroNudge(null), 6000)
+    }, 120000)
+    return () => {
+      if (nudgeTimerRef.current) clearInterval(nudgeTimerRef.current)
+      if (nudgeDismissRef.current) clearTimeout(nudgeDismissRef.current)
+    }
+  }, [student?.id, recommendations.length, stats?.mastered])
+
+  function openCategoryPractice(categoryKey: SkillCategoryKey) {
+    // Find a SKILL_ID_MAP entry in this category, prefer the student's grade.
+    const matchingIds = (Object.entries(SKILL_ID_MAP) as Array<[string, { category: SkillCategoryKey; name: string }]>)
+      .filter(([, data]) => data.category === categoryKey)
+      .map(([id]) => id)
+    if (matchingIds.length === 0) return
+
+    const gradePrefix = `m_${student?.grade || 3}_`
+    const skillId = matchingIds.find(id => id.startsWith(gradePrefix)) || matchingIds[0]
+    const info = getSkillInfo(skillId)
+    if (!info) return
+
+    pushPractice({ id: skillId, name: info.name, currentScore: 0, mastered: false })
+  }
+
+  function handleExamUnlock(skill: any) {
+    const info = getSkillInfo(skill.id || skill.skillId)
+    if (!info) return
+    Alert.alert(
+      `🏆 ${info.name} Mastery Exam`,
+      'You\'ve scored 70+ on this skill — ready to prove mastery with harder questions?',
+      [
+        { text: 'Not yet', style: 'cancel' },
+        {
+          text: 'Start Exam',
+          style: 'default',
+          onPress: () => {
+            pushPractice(skill, { mode: 'exam' })
+          },
+        },
+      ]
+    )
+  }
 
   const weakestSkill = recommendations
     .filter(s => s.currentScore > 0)
@@ -103,6 +261,33 @@ export default function StudentDashboard() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* AI Hero nudge banner — appears at top, auto-dismisses after 6s */}
+      {heroNudge && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            const nudge = heroNudge
+            setHeroNudge(null)
+            if (!nudge?.skill) return
+            if (nudge.isExam) handleExamUnlock(nudge.skill)
+            else pushPractice(nudge.skill)
+          }}
+          style={[
+            s.nudgeBanner,
+            { backgroundColor: heroNudge.color, borderColor: heroNudge.borderColor },
+          ]}
+        >
+          <Text style={s.nudgeEmoji}>{heroNudge.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.nudgeTitle} numberOfLines={1}>{heroNudge.title}</Text>
+            <Text style={s.nudgeMsg} numberOfLines={2}>{heroNudge.message}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setHeroNudge(null)} hitSlop={10}>
+            <Text style={s.nudgeClose}>✕</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
+
       {/* A) Full navy hero header */}
       <View style={s.header}>
         {/* Top row: logo + coins + streak */}
@@ -229,35 +414,102 @@ export default function StudentDashboard() {
           </View>
           <Text style={s.sectionSub}>AI-selected skills personalised for you</Text>
 
-          {recommendations.length === 0 ? (
-            <View style={s.emptyMissions}>
-              <Text style={s.emptyText}>🎉 No new missions right now. Try again later!</Text>
-            </View>
-          ) : (
-            recommendations.slice(0, 6).map((skill: any, i: number) => {
+          {/* Category filter pills */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingVertical: 4, paddingRight: 16 }}
+            style={{ marginBottom: 12 }}
+          >
+            <TouchableOpacity
+              onPress={() => setSelectedCategory(null)}
+              activeOpacity={0.8}
+              style={[
+                s.catPill,
+                selectedCategory === null && s.catPillActive,
+              ]}
+            >
+              <Text style={[s.catPillText, selectedCategory === null && s.catPillTextActive]}>
+                All
+              </Text>
+            </TouchableOpacity>
+            {(Object.entries(SKILL_CATEGORIES) as Array<[SkillCategoryKey, typeof SKILL_CATEGORIES[SkillCategoryKey]]>)
+              .map(([key, cat]) => {
+                const active = selectedCategory === key
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    onPress={() => setSelectedCategory(active ? null : key)}
+                    activeOpacity={0.8}
+                    style={[
+                      s.catPill,
+                      active && { backgroundColor: cat.color, borderColor: cat.color },
+                    ]}
+                  >
+                    <Text style={[s.catPillText, active && s.catPillTextActive]}>
+                      {cat.emoji}  {cat.label}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+          </ScrollView>
+
+          {(() => {
+            const filtered = selectedCategory
+              ? recommendations.filter(s => {
+                  const info = getSkillInfo(s.id || s.skillId)
+                  return info?.category === selectedCategory
+                })
+              : recommendations.filter(s => getSkillInfo(s.id || s.skillId) !== null)
+
+            // Empty category state — offer to start practice on a stock skill
+            // for that category so the student isn't dead-ended.
+            if (filtered.length === 0 && selectedCategory) {
+              return (
+                <View style={s.emptyMissions}>
+                  <Text style={s.emptyText}>No missions yet in this category.</Text>
+                  <TouchableOpacity
+                    onPress={() => openCategoryPractice(selectedCategory)}
+                    activeOpacity={0.8}
+                    style={s.startCatBtn}
+                  >
+                    <Text style={s.startCatBtnText}>Start practising →</Text>
+                  </TouchableOpacity>
+                </View>
+              )
+            }
+            if (filtered.length === 0) {
+              return (
+                <View style={s.emptyMissions}>
+                  <Text style={s.emptyText}>🎉 No new missions right now. Try again later!</Text>
+                </View>
+              )
+            }
+
+            return filtered.slice(0, 6).map((skill: any, i: number) => {
+              const info = getSkillInfo(skill.id || skill.skillId)
+              if (!info) return null
               const score = Math.round(skill.currentScore || 0)
-              const ringBg = score >= 80 ? theme.colors.successLight
-                : score >= 50 ? theme.colors.goldLight
-                : theme.colors.background
-              const ringBorder = score >= 80 ? theme.colors.success
-                : score >= 50 ? theme.colors.gold
-                : theme.colors.border
-              const ringText = score >= 80 ? theme.colors.success
-                : score >= 50 ? theme.colors.gold
-                : theme.colors.textMuted
-              const barColor = score >= 80 ? theme.colors.success : theme.colors.gold
+              const barColor = score >= 80 ? theme.colors.success : info.color
+              const isReady = score >= 70 && !skill.mastered
               return (
                 <TouchableOpacity
                   key={skill.id || i}
                   onPress={() => pushPractice(skill)}
                   activeOpacity={0.8}
-                  style={s.missionRow}
+                  style={[s.missionRow, { borderColor: info.lightColor }]}
                 >
-                  <View style={[s.scoreRing, { backgroundColor: ringBg, borderColor: ringBorder }]}>
-                    <Text style={[s.scoreRingText, { color: ringText }]}>{score}</Text>
+                  <View style={[
+                    s.scoreRing,
+                    { backgroundColor: info.lightColor, borderColor: info.color },
+                  ]}>
+                    <Text style={[s.scoreRingText, { color: info.color }]}>{info.emoji}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.missionName} numberOfLines={1}>{skill.name}</Text>
+                    <Text style={s.missionName} numberOfLines={1}>{info.name}</Text>
+                    <Text style={[s.missionCategory, { color: info.color }]} numberOfLines={1}>
+                      {info.categoryLabel} · {score}/100
+                    </Text>
                     <View style={s.barOuter}>
                       <View style={[s.barInner, {
                         width: `${Math.min(100, score)}%` as any,
@@ -265,15 +517,25 @@ export default function StudentDashboard() {
                       }]} />
                     </View>
                   </View>
-                  <View style={s.missionCta}>
-                    <Text style={s.missionCtaText}>
-                      {score > 0 ? 'Continue' : 'Start'}
-                    </Text>
-                  </View>
+                  {isReady ? (
+                    <TouchableOpacity
+                      onPress={(e) => { e.stopPropagation(); handleExamUnlock(skill) }}
+                      activeOpacity={0.8}
+                      style={s.examBtn}
+                    >
+                      <Text style={s.examBtnText}>🏆 Exam</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={s.missionCta}>
+                      <Text style={s.missionCtaText}>
+                        {score > 0 ? 'Continue' : 'Start'}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               )
             })
-          )}
+          })()}
         </View>
 
         <View style={{ height: 100 }} />
@@ -373,8 +635,14 @@ const s = StyleSheet.create({
 
   // Missions
   missionsHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  emptyMissions: { padding: 24, alignItems: 'center' },
-  emptyText: { color: theme.colors.textMuted, fontSize: 14 },
+  emptyMissions: { padding: 24, alignItems: 'center', gap: 12 },
+  emptyText: { color: theme.colors.textMuted, fontSize: 14, textAlign: 'center' },
+  startCatBtn: {
+    backgroundColor: theme.colors.navy, borderRadius: 12,
+    paddingHorizontal: 18, paddingVertical: 12,
+    borderWidth: 2, borderColor: theme.colors.gold,
+  },
+  startCatBtnText: { color: 'white', fontWeight: '800', fontSize: 13 },
   missionRow: {
     backgroundColor: 'white', borderRadius: 16, padding: 16,
     marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -386,8 +654,9 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 2.5,
   },
-  scoreRingText: { fontSize: 14, fontWeight: '800' },
-  missionName: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary, marginBottom: 6 },
+  scoreRingText: { fontSize: 22, fontWeight: '800' },
+  missionName: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary, marginBottom: 2 },
+  missionCategory: { fontSize: 11, fontWeight: '600', marginBottom: 6 },
   barOuter: { height: 6, backgroundColor: theme.colors.background, borderRadius: 3, overflow: 'hidden' },
   barInner: { height: '100%', borderRadius: 3 },
   missionCta: {
@@ -396,6 +665,33 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: theme.colors.gold,
   },
   missionCtaText: { color: 'white', fontWeight: '700', fontSize: 12 },
+  examBtn: {
+    backgroundColor: theme.colors.navy, borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 2, borderColor: theme.colors.gold,
+  },
+  examBtnText: { color: theme.colors.gold, fontWeight: '800', fontSize: 12 },
+
+  // Category filter pills
+  catPill: {
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 16, borderWidth: 1.5,
+    borderColor: theme.colors.border, backgroundColor: 'white',
+  },
+  catPillActive: { backgroundColor: theme.colors.navy, borderColor: theme.colors.navy },
+  catPillText: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },
+  catPillTextActive: { color: 'white' },
+
+  // Nudge banner
+  nudgeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginHorizontal: 12, marginTop: 8, marginBottom: 4,
+    padding: 12, borderRadius: 14, borderWidth: 2,
+  },
+  nudgeEmoji: { fontSize: 24 },
+  nudgeTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
+  nudgeMsg: { fontSize: 12, color: '#334155', lineHeight: 16, marginTop: 2 },
+  nudgeClose: { fontSize: 14, color: theme.colors.textMuted, paddingHorizontal: 4 },
 
   // Bottom tab bar
   tabIndicator: {
