@@ -14,6 +14,9 @@ export async function GET() {
   try {
     const db = await connectDB()
 
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+
     const [
       totalStudents,
       totalParents,
@@ -26,6 +29,14 @@ export async function GET() {
       recentWaitlist,
       pendingTeachers,
       recentDemoRequests,
+      // Richer activity metrics for the console dashboard.
+      answersToday,
+      activeTodayIds,
+      weeklyActiveIds,
+      newThisWeek,
+      masteredThisWeek,
+      aiGenerated,
+      emailsSent,
     ] = await Promise.all([
       db.collection('children').countDocuments(),
       db.collection('parents').countDocuments(),
@@ -56,6 +67,14 @@ export async function GET() {
         .sort({ created_at: -1 })
         .limit(10)
         .toArray(),
+
+      db.collection('session_events').countDocuments({ timestamp: { $gte: dayAgo } }),
+      db.collection('session_events').distinct('studentId', { timestamp: { $gte: dayAgo } }),
+      db.collection('session_events').distinct('studentId', { timestamp: { $gte: weekAgo } }),
+      db.collection('children').countDocuments({ created_at: { $gte: weekAgo } }),
+      db.collection('skill_scores').countDocuments({ mastered: true, updatedAt: { $gte: weekAgo } }),
+      db.collection('questions').countDocuments({ aiGenerated: true }),
+      db.collection('email_logs').countDocuments({ success: true }),
     ])
 
     return NextResponse.json({
@@ -69,6 +88,14 @@ export async function GET() {
         questions: totalQuestions,
         sessionsCompleted: totalSessionsCompleted,
       },
+      // Flat activity fields the admin console reads directly.
+      answersToday,
+      activeToday: activeTodayIds.length,
+      weeklyActive: weeklyActiveIds.length,
+      newThisWeek,
+      masteredThisWeek,
+      aiGenerated,
+      emailsSent,
       pendingTeachers,
       recentWaitlist,
       recentDemoRequests,
