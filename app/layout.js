@@ -1,6 +1,6 @@
 import './globals.css'
 import LoadingScreen from '@/components/LoadingScreenClient'
-import Navbar from '@/components/Navbar'
+import ConditionalNavbar from '@/components/ConditionalNavbar'
 
 export const metadata = {
   title: 'MyMathsHero — Personalised AI Maths Learning',
@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className="min-h-screen">
         <LoadingScreen />
-        <Navbar />
+        <ConditionalNavbar />
         {children}
       </body>
     </html>

@@ -163,12 +163,33 @@ function AdminDashboard() {
     teachersEnabled: false,
     englishEnabled: false,
     scienceEnabled: false,
+    comingSoonMode: false,
   })
+
+  // Coming-soon real state — driven by the COMING_SOON_MODE env var, not Mongo.
+  const [comingSoonEnabled, setComingSoonEnabled] = useState(null)
+
+  // Waitlist stats
+  const [waitlistCount, setWaitlistCount] = useState(0)
+  const [recentWaitlist, setRecentWaitlist] = useState([])
 
   useEffect(() => {
     fetch('/api/admin/feature-flags')
       .then(r => r.json())
       .then(data => { if (data && !data.error) setFlags(f => ({ ...f, ...data })) })
+      .catch(() => {})
+
+    fetch('/api/admin/coming-soon-status')
+      .then(r => r.json())
+      .then(data => setComingSoonEnabled(!!data?.enabled))
+      .catch(() => setComingSoonEnabled(false))
+
+    fetch('/api/waitlist')
+      .then(r => r.json())
+      .then(data => {
+        setWaitlistCount(data?.count || 0)
+        setRecentWaitlist(data?.recent || [])
+      })
       .catch(() => {})
   }, [])
 
@@ -283,6 +304,58 @@ function AdminDashboard() {
           </div>
         )}
 
+        {/* COMING SOON MODE banner — most prominent panel */}
+        {comingSoonEnabled !== null && (
+          <div style={{
+            background: comingSoonEnabled ? 'rgba(245,158,11,0.14)' : 'rgba(34,197,94,0.14)',
+            border: `2px solid ${comingSoonEnabled ? '#F59E0B' : '#22C55E'}`,
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: '1 1 320px', minWidth: 280 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 24 }}>{comingSoonEnabled ? '🔒' : '🚀'}</span>
+                <h3 style={{ fontWeight: 800, fontSize: 18, color: '#fff', margin: 0 }}>
+                  {comingSoonEnabled
+                    ? 'Site is in Coming Soon Mode'
+                    : 'Site is LIVE to the Public'}
+                </h3>
+              </div>
+              <p style={{ color: '#94A3B8', fontSize: 14, margin: '0 0 10px', lineHeight: 1.5 }}>
+                {comingSoonEnabled
+                  ? 'Visitors see the coming-soon page. /login and /admin still work for the team.'
+                  : 'All visitors can see the full MyMathsHero platform.'}
+              </p>
+              <p style={{ color: '#94A3B8', fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                Source of truth: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4, color: '#C49A1A' }}>COMING_SOON_MODE</code> env var.
+                To flip, run from your terminal:<br/>
+                <code style={{ background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: 4, color: '#fff', display: 'inline-block', marginTop: 6 }}>
+                  vercel env add COMING_SOON_MODE production
+                </code>
+                <span style={{ marginLeft: 6 }}>→ value <strong>{comingSoonEnabled ? 'false' : 'true'}</strong> → <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4, color: '#fff' }}>vercel --prod</code></span>
+              </p>
+            </div>
+            <div style={{
+              background: comingSoonEnabled ? '#F59E0B' : '#22C55E',
+              color: 'white',
+              borderRadius: 10,
+              padding: '10px 18px',
+              fontWeight: 800,
+              fontSize: 14,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}>
+              {comingSoonEnabled ? 'GATE: ON' : 'GATE: OFF'}
+            </div>
+          </div>
+        )}
+
         {/* Stats row */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 40 }}>
           <StatCard label="Total Students" value={s?.students} color="#1B2B4B" />
@@ -292,6 +365,57 @@ function AdminDashboard() {
           <StatCard label="Waitlist" value={s?.waitlist} color="#16A34A" />
           <StatCard label="Demo Requests" value={s?.demoRequests} color="#0891B2" />
           <StatCard label="Questions" value={s?.questions} color="#C49A1A" />
+        </div>
+
+        {/* Coming-soon waitlist stats */}
+        <div style={{ marginBottom: 40 }}>
+          <SectionTitle>📧 Coming-Soon Waitlist</SectionTitle>
+          <div style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 16,
+            padding: '24px 28px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 48, fontWeight: 800, color: '#C49A1A', lineHeight: 1 }}>
+                {waitlistCount}
+              </div>
+              <div style={{ color: '#94A3B8', fontSize: 14 }}>
+                {waitlistCount === 1 ? 'person' : 'people'} waiting for launch
+              </div>
+            </div>
+            {recentWaitlist.length > 0 ? (
+              <div>
+                <p style={{ color: '#64748B', fontSize: 11, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  margin: '0 0 8px' }}>
+                  Most recent signups
+                </p>
+                {recentWaitlist.slice(0, 5).map((w, i) => (
+                  <div key={i} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                    fontSize: 13,
+                    color: '#CBD5E1',
+                    gap: 12,
+                  }}>
+                    <span style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      #{w.position} {w.email}
+                    </span>
+                    <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>
+                      {fmtDate(w.createdAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
+                No waitlist signups yet — share the coming-soon URL to start collecting.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Pending Teachers */}
