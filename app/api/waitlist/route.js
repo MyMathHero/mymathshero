@@ -13,7 +13,7 @@ async function connectDB() {
 
 export async function POST(request) {
   try {
-    const { email, name, childGrade } = await request.json()
+    const { email, name, firstName, lastName, childGrade } = await request.json()
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return NextResponse.json({ error: 'Valid email required' }, { status: 400 })
@@ -34,9 +34,13 @@ export async function POST(request) {
     const count = await db.collection('waitlist').countDocuments()
     const position = count + 1
 
+    const resolvedName = name || `${firstName || ''} ${lastName || ''}`.trim() || null
+
     await db.collection('waitlist').insertOne({
       email: normalisedEmail,
-      name: name || null,
+      name: resolvedName,
+      firstName: firstName || '',
+      lastName: lastName || '',
       childGrade: childGrade || null,
       position,
       source: 'coming-soon-page',
@@ -66,8 +70,8 @@ export async function POST(request) {
             <li><strong>Email:</strong> ${normalisedEmail}</li>
             <li><strong>Position:</strong> #${position}</li>
             <li><strong>Time:</strong> ${new Date().toLocaleString('en-AU')}</li>
-            ${name ? `<li><strong>Name:</strong> ${escapeHtml(name)}</li>` : ''}
-            ${childGrade ? `<li><strong>Child grade:</strong> ${escapeHtml(String(childGrade))}</li>` : ''}
+            ${resolvedName ? `<li><strong>Name:</strong> ${escapeHtml(resolvedName)}</li>` : ''}
+            ${childGrade ? `<li><strong>Child year level:</strong> ${escapeHtml(gradeLabel(childGrade))}</li>` : ''}
           </ul>`,
       })
     } catch (err) {
@@ -98,6 +102,14 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+}
+
+// Map the form's year-level value ('prep', '1'…'6') to a friendly label.
+function gradeLabel(grade) {
+  const g = String(grade).toLowerCase()
+  if (g === 'prep') return 'Prep'
+  if (/^[1-6]$/.test(g)) return `Year ${g}`
+  return String(grade)
 }
 
 function escapeHtml(s) {

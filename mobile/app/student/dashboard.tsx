@@ -546,6 +546,7 @@ export default function StudentDashboard() {
         {[
           { key: 'home',    label: 'Home',    emoji: '🏠', route: '/student/dashboard' },
           { key: 'league',  label: 'League',  emoji: '🏆', route: '/student/league' },
+          { key: 'arcade',  label: 'Arcade',  emoji: '🕹️', route: '/student/arcade' },
           { key: 'profile', label: 'Profile', emoji: '👤', route: '/student/profile' },
         ].map(tab => {
           const isActive = pathname === tab.route

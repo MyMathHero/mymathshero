@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
+import ArcadeSettings from '@/components/ArcadeSettings'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
 
 const DEMO_STUDENT_ID = 'student_test_001'
@@ -32,6 +34,7 @@ function getInsightStyle(type) {
 }
 
 export default function ParentDashboard() {
+  const { flags } = useFeatureFlags()
   const [step, setStep] = useState('loading') // loading, landing, register, addChild, childCreated, dashboard
   const [showPin, setShowPin] = useState(false)
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '', phone: '' })
@@ -653,6 +656,7 @@ export default function ParentDashboard() {
             )}
           </div>
         </div>
+
       </div>
       )}
 
@@ -676,6 +680,12 @@ export default function ParentDashboard() {
                   <p className="text-sm font-bold text-navy">{parentData.email}</p>
                 </div>
               )}
+
+              {/* Hero Arcade parent controls — per-child, only when the feature is on. */}
+              {flags.arcadeEnabled && parentData?.id && children.length > 0 && (
+                <ArcadeSettings parentId={parentData.id} children={children} />
+              )}
+
               <button onClick={() => setStep('addChild')} className="w-full bg-[#C49A1A] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#1B2B4B] transition-colors">Add Another Child</button>
               <button onClick={() => { fetch('/api/auth/logout', { method: 'POST' }).then(() => { window.location.href = '/login' }) }} className="w-full bg-[#1B2B4B] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#C49A1A] transition-colors">Log out</button>
             </div>

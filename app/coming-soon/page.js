@@ -5,6 +5,9 @@ import MathCountdownBar from '@/components/MathCountdownBar'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 
 export default function ComingSoonPage() {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [childGrade, setChildGrade] = useState('')
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -15,9 +18,12 @@ export default function ComingSoonPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const cleaned = email.trim().toLowerCase()
-    if (!cleaned || !cleaned.includes('@') || cleaned.length < 5) {
+    if (!email.trim() || !email.includes('@')) {
       setError('Please enter a valid email')
+      return
+    }
+    if (!firstName.trim()) {
+      setError('Please enter your first name')
       return
     }
     setError('')
@@ -26,7 +32,13 @@ export default function ComingSoonPage() {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleaned }),
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          email: email.trim().toLowerCase(),
+          childGrade,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (data?.position) setPosition(data.position)
@@ -170,19 +182,66 @@ export default function ComingSoonPage() {
               <p style={S.formSub}>
                 Be one of our first 1,000 families — lock in founding-member pricing and your first month free.
               </p>
-              <form onSubmit={handleSubmit} style={S.formRow} noValidate>
+              <form onSubmit={handleSubmit} style={S.formFields} noValidate>
+                <div style={S.formNameRow}>
+                  <input
+                    type="text"
+                    placeholder="First name"
+                    autoComplete="given-name"
+                    value={firstName}
+                    onChange={e => { setFirstName(e.target.value); setError('') }}
+                    aria-label="First name"
+                    required
+                    style={S.input}
+                    disabled={submitting}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Last name"
+                    autoComplete="family-name"
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    aria-label="Last name"
+                    style={S.input}
+                    disabled={submitting}
+                  />
+                </div>
+
+                <select
+                  value={childGrade}
+                  onChange={e => setChildGrade(e.target.value)}
+                  aria-label="Child's year level"
+                  style={{ ...S.input, color: childGrade ? 'white' : 'rgba(255,255,255,0.5)' }}
+                  disabled={submitting}
+                >
+                  <option value="" disabled>Child&apos;s Year Level</option>
+                  <option value="prep">Prep</option>
+                  <option value="1">Year 1</option>
+                  <option value="2">Year 2</option>
+                  <option value="3">Year 3</option>
+                  <option value="4">Year 4</option>
+                  <option value="5">Year 5</option>
+                  <option value="6">Year 6</option>
+                </select>
+
                 <input
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder="parent@example.com"
+                  placeholder="Your email address"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setError('') }}
                   aria-label="Email address"
+                  required
                   style={S.input}
                   disabled={submitting}
                 />
-                <button type="submit" disabled={submitting} style={S.cta}>
+
+                <button
+                  type="submit"
+                  disabled={submitting || !email || !firstName}
+                  style={{ ...S.cta, opacity: submitting ? 0.7 : 1 }}
+                >
                   {submitting ? 'Joining…' : 'Join the Waitlist →'}
                 </button>
               </form>
@@ -318,19 +377,24 @@ const S = {
   bulletTitle: { fontWeight: 800, color: '#1B2B4B', fontSize: 15, marginBottom: 2 },
   bulletDesc: { color: '#64748B', fontSize: 13, lineHeight: 1.45 },
 
-  // Right column (photo)
+  // Right column (photo) — no hard rounded edges; the image fades into the
+  // light card background instead of sitting in a rounded frame.
   right: {
     position: 'relative',
     minHeight: 400,
-    borderRadius: 20,
     overflow: 'visible',
   },
   photoFrame: {
     position: 'absolute',
     inset: 0,
-    borderRadius: 20,
     overflow: 'hidden',
-    background: '#F0F4F8',
+    background: 'transparent',
+    // Soft feather on all edges so the photo blends into white rather than
+    // ending on a hard line. Supported in all modern browsers.
+    WebkitMaskImage:
+      'radial-gradient(ellipse 88% 88% at 60% 45%, #000 60%, transparent 100%)',
+    maskImage:
+      'radial-gradient(ellipse 88% 88% at 60% 45%, #000 60%, transparent 100%)',
   },
   photoCrop: {
     width: '100%',
@@ -425,9 +489,13 @@ const S = {
   },
   formTitle: { fontSize: 22, fontWeight: 800, margin: '4px 0 6px', letterSpacing: '-0.5px' },
   formSub: { color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.5, margin: '0 0 14px' },
-  formRow: { display: 'flex', gap: 10, flexWrap: 'wrap' },
+  formFields: {
+    display: 'flex', flexDirection: 'column', gap: 12,
+    width: '100%', maxWidth: 480,
+  },
+  formNameRow: { display: 'flex', gap: 12 },
   input: {
-    flex: '1 1 240px', minWidth: 0,
+    flex: 1, width: '100%', minWidth: 0,
     background: 'rgba(255,255,255,0.08)',
     border: '1.5px solid rgba(255,255,255,0.18)',
     borderRadius: 12, padding: '14px 16px',
@@ -435,9 +503,11 @@ const S = {
     fontFamily: 'inherit',
   },
   cta: {
-    background: '#F59E0B', color: 'white',
+    width: '100%',
+    background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
+    color: '#1B2B4B',
     border: 'none', borderRadius: 12,
-    padding: '14px 24px', fontWeight: 800, fontSize: 15,
+    padding: '16px', fontWeight: 800, fontSize: 16,
     cursor: 'pointer', whiteSpace: 'nowrap',
     boxShadow: '0 8px 24px rgba(245,158,11,0.4)',
     fontFamily: 'inherit',

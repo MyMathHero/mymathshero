@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maths Blaster</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    color: white;
+    padding: 20px;
+  }
+  h1 { color: #C49A1A; font-size: 26px; font-weight: 900;
+    margin-bottom: 8px; text-transform: uppercase; }
+  #stats { display: flex; gap: 24px; margin-bottom: 24px; font-size: 15px; }
+  #score { color: #C49A1A; font-weight: 800; }
+  #timer { color: #EF4444; font-weight: 800; font-family: monospace; }
+  #streak { color: #22C55E; font-weight: 800; }
+  #question-box {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(196,154,26,0.3);
+    border-radius: 20px;
+    padding: 32px 40px;
+    text-align: center;
+    margin-bottom: 24px;
+    min-width: 320px;
+  }
+  #question {
+    font-size: 42px; font-weight: 900;
+    color: white; margin-bottom: 8px;
+  }
+  #level-badge {
+    font-size: 12px; color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  #options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 340px;
+  }
+  .opt {
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: 800;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .opt:hover { border-color: #C49A1A; background: rgba(196,154,26,0.1); }
+  .opt.correct { background: #DCFCE7; border-color: #22C55E; color: #166534; }
+  .opt.wrong { background: #FEE2E2; border-color: #EF4444; color: #991B1B; }
+  #feedback {
+    height: 32px; margin-top: 16px;
+    font-size: 20px; font-weight: 800;
+    text-align: center;
+  }
+  #game-over {
+    display: none;
+    text-align: center;
+  }
+  #game-over h2 { font-size: 28px; color: #C49A1A; margin-bottom: 8px; }
+  #game-over p { color: rgba(255,255,255,0.6); margin-bottom: 24px; }
+  #play-again {
+    background: linear-gradient(135deg, #C49A1A, #FFD700);
+    color: #0A0A1A; border: none; border-radius: 12px;
+    padding: 14px 32px; font-size: 16px; font-weight: 800;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🧮 Maths Blaster</h1>
+<div id="stats">
+  <span>Score: <span id="score">0</span></span>
+  <span>⏱ <span id="timer">30</span>s</span>
+  <span>🔥 <span id="streak">0</span></span>
+</div>
+
+<div id="question-box">
+  <div id="question">2 + 3 = ?</div>
+  <div id="level-badge">Level 1</div>
+</div>
+
+<div id="options">
+  <button class="opt" onclick="answer(this)">4</button>
+  <button class="opt" onclick="answer(this)">5</button>
+  <button class="opt" onclick="answer(this)">6</button>
+  <button class="opt" onclick="answer(this)">7</button>
+</div>
+
+<div id="feedback"></div>
+
+<div id="game-over">
+  <h2>🎉 Time's Up!</h2>
+  <p id="final-score">You scored 0 points!</p>
+  <button id="play-again" onclick="startGame()">Play Again →</button>
+</div>
+
+<script>
+let score = 0, streak = 0, timeLeft = 30, interval, correct, answered
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function generateQuestion() {
+  const level = Math.min(5, Math.floor(score / 50) + 1)
+  document.getElementById('level-badge').textContent = `Level ${level}`
+
+  let a, b, op, ans
+
+  if (level <= 2) {
+    op = ['+', '-'][rand(0,1)]
+    a = rand(1, 20)
+    b = rand(1, op === '-' ? a : 20)
+    ans = op === '+' ? a + b : a - b
+  } else if (level <= 4) {
+    op = ['+', '-', '×'][rand(0,2)]
+    a = rand(2, op === '×' ? 12 : 50)
+    b = rand(2, op === '×' ? 12 : 50)
+    if (op === '-' && b > a) [a, b] = [b, a]
+    ans = op === '+' ? a + b : op === '-' ? a - b : a * b
+  } else {
+    op = ['+', '-', '×', '÷'][rand(0,3)]
+    if (op === '÷') {
+      b = rand(2, 12); ans = rand(2, 12); a = b * ans
+    } else {
+      a = rand(10, 100); b = rand(10, op === '×' ? 12 : 100)
+      if (op === '-' && b > a) [a, b] = [b, a]
+      ans = op === '+' ? a + b : op === '-' ? a - b : a * b
+    }
+  }
+
+  correct = ans
+  document.getElementById('question').textContent = `${a} ${op} ${b} = ?`
+
+  // Generate 3 wrong answers
+  const wrongs = new Set()
+  while (wrongs.size < 3) {
+    const w = ans + rand(-10, 10)
+    if (w !== ans && w >= 0) wrongs.add(w)
+  }
+  const opts = [...wrongs, ans].sort(() => Math.random() - 0.5)
+
+  document.querySelectorAll('.opt').forEach((btn, i) => {
+    btn.textContent = opts[i]
+    btn.className = 'opt'
+    btn.disabled = false
+  })
+
+  answered = false
+  document.getElementById('feedback').textContent = ''
+}
+
+function answer(btn) {
+  if (answered) return
+  answered = true
+  document.querySelectorAll('.opt').forEach(b => b.disabled = true)
+
+  const val = parseInt(btn.textContent)
+  if (val === correct) {
+    btn.classList.add('correct')
+    streak++
+    const bonus = streak >= 3 ? 20 : 10
+    score += bonus
+    document.getElementById('score').textContent = score
+    document.getElementById('streak').textContent = streak
+    document.getElementById('feedback').textContent =
+      streak >= 3 ? `🔥 ${streak} streak! +${bonus}` : '✓ Correct! +10'
+  } else {
+    btn.classList.add('wrong')
+    // Show correct
+    document.querySelectorAll('.opt').forEach(b => {
+      if (parseInt(b.textContent) === correct) b.classList.add('correct')
+    })
+    streak = 0
+    document.getElementById('streak').textContent = 0
+    document.getElementById('feedback').textContent = '✗ Not quite!'
+  }
+
+  setTimeout(() => {
+    if (timeLeft > 0) generateQuestion()
+  }, 600)
+}
+
+function startGame() {
+  score = 0; streak = 0; timeLeft = 30
+  document.getElementById('score').textContent = 0
+  document.getElementById('streak').textContent = 0
+  document.getElementById('timer').textContent = 30
+  document.getElementById('game-over').style.display = 'none'
+  document.querySelector('#options').style.display = 'grid'
+  document.getElementById('question-box').style.display = 'block'
+  document.querySelectorAll('.opt').forEach(b => b.style.display = 'block')
+
+  clearInterval(interval)
+  interval = setInterval(() => {
+    timeLeft--
+    document.getElementById('timer').textContent = timeLeft
+    if (timeLeft <= 0) {
+      clearInterval(interval)
+      document.getElementById('game-over').style.display = 'block'
+      document.getElementById('final-score').textContent =
+        `You scored ${score} points! ${score >= 100 ? '🏆 Amazing!' : score >= 50 ? '⭐ Great job!' : '💪 Keep practising!'}`
+      document.querySelector('#options').style.display = 'none'
+      document.getElementById('question-box').style.display = 'none'
+    }
+  }, 1000)
+
+  generateQuestion()
+}
+
+startGame()
+</script>
+</body>
+</html>

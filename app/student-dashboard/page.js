@@ -2481,12 +2481,14 @@ export default function StudentDashboard() {
         {[
           { emoji: '🏠', label: 'Home', tab: 'home' },
           { emoji: '🏆', label: 'League', tab: 'league' },
+          // Hero Arcade — only shown when the arcadeEnabled flag is on.
+          ...(flags.arcadeEnabled ? [{ emoji: '🕹️', label: 'Arcade', href: '/arcade' }] : []),
           { emoji: '🎖️', label: 'Badges', tab: 'badges' },
           { emoji: '👤', label: 'Profile', tab: 'profile' },
         ].map((item, i) => (
           <button
             key={i}
-            onClick={() => setActiveTab(item.tab)}
+            onClick={() => item.href ? router.push(item.href) : setActiveTab(item.tab)}
             style={{
               flex: 1,
               background: 'none',

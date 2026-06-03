@@ -58,6 +58,25 @@ export const studentAPI = {
     api.post('/api/student/change-pin', { studentId, newPin }),
 }
 
+export const arcadeAPI = {
+  getStatus: (studentId: string) =>
+    api.get(`/api/student/arcade?studentId=${studentId}`),
+  unlockGame: (studentId: string, gameId: string) =>
+    api.post('/api/student/arcade', {
+      studentId, gameId, action: 'unlock'
+    }),
+  startGame: (studentId: string, gameId: string) =>
+    api.post('/api/student/arcade', {
+      studentId, gameId, action: 'start'
+    }),
+  endGame: (studentId: string, gameId: string,
+    sessionId: string, durationMinutes: number) =>
+    api.post('/api/student/arcade', {
+      studentId, gameId, action: 'end',
+      sessionId, durationMinutes
+    }),
+}
+
 export const parentAPI = {
   children: (parentId: string) =>
     api.get(`/api/parent/children?parentId=${parentId}`),

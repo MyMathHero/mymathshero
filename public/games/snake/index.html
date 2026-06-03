@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Hero</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    color: white;
+  }
+  h1 {
+    color: #C49A1A;
+    font-size: 24px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  #score-bar {
+    display: flex;
+    gap: 32px;
+    margin-bottom: 12px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  #score { color: #C49A1A; }
+  #high-score { color: rgba(255,255,255,0.5); }
+  canvas {
+    border: 2px solid rgba(196,154,26,0.4);
+    border-radius: 8px;
+    display: block;
+  }
+  #message {
+    margin-top: 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #C49A1A;
+    min-height: 28px;
+    text-align: center;
+  }
+  #instructions {
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<h1>🐍 Snake Hero</h1>
+<div id="score-bar">
+  <span>Score: <span id="score">0</span></span>
+  <span>Best: <span id="high-score">0</span></span>
+</div>
+<canvas id="c" width="400" height="400"></canvas>
+<div id="message">Press any arrow key or tap to start!</div>
+<div id="instructions">Arrow keys or swipe to move · Eat 🍎 to grow</div>
+
+<script>
+const canvas = document.getElementById('c')
+const ctx = canvas.getContext('2d')
+const msg = document.getElementById('message')
+const scoreEl = document.getElementById('score')
+const hiEl = document.getElementById('high-score')
+
+const GRID = 20
+const COLS = canvas.width / GRID
+const ROWS = canvas.height / GRID
+
+let snake, dir, nextDir, food, score, hiScore = 0, loop, running = false
+
+const COLORS = {
+  bg: '#0A0A1A',
+  grid: 'rgba(255,255,255,0.03)',
+  head: '#C49A1A',
+  body: '#1B2B4B',
+  bodyBorder: '#C49A1A',
+  food: '#EF4444',
+  foodGlow: 'rgba(239,68,68,0.3)',
+}
+
+function init() {
+  snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]
+  dir = { x: 1, y: 0 }
+  nextDir = { x: 1, y: 0 }
+  score = 0
+  scoreEl.textContent = 0
+  placeFood()
+  if (loop) clearInterval(loop)
+  loop = setInterval(tick, 120)
+  running = true
+  msg.textContent = ''
+}
+
+function placeFood() {
+  do {
+    food = {
+      x: Math.floor(Math.random() * COLS),
+      y: Math.floor(Math.random() * ROWS)
+    }
+  } while (snake.some(s => s.x === food.x && s.y === food.y))
+}
+
+function tick() {
+  dir = nextDir
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y }
+
+  // Wall collision
+  if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+    return gameOver()
+  }
+  // Self collision
+  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    return gameOver()
+  }
+
+  snake.unshift(head)
+
+  if (head.x === food.x && head.y === food.y) {
+    score += 10
+    scoreEl.textContent = score
+    if (score > hiScore) { hiScore = score; hiEl.textContent = hiScore }
+    placeFood()
+  } else {
+    snake.pop()
+  }
+
+  draw()
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Grid
+  ctx.strokeStyle = COLORS.grid
+  ctx.lineWidth = 1
+  for (let x = 0; x < COLS; x++) {
+    for (let y = 0; y < ROWS; y++) {
+      ctx.strokeRect(x * GRID, y * GRID, GRID, GRID)
+    }
+  }
+
+  // Food glow
+  ctx.fillStyle = COLORS.foodGlow
+  ctx.beginPath()
+  ctx.arc(
+    food.x * GRID + GRID / 2,
+    food.y * GRID + GRID / 2,
+    GRID, 0, Math.PI * 2
+  )
+  ctx.fill()
+
+  // Food
+  ctx.fillStyle = COLORS.food
+  ctx.beginPath()
+  ctx.arc(
+    food.x * GRID + GRID / 2,
+    food.y * GRID + GRID / 2,
+    GRID / 2 - 1, 0, Math.PI * 2
+  )
+  ctx.fill()
+
+  // Snake body
+  snake.forEach((seg, i) => {
+    const isHead = i === 0
+    ctx.fillStyle = isHead ? COLORS.head : COLORS.body
+    ctx.strokeStyle = COLORS.bodyBorder
+    ctx.lineWidth = isHead ? 2 : 1
+    const pad = isHead ? 1 : 2
+    ctx.beginPath()
+    ctx.roundRect(
+      seg.x * GRID + pad,
+      seg.y * GRID + pad,
+      GRID - pad * 2,
+      GRID - pad * 2,
+      isHead ? 6 : 4
+    )
+    ctx.fill()
+    ctx.stroke()
+  })
+}
+
+function gameOver() {
+  clearInterval(loop)
+  running = false
+  msg.textContent = `Game Over! Score: ${score} — Press any key to retry`
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  const moves = {
+    ArrowUp:    { x:  0, y: -1 },
+    ArrowDown:  { x:  0, y:  1 },
+    ArrowLeft:  { x: -1, y:  0 },
+    ArrowRight: { x:  1, y:  0 },
+  }
+  if (moves[e.key]) {
+    e.preventDefault()
+    const m = moves[e.key]
+    // Prevent 180-degree turns
+    if (m.x !== -dir.x || m.y !== -dir.y) nextDir = m
+    if (!running) init()
+  } else if (!running) {
+    init()
+  }
+})
+
+// Touch/swipe support
+let touchStart = null
+canvas.addEventListener('touchstart', e => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  e.preventDefault()
+  if (!running) init()
+}, { passive: false })
+canvas.addEventListener('touchend', e => {
+  if (!touchStart) return
+  const dx = e.changedTouches[0].clientX - touchStart.x
+  const dy = e.changedTouches[0].clientY - touchStart.y
+  if (Math.abs(dx) > Math.abs(dy)) {
+    nextDir = dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 }
+  } else {
+    nextDir = dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 }
+  }
+  touchStart = null
+  e.preventDefault()
+}, { passive: false })
+
+// Draw initial screen
+draw()
+</script>
+</body>
+</html>
