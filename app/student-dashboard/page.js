@@ -1484,6 +1484,29 @@ export default function StudentDashboard() {
                     </div>
                   </div>
                 )}
+
+                {/* HERO VOUCHERS */}
+                <div
+                  onClick={() => router.push('/vouchers')}
+                  style={{
+                    background: 'linear-gradient(135deg, #1B2B4B, #2D4A7A)',
+                    border: '2px solid #C49A1A',
+                    borderRadius: 16, padding: 20,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 32 }}>🎟️</span>
+                    <div>
+                      <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero Vouchers</p>
+                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>Redeem points for Hero Arcade Credits</p>
+                      <p style={{ color: '#C49A1A', fontSize: 12, fontWeight: 700, margin: 0 }}>
+                        ⚡ {(totalXp || 0).toLocaleString()} pts available
+                      </p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                  </div>
+                </div>
               </div>
             )}
 

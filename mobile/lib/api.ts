@@ -58,6 +58,14 @@ export const studentAPI = {
     api.post('/api/student/change-pin', { studentId, newPin }),
 }
 
+// Voucher API does NOT take a studentId — the server reads it from the
+// authenticated session (cookie web / Authorization header mobile).
+export const voucherAPI = {
+  list: () => api.get('/api/student/vouchers'),
+  redeem: (tierId: string) =>
+    api.post('/api/student/vouchers', { tierId }),
+}
+
 export const arcadeAPI = {
   getStatus: (studentId: string) =>
     api.get(`/api/student/arcade?studentId=${studentId}`),

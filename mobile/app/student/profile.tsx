@@ -151,6 +151,22 @@ export default function Profile() {
           </View>
         )}
 
+        {/* Rewards */}
+        <TouchableOpacity
+          style={p.voucherCard}
+          onPress={() => router.push('/student/vouchers')}
+          activeOpacity={0.85}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ fontSize: 28 }}>🎟️</Text>
+            <View>
+              <Text style={p.voucherTitle}>Hero Vouchers</Text>
+              <Text style={p.voucherSub}>Redeem points for Hero Arcade Credits</Text>
+            </View>
+          </View>
+          <Text style={p.voucherArrow}>›</Text>
+        </TouchableOpacity>
+
         {/* Account section */}
         <View style={p.section}>
           <Text style={p.sectionTitle}>⚙️ Account</Text>
@@ -269,6 +285,16 @@ const p = StyleSheet.create({
     padding: 18, marginHorizontal: 16, marginBottom: 12,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
   sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1B2B4B', marginBottom: 14 },
+  voucherCard: {
+    backgroundColor: '#1B2B4B', marginHorizontal: 16, marginBottom: 12,
+    borderRadius: 16, padding: 16,
+    borderWidth: 2, borderColor: '#C49A1A',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+  },
+  voucherTitle: { color: '#C49A1A', fontWeight: '800', fontSize: 15 },
+  voucherSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
+  voucherArrow: { color: '#C49A1A', fontSize: 22, fontWeight: '700' },
+
   actionBtn: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingVertical: 12,
     borderBottomWidth: 1, borderColor: '#F0F4F8' },
