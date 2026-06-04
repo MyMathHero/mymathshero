@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as Haptics from 'expo-haptics'
 import { studentAPI } from '../../lib/api'
+import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
 import HeroRobot from '../../components/HeroRobot'
@@ -136,6 +137,14 @@ export default function StudentDashboard() {
       const res = await studentAPI.progress(id)
       const data = res?.data || {}
       setStudent(data.student || null)
+
+      // Schedule the 6pm local streak reminder (DAILY trigger — fires every day).
+      // Wraps the call so a notification scheduling failure can't break the
+      // dashboard render.
+      if (data.student?.name) {
+        const firstName = String(data.student.name).split(' ')[0]
+        scheduleStreakReminder(firstName, data.student.streak || 0).catch(() => {})
+      }
 
       // Maths only — strict guard so any e_*/s_* legacy entries are dropped.
       const mathsRecs = (data.recommendations || []).filter((s: any) => {

@@ -7,6 +7,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
+import { showAchievementNotification } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import HeroRobot from '../../components/HeroRobot'
@@ -163,6 +164,24 @@ export default function Practice() {
       setResult(res.data)
       if (res.data.correct && isSpeedRound) {
         setSpeedCorrect(c => c + 1)
+      }
+
+      // Local achievement notifications — fire-and-forget, never block.
+      // The web API returns `mastered` boolean and `newBadges: [{name, ...}]`.
+      if (res.data?.mastered) {
+        showAchievementNotification(
+          '🏆 Skill Mastered!',
+          'Amazing! You have mastered this skill. Keep going Hero!',
+          'skill_mastered'
+        ).catch(() => {})
+      }
+      if (Array.isArray(res.data?.newBadges) && res.data.newBadges.length > 0) {
+        const badge = res.data.newBadges[0]
+        showAchievementNotification(
+          `🏅 New Badge: ${badge?.name || 'Badge earned!'}`,
+          badge?.description || 'You earned a new badge!',
+          'badge_earned'
+        ).catch(() => {})
       }
     } catch {
       Alert.alert('Error', 'Could not submit answer.')
