@@ -217,6 +217,12 @@ export default function StudentDashboard() {
   const [showAskHero, setShowAskHero] = useState(false)
   const [askHeroAttempts, setAskHeroAttempts] = useState(1)
 
+  // Session feedback popup — fires every 5 completed sessions, max once per count
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackRating, setFeedbackRating] = useState(0)
+  const [feedbackMsg, setFeedbackMsg] = useState('')
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+
   // Hero Missions category filter (null = show all)
   const [selectedCategory, setSelectedCategory] = useState(null)
 
@@ -317,6 +323,53 @@ export default function StudentDashboard() {
   }
 
   useEffect(() => { fetchLeaderboard(activeLeaderboardTab) }, [activeLeaderboardTab])
+
+  // Session feedback popup — show once per 5th-session boundary, never more
+  // than once per count even if the dashboard remounts. localStorage stores
+  // the last count we asked for so we don't pester the student again.
+  useEffect(() => {
+    const sessions = student?.sessions_completed
+    if (!sessions || sessions <= 0 || sessions % 5 !== 0) return
+    try {
+      const key = `mmh_lastFeedbackAt_${authStudentId}`
+      const lastAsked = parseInt(localStorage.getItem(key) || '0', 10)
+      if (lastAsked === sessions) return
+      const timer = setTimeout(() => {
+        setShowFeedback(true)
+        localStorage.setItem(key, String(sessions))
+      }, 2000)
+      return () => clearTimeout(timer)
+    } catch {
+      // localStorage blocked (private window) — silently skip the dedupe.
+    }
+  }, [student?.sessions_completed, authStudentId])
+
+  async function submitFeedback() {
+    if (feedbackSubmitting) return
+    setFeedbackSubmitting(true)
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authStudentId,
+          role: 'student',
+          type: 'session',
+          rating: feedbackRating,
+          message: feedbackMsg.trim() || null,
+          context: { page: 'student-dashboard', sessions: student?.sessions_completed },
+          platform: 'web',
+        }),
+      })
+    } catch {
+      // Swallow — feedback is fire-and-forget; never show an error toast for it.
+    } finally {
+      setShowFeedback(false)
+      setFeedbackRating(0)
+      setFeedbackMsg('')
+      setFeedbackSubmitting(false)
+    }
+  }
 
   // Hero AI nudge — rotate a motivational popup every 2 minutes while the tab is visible.
   useEffect(() => {
@@ -2478,6 +2531,95 @@ export default function StudentDashboard() {
               {heroNudge.action} →
             </button>
           )}
+        </div>
+      )}
+
+      {/* SESSION FEEDBACK MODAL — every 5 sessions */}
+      {showFeedback && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 400,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 24,
+            padding: 32, maxWidth: 420, width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }}>
+            <p style={{ fontSize: 48, marginBottom: 8 }}>🤖</p>
+            <h2 style={{ fontSize: 22, fontWeight: 800,
+              color: '#1B2B4B', marginBottom: 8 }}>
+              How is Hero helping you?
+            </h2>
+            <p style={{ color: '#64748B', fontSize: 14,
+              marginBottom: 24 }}>
+              Your feedback helps us make MyMathsHero better!
+            </p>
+
+            <div style={{ display: 'flex', gap: 8,
+              justifyContent: 'center', marginBottom: 20 }}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <button key={star}
+                  onClick={() => setFeedbackRating(star)}
+                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                  style={{
+                    fontSize: 36, background: 'none',
+                    border: 'none', cursor: 'pointer',
+                    opacity: star <= feedbackRating ? 1 : 0.3,
+                    transform: star <= feedbackRating ? 'scale(1.2)' : 'scale(1)',
+                    transition: 'all 0.1s',
+                  }}>
+                  ⭐
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              placeholder="Tell us what you think... (optional)"
+              value={feedbackMsg}
+              onChange={e => setFeedbackMsg(e.target.value.slice(0, 2000))}
+              style={{
+                width: '100%', padding: 12,
+                border: '1.5px solid #E2E8F0',
+                borderRadius: 12, fontSize: 14,
+                resize: 'none', height: 80,
+                color: '#1B2B4B', marginBottom: 16,
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setShowFeedback(false)
+                  setFeedbackRating(0)
+                  setFeedbackMsg('')
+                }}
+                disabled={feedbackSubmitting}
+                style={{ flex: 1, padding: 14,
+                  background: 'white',
+                  border: '1.5px solid #E2E8F0',
+                  borderRadius: 12, fontWeight: 600,
+                  cursor: 'pointer', color: '#64748B' }}>
+                Skip
+              </button>
+              <button
+                onClick={submitFeedback}
+                disabled={feedbackRating === 0 || feedbackSubmitting}
+                style={{ flex: 2, padding: 14,
+                  background: feedbackRating > 0 ? '#1B2B4B' : '#E2E8F0',
+                  border: feedbackRating > 0 ? '2px solid #C49A1A' : 'none',
+                  borderRadius: 12, fontWeight: 800,
+                  cursor: feedbackRating > 0 ? 'pointer' : 'default',
+                  color: feedbackRating > 0 ? 'white' : '#94A3B8' }}>
+                {feedbackSubmitting ? 'Sending…' : 'Send Feedback ✓'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

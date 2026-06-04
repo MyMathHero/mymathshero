@@ -54,6 +54,10 @@ export default function ParentDashboard() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [reportSending, setReportSending] = useState(false)
   const [reportMsg, setReportMsg] = useState('')
+
+  // NPS survey — fires at most once every 30 days. Dismissal also counts as
+  // "asked" so we don't pester someone who closes it.
+  const [showNPS, setShowNPS] = useState(false)
   const [lastReportSent, setLastReportSent] = useState(null)
 
   // ── Auth check on mount ────────────────────────────────────────────────────
@@ -112,6 +116,47 @@ export default function ParentDashboard() {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, childData?.id])
+
+  // Monthly NPS prompt — show 10s after the dashboard renders, only if we
+  // haven't asked in the last 30 days. Dismissal counts as "asked" so we
+  // don't pester the parent immediately.
+  useEffect(() => {
+    if (step !== 'dashboard') return
+    try {
+      const lastNPS = parseInt(localStorage.getItem('mmh_lastNPS') || '0', 10)
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000)
+      if (lastNPS >= thirtyDaysAgo) return
+      const t = setTimeout(() => setShowNPS(true), 10000)
+      return () => clearTimeout(t)
+    } catch {
+      // localStorage blocked — skip the survey rather than ask every load.
+    }
+  }, [step])
+
+  function dismissNPS() {
+    try { localStorage.setItem('mmh_lastNPS', Date.now().toString()) } catch {}
+    setShowNPS(false)
+  }
+
+  async function submitNPS(score) {
+    dismissNPS()
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: parentData?.id,
+          role: 'parent',
+          type: 'nps',
+          rating: score,
+          context: { page: 'parent-dashboard' },
+          platform: 'web',
+        }),
+      })
+    } catch {
+      // Already dismissed locally — silent fail is fine.
+    }
+  }
 
   async function fetchInsights(studentId, parentId, cancelledRef) {
     setInsightsLoading(true)
@@ -701,6 +746,51 @@ export default function ParentDashboard() {
         >
           <User size={14} /> Account
         </button>
+      )}
+
+      {/* NPS SURVEY — bottom-right popup, monthly */}
+      {showNPS && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24,
+          background: 'white', borderRadius: 20,
+          padding: 24, maxWidth: 360,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          border: '1px solid #E2E8F0', zIndex: 300,
+        }}>
+          <button
+            onClick={dismissNPS}
+            aria-label="Dismiss survey"
+            style={{ position: 'absolute', top: 12, right: 16,
+              background: 'none', border: 'none',
+              cursor: 'pointer', color: '#94A3B8',
+              fontSize: 18 }}>
+            ✕
+          </button>
+          <p style={{ fontWeight: 800, color: '#1B2B4B',
+            marginBottom: 6, fontSize: 15 }}>
+            How likely are you to recommend MyMathsHero?
+          </p>
+          <p style={{ color: '#64748B', fontSize: 12,
+            marginBottom: 16 }}>
+            0 = Not at all · 10 = Definitely!
+          </p>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+              <button key={n}
+                onClick={() => submitNPS(n)}
+                style={{
+                  width: 36, height: 36,
+                  borderRadius: 8, border: '1.5px solid #E2E8F0',
+                  background: n >= 9 ? '#DCFCE7'
+                    : n >= 7 ? '#FFFBEB' : 'white',
+                  color: '#1B2B4B', fontWeight: 700,
+                  fontSize: 13, cursor: 'pointer',
+                }}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

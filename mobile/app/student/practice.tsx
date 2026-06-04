@@ -6,7 +6,7 @@ import {
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
-import { studentAPI } from '../../lib/api'
+import api, { studentAPI } from '../../lib/api'
 import { showAchievementNotification } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AskHeroSheet from '../../components/AskHeroSheet'
@@ -190,8 +190,48 @@ export default function Practice() {
     }
   }
 
+  // Fire-and-forget feedback POST. Errors swallowed — feedback must never
+  // disrupt practice flow.
+  async function submitQuickFeedback(rating: number, message: string) {
+    try {
+      const studentId = await SecureStore.getItemAsync('user_id')
+      await api.post('/api/feedback', {
+        userId: studentId,
+        role: 'student',
+        type: 'session',
+        rating,
+        message,
+        context: { skillId, page: 'practice' },
+        platform: 'mobile',
+      })
+    } catch {
+      // Silent.
+    }
+  }
+
+  // Prompt every 5 questions completed. Spec calls for thumbs up / just right /
+  // too easy; I added "Not now" so the student isn't trapped if they're mid-flow.
+  function askSessionFeedback() {
+    Alert.alert(
+      '🤖 Quick Check!',
+      'How are the questions going?',
+      [
+        { text: '😕 Too Hard',    onPress: () => submitQuickFeedback(2, 'too_hard') },
+        { text: '😊 Just Right',  onPress: () => submitQuickFeedback(4, 'just_right') },
+        { text: '😎 Too Easy',    onPress: () => submitQuickFeedback(3, 'too_easy') },
+        { text: 'Not now', style: 'cancel' },
+      ],
+      { cancelable: true }
+    )
+  }
+
   function handleNext(wasCorrect?: boolean) {
     const nextIndex = currentIndex + 1
+    // Trigger every 5 questions completed (5, 10, 15, …). Skip during speed
+    // rounds — they're short and have their own completion screen.
+    if (!isSpeedRound && nextIndex > 0 && nextIndex % 5 === 0) {
+      askSessionFeedback()
+    }
     if (isSpeedRound && nextIndex >= SPEED_ROUND_TOTAL) {
       if (totalTimerRef.current) clearInterval(totalTimerRef.current)
       setSpeedRoundDone(true)
