@@ -1,6 +1,7 @@
 import './globals.css'
 import LoadingScreen from '@/components/LoadingScreenClient'
 import ConditionalNavbar from '@/components/ConditionalNavbar'
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 export const metadata = {
   title: 'MyMathsHero — Personalised AI Maths Learning',
@@ -28,6 +29,7 @@ export default function RootLayout({ children }) {
         <ConditionalNavbar />
         {children}
       </body>
+      <GoogleAnalytics gaId="G-0G8YVNL7E4" />
     </html>
   )
 }

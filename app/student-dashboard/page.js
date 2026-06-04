@@ -6,6 +6,7 @@ import RoboVideo from '@/components/RoboVideo'
 import AskHero from '@/components/AskHero'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
+import { Analytics } from '@/lib/analytics'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -448,6 +449,7 @@ export default function StudentDashboard() {
 
   // ── Open practice — fetch questions from API ───────────────────────────────
   const openPractice = async (skill, opts = {}) => {
+    Analytics.skillStarted(skill?.id, skill?.name)
     setPracticeLoading(true)
     setAnswerState(null)
     setShowHint(false)
@@ -526,6 +528,11 @@ export default function StudentDashboard() {
         }),
       })
       const result = await res.json()
+
+      Analytics.questionAnswered(!!result.correct, practiceModal.skillId, student?.grade)
+      if (result.mastered) {
+        Analytics.skillMastered(practiceModal.skillId, practiceModal.skillName, student?.grade)
+      }
 
       const correctIndex = result.correctAnswer
         ? practiceModal.options.indexOf(result.correctAnswer)
@@ -741,6 +748,7 @@ export default function StudentDashboard() {
 
   // ── Skill Mastery Exam ────────────────────────────────────────────────────
   function openSkillExam(skill) {
+    Analytics.examStarted(skill?.id || skill?.skillId)
     setExamModal({ skill, phase: 'loading' })
     fetchExamQuestions(skill)
   }
@@ -816,9 +824,13 @@ export default function StudentDashboard() {
       })
       const result = await res.json()
       setExamModal(prev => prev ? ({ ...prev, phase: 'result', result }) : prev)
+      const examSkillId = current.skill.id || current.skill.skillId
       if (result?.passed) {
+        Analytics.examPassed(examSkillId, result.score)
         setTotalXp(prev => prev + (result.xpEarned || 50))
         setCoins(prev => prev + (result.coinsEarned || 20))
+      } else if (typeof result?.score === 'number') {
+        Analytics.examFailed(examSkillId, result.score)
       }
     } catch {
       setExamModal(null)
@@ -1971,6 +1983,7 @@ export default function StudentDashboard() {
                           </div>
                           <button
                             onClick={() => {
+                              Analytics.askHeroOpened(practiceModal?.skillId)
                               setShowAskHero(true)
                               setAskHeroAttempts(prev => prev + 1)
                             }}
@@ -1988,6 +2001,7 @@ export default function StudentDashboard() {
                       {!answerState && (
                         <button
                           onClick={() => {
+                            Analytics.askHeroOpened(practiceModal?.skillId)
                             setShowAskHero(true)
                             setAskHeroAttempts(prev => prev + 1)
                           }}

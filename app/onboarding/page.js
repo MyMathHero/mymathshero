@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
+import { Analytics } from '@/lib/analytics'
 
 const BRAND_DARK = '#1B2B4B'
 const BRAND_GOLD = '#C49A1A'
@@ -358,7 +359,7 @@ function ParentFlow({ onBack }) {
           📸 Screenshot this and keep it safe!
         </p>
 
-        <Btn onClick={() => router.push('/parent-dashboard')}>
+        <Btn onClick={() => { Analytics.onboardingCompleted('parent'); router.push('/parent-dashboard') }}>
           Go to Dashboard →
         </Btn>
       </Card>
@@ -501,6 +502,7 @@ function JoinFlow({ onBack }) {
     e.preventDefault()
     if (!joinName.trim()) { setNameError('Please enter your name'); return }
     setLoading(true)
+    Analytics.onboardingCompleted('join')
     setTimeout(() => router.push('/student-dashboard'), 800)
   }
 
@@ -635,7 +637,7 @@ export default function OnboardingPage() {
       justifyContent: 'center', padding: '32px 16px',
       fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif",
     }}>
-      {!path && <PathPicker onSelect={setPath} flags={flags} />}
+      {!path && <PathPicker onSelect={(p) => { Analytics.onboardingStarted(); setPath(p) }} flags={flags} />}
       {path === 'parent'  && <ParentFlow  onBack={() => setPath(null)} />}
       {/* Teacher path only reachable when teachersEnabled flag is on */}
       {path === 'teacher' && flags.teachersEnabled && <TeacherFlow onBack={() => setPath(null)} />}

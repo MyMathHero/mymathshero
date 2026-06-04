@@ -5,6 +5,14 @@ import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import {
   ARCADE_GAMES, ARCADE_CATEGORIES, canPlayGame
 } from '@/lib/arcadeGames'
+import { Analytics } from '@/lib/analytics'
+
+// Brand arcade palette — pure black theme (matches the intro animation's black
+// background) with gold accents and white text.
+const ARCADE_BG = '#000000'
+const ARCADE_BG_SOLID = '#000000' // bars
+const ARCADE_GOLD = '#C49A1A'
+const ARCADE_INK = '#000000'       // black used for text on gold buttons
 
 export default function ArcadePage() {
   const router = useRouter()
@@ -57,6 +65,14 @@ export default function ArcadePage() {
     }
   }, [])
 
+  // Safety: never get stuck on the intro animation. If the video doesn't fire
+  // onEnded (slow load, codec issue, etc.) move to the lobby after 5s max.
+  useEffect(() => {
+    if (phase !== 'entering') return
+    const t = setTimeout(() => setPhase('lobby'), 5000)
+    return () => clearTimeout(t)
+  }, [phase])
+
   async function loadArcadeData() {
     try {
       const authRes = await fetch('/api/auth/me')
@@ -100,8 +116,10 @@ export default function ArcadePage() {
       return
     }
 
-    setPhase('entering') // animation phase
-    setTimeout(() => setPhase('lobby'), 1500)
+    // Play the arcade intro animation, then drop into the lobby. The entering
+    // screen also has its own safety timeout in case the video can't play.
+    Analytics.arcadeEntered()
+    setPhase('entering')
   }
 
   async function handleUnlockGame(game) {
@@ -125,6 +143,7 @@ export default function ArcadePage() {
       })
       const data = await res.json()
       if (data.success) {
+        Analytics.gameUnlocked(game.id, game.title, game.pointsCost)
         setArcadeData(prev => ({
           ...prev,
           xp: data.newXP ?? prev.xp,
@@ -181,6 +200,7 @@ export default function ArcadePage() {
   function handleExitGame() {
     clearInterval(sessionTimerRef.current)
     if (sessionId && sessionMinutes > 0) {
+      Analytics.gamePlayed(playingGame?.id, playingGame?.title, sessionMinutes)
       fetch('/api/student/arcade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,9 +231,22 @@ export default function ArcadePage() {
   // ==================
   if (loading) {
     return (
-      <div style={styles.fullscreen('#0A0A1A')}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🕹️</div>
+      <div style={styles.fullscreen()}>
+        <div style={{ textAlign: 'center', display: 'flex',
+          flexDirection: 'column', alignItems: 'center' }}>
+          <img
+            src="/assets/arcadelogo.png"
+            alt="Hero Arcade"
+            style={{ height: 96, objectFit: 'contain', marginBottom: 16,
+              display: 'block',
+              animation: 'pulse 1.5s ease-in-out infinite' }}
+            onError={e => {
+              e.target.style.display = 'none'
+              e.target.nextSibling.style.display = 'block'
+            }}
+          />
+          <div style={{ display: 'none', fontSize: 64, marginBottom: 16 }}>🕹️</div>
+          <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
           <p style={{ color: '#C49A1A', fontSize: 20,
             fontWeight: 700 }}>Loading Arcade...</p>
         </div>
@@ -227,7 +260,7 @@ export default function ArcadePage() {
   if (phase === 'enter') {
     return (
       <div style={{
-        ...styles.fullscreen('#0A0A1A'),
+        ...styles.fullscreen(),
         overflow: 'hidden',
         position: 'relative',
       }}>
@@ -282,16 +315,18 @@ export default function ArcadePage() {
           position: 'relative', zIndex: 1,
           textAlign: 'center', padding: 24,
         }}>
-          {/* Arcade logo */}
+          {/* Arcade logo — centered */}
           <div style={{
             animation: 'float 3s ease-in-out infinite',
             marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'center',
           }}>
             {/* Try to use arcade logo image, fallback to emoji */}
             <img
               src="/assets/arcadelogo.png"
               alt="Arcade"
-              style={{ height: 120, objectFit: 'contain' }}
+              style={{ height: 120, objectFit: 'contain', display: 'block' }}
               onError={e => {
                 e.target.style.display = 'none'
                 e.target.nextSibling.style.display = 'block'
@@ -369,7 +404,7 @@ export default function ArcadePage() {
             onClick={handleEnterArcade}
             style={{
               background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
-              color: '#0A0A1A', border: 'none',
+              color: ARCADE_INK, border: 'none',
               borderRadius: 20, padding: '20px 60px',
               fontSize: 22, fontWeight: 900,
               cursor: 'pointer', letterSpacing: '1px',
@@ -401,32 +436,48 @@ export default function ArcadePage() {
   if (phase === 'entering') {
     return (
       <div style={{
-        ...styles.fullscreen('#0A0A1A'),
+        ...styles.fullscreen(),
         alignItems: 'center', justifyContent: 'center',
+        background: ARCADE_INK,
+        overflow: 'hidden',
       }}>
-        <style>{`
-          @keyframes warpIn {
-            0% { transform: scale(1) rotate(0deg); opacity: 1; }
-            100% { transform: scale(0.1) rotate(720deg); opacity: 0; }
-          }
-          @keyframes scanline {
-            0% { top: -10%; }
-            100% { top: 110%; }
-          }
-        `}</style>
+        {/* Arcade intro animation — small, centered, then into the lobby. */}
         <div style={{
-          textAlign: 'center',
-          animation: 'warpIn 1.2s ease-in forwards',
+          position: 'absolute',
+          inset: 0,
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
         }}>
-          <div style={{ fontSize: 80, marginBottom: 16 }}>🕹️</div>
-          <p style={{
-            color: '#C49A1A', fontSize: 32,
-            fontWeight: 900, letterSpacing: 4,
-            textTransform: 'uppercase',
-          }}>
-            ENTERING...
-          </p>
+          <video
+            src="/assets/arcadeanimation.mp4"
+            autoPlay
+            muted
+            playsInline
+            onEnded={() => setPhase('lobby')}
+            onError={() => setPhase('lobby')}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
         </div>
+        {/* Skip control */}
+        <button
+          onClick={() => setPhase('lobby')}
+          style={{
+            position: 'absolute', bottom: 40, zIndex: 2,
+            background: 'rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.85)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 20, padding: '10px 24px',
+            fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          Skip →
+        </button>
       </div>
     )
   }
@@ -436,7 +487,7 @@ export default function ArcadePage() {
   // ==================
   if (phase === 'locked') {
     return (
-      <div style={styles.fullscreen('#0A0A1A')}>
+      <div style={styles.fullscreen()}>
         {stars.map(star => (
           <div key={star.id} style={{
             position: 'absolute',
@@ -500,7 +551,7 @@ export default function ArcadePage() {
   // ==================
   if (phase === 'parentLocked') {
     return (
-      <div style={styles.fullscreen('#0A0A1A')}>
+      <div style={styles.fullscreen()}>
         <div style={{ textAlign: 'center', padding: 32,
           position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>👨‍👩‍👧</div>
@@ -529,7 +580,7 @@ export default function ArcadePage() {
   // ==================
   if (phase === 'limitReached') {
     return (
-      <div style={styles.fullscreen('#0A0A1A')}>
+      <div style={styles.fullscreen()}>
         <div style={{ textAlign: 'center', padding: 32 }}>
           <div style={{ fontSize: 80, marginBottom: 16 }}>⏰</div>
           <h2 style={{ color: 'white', fontSize: 28,
@@ -568,7 +619,7 @@ export default function ArcadePage() {
       }}>
         {/* Minimal game bar */}
         <div style={{
-          background: '#0A0A1A',
+          background: ARCADE_BG_SOLID,
           borderBottom: '1px solid rgba(196,154,26,0.3)',
           padding: '8px 16px',
           display: 'flex', alignItems: 'center',
@@ -663,7 +714,8 @@ export default function ArcadePage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0A0A1A',
+      background: ARCADE_BG,
+      backgroundAttachment: 'fixed',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -712,9 +764,9 @@ export default function ArcadePage() {
       {/* Top bar */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,26,0.95)',
+        background: 'rgba(0,0,0,0.92)',
         backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(196,154,26,0.2)',
+        borderBottom: '1px solid rgba(196,154,26,0.25)',
         padding: '12px 24px',
         display: 'flex', alignItems: 'center',
         justifyContent: 'space-between',
@@ -843,7 +895,7 @@ export default function ArcadePage() {
                 background: activeCategory === cat.id
                   ? '#C49A1A' : 'rgba(255,255,255,0.06)',
                 color: activeCategory === cat.id
-                  ? '#0A0A1A' : 'rgba(255,255,255,0.7)',
+                  ? ARCADE_INK : 'rgba(255,255,255,0.7)',
                 border: `1px solid ${activeCategory === cat.id
                   ? '#C49A1A' : 'rgba(255,255,255,0.1)'}`,
                 borderRadius: 20, padding: '8px 18px',
@@ -889,7 +941,7 @@ export default function ArcadePage() {
                 <div style={{
                   height: 140,
                   background: `linear-gradient(135deg,
-                    rgba(27,43,75,0.8), rgba(10,10,26,0.9))`,
+                    rgba(36,74,134,0.55), rgba(27,43,75,0.85))`,
                   display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 56,
                   position: 'relative',
@@ -922,7 +974,7 @@ export default function ArcadePage() {
                       position: 'absolute', top: 8, right: 8,
                       background: '#C49A1A', borderRadius: 10,
                       padding: '2px 8px', fontSize: 10,
-                      fontWeight: 800, color: '#0A0A1A',
+                      fontWeight: 800, color: ARCADE_INK,
                     }}>
                       PREMIUM
                     </div>
@@ -1102,7 +1154,7 @@ export default function ArcadePage() {
                   style={{
                     width: '100%', padding: 16,
                     background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
-                    color: '#0A0A1A', border: 'none',
+                    color: ARCADE_INK, border: 'none',
                     borderRadius: 14, fontWeight: 800,
                     fontSize: 16, cursor: 'pointer',
                   }}
@@ -1146,7 +1198,7 @@ export default function ArcadePage() {
 
 // Shared styles
 const styles = {
-  fullscreen: (bg) => ({
+  fullscreen: (bg = ARCADE_BG) => ({
     minHeight: '100vh',
     background: bg,
     display: 'flex',
@@ -1158,7 +1210,7 @@ const styles = {
   }),
   goldButton: {
     background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
-    color: '#0A0A1A', border: 'none',
+    color: ARCADE_INK, border: 'none',
     borderRadius: 14, padding: '14px 32px',
     fontWeight: 800, fontSize: 15,
     cursor: 'pointer',

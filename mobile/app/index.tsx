@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+import { MobileAnalytics } from '../lib/analytics'
 
 export default function Index() {
   const router = useRouter()
@@ -9,6 +10,7 @@ export default function Index() {
   // The splash overlay in _layout.tsx is what the user sees first; this screen
   // just decides where to send them once auth is checked.
   useEffect(() => {
+    MobileAnalytics.appOpened()
     // Small delay to ensure the router has fully mounted on iPad before
     // we issue a replace() — guards against the "navigate before root layout
     // mounted" error in production iOS builds.

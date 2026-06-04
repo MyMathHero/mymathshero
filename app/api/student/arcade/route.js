@@ -55,10 +55,16 @@ export async function GET(request) {
         'Friday','Saturday','Sunday'],
     }
 
+    const dailyLimit = arcadeSettings.dailyMinutes || 30
+    const minutesRemaining = Math.max(0, dailyLimit - minutesToday)
+    const timeLimitReached = minutesToday >= dailyLimit
+
     return NextResponse.json({
       xp: student.xp || 0,
       plan: parent?.plan || 'free',
       minutesToday,
+      minutesRemaining,
+      timeLimitReached,
       gamesPlayedToday,
       arcadeSettings,
       unlockedGames: student.unlockedGames || [],
@@ -190,7 +196,10 @@ export async function POST(request) {
           }
         }
       )
-      return NextResponse.json({ success: true })
+      return NextResponse.json({
+        success: true,
+        durationMinutes: durationMinutes || 0,
+      })
     }
 
     return NextResponse.json(

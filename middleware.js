@@ -2,17 +2,17 @@ import { NextResponse } from 'next/server'
 
 // Set COMING_SOON_MODE=true in the environment to flip the gate. We deliberately
 // read from env (not Mongo) so the middleware can run at the edge with zero DB
-// calls and zero fail-open risk. Flipping the gate is a redeploy, not an admin
-// toggle — see /admin "Coming Soon Mode" panel for the exact commands.
+// calls and zero fail-open risk. Flipping the gate is a redeploy, not a runtime
+// toggle — change the env var on Vercel and redeploy.
 const COMING_SOON = process.env.COMING_SOON_MODE === 'true'
 
-// HTML routes that bypass the gate even when coming-soon is on. /login and
-// /admin are intentionally exempt so the team can still get in. /coming-soon
-// itself must be exempt or we'd infinite-redirect.
+// HTML routes that bypass the gate even when coming-soon is on. /login keeps
+// the team able to sign into student/parent dashboards. /coming-soon itself
+// must be exempt or we'd infinite-redirect. Admin now lives at a separate
+// domain (the standalone admin app) so /admin is no longer listed here.
 const ALWAYS_ALLOWED_PAGES = [
   '/coming-soon',
   '/login',
-  '/admin',
 ]
 
 export function middleware(request) {
@@ -39,8 +39,10 @@ export const config = {
   //   - /api/*       (mobile app + waitlist signup must keep working)
   //   - /_next/*     (build assets)
   //   - /assets/*    (static images)
+  //   - /games/*     (self-hosted arcade games — must load in the app WebView
+  //                   and arcade iframe even while coming-soon mode is on)
   //   - favicon/sw/manifest
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js|manifest.json|robots.txt).*)',
+    '/((?!api|_next/static|_next/image|assets|games|favicon.ico|sw.js|manifest.json|robots.txt).*)',
   ],
 }

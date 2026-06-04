@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import MathCountdownBar from '@/components/MathCountdownBar'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
+import { Analytics } from '@/lib/analytics'
 
 export default function ComingSoonPage() {
   const [firstName, setFirstName] = useState('')
@@ -42,6 +43,9 @@ export default function ComingSoonPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (data?.position) setPosition(data.position)
+      // The form doesn't collect grade today — pass null so the event still
+      // fires; a grade field added later will flow through automatically.
+      Analytics.waitlistJoined(null)
       setSubmitted(true)
     } catch {
       setSubmitted(true)
