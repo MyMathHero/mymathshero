@@ -275,6 +275,13 @@ export default function StudentDashboard() {
       const data = await res.json()
       if (!res.ok) return
 
+      // Subscription gate: if the parent's access is blocked, send to /subscribe.
+      // Only applies to real authenticated students, never the marketing demo.
+      if (studentId !== STUDENT_ID && data.student?.accessBlocked) {
+        window.location.href = '/subscribe'
+        return
+      }
+
       setStudent(data.student)
       setTotalXp(data.student.xp || 0)
       setCoins(data.student.coins || 0)

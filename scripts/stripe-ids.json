@@ -1,0 +1,21 @@
+{
+  "products": {
+    "standard": "prod_UeIANi9aXobazR",
+    "premium": "prod_UeIAb63sOFJzjF",
+    "sibling": "prod_UeIAoPkAVsVGvR"
+  },
+  "prices": {
+    "standardMonthly": "price_1TezaYKllCiSSk6gcsb9sxL0",
+    "standardAnnual": "price_1TezaYKllCiSSk6gYj9qNeMx",
+    "premiumMonthly": "price_1TezaZKllCiSSk6gtKGdrZej",
+    "premiumAnnual": "price_1TezaZKllCiSSk6gmKQdVQUN",
+    "foundingMonthly": "price_1TezaaKllCiSSk6gzblJVTdM",
+    "siblingMonthly": "price_1TezaaKllCiSSk6gl5UUnFBb"
+  },
+  "coupons": {
+    "freeMonth": "FREE1MONTH"
+  },
+  "promoCodes": {
+    "freeMonth": "promo_1TfAjHKllCiSSk6gns8RHB19"
+  }
+}

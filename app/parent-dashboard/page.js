@@ -93,6 +93,20 @@ export default function ParentDashboard() {
     return () => { cancelled = true }
   }, [])
 
+  // ── Subscription gate — redirect to /subscribe if access is blocked ─────────
+  useEffect(() => {
+    const parentId = parentData?.id
+    if (!parentId) return
+    fetch(`/api/payments/status?parentId=${parentId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.accessBlocked) {
+          window.location.href = '/subscribe'
+        }
+      })
+      .catch(() => {})
+  }, [parentData?.id])
+
   // ── Fetch progress + AI insight whenever the selected child changes ─────────
   useEffect(() => {
     if (step !== 'dashboard') return

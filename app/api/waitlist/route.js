@@ -1,6 +1,11 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import Stripe from 'stripe'
 import { sendEmail } from '@/lib/email'
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null
 
 let client
 async function connectDB() {
@@ -46,6 +51,32 @@ export async function POST(request) {
       source: 'coming-soon-page',
       createdAt: new Date(),
     })
+
+    // Create a Stripe customer on signup — best-effort, never block the response.
+    if (stripe) {
+      try {
+        const customer = await stripe.customers.create({
+          email: normalisedEmail,
+          name: resolvedName || undefined,
+          metadata: {
+            source: 'waitlist',
+            childGrade: childGrade ? String(childGrade) : '',
+            waitlistPosition: String(position),
+            foundingFamily: position <= 1000 ? 'true' : 'false',
+          },
+        })
+        await db.collection('waitlist').updateOne(
+          { email: normalisedEmail },
+          { $set: {
+            stripeCustomerId: customer.id,
+            foundingFamily: position <= 1000,
+          }}
+        )
+      } catch (err) {
+        console.error('[waitlist] Stripe customer creation failed:', err?.message)
+        // Do not block waitlist signup if Stripe fails.
+      }
+    }
 
     // User confirmation email — best-effort, never block the response.
     try {

@@ -125,6 +125,7 @@ export async function GET(request) {
         sessions_completed: sessionsCompleted,
         isDev: student.isDev || false,
         diagnosticComplete: student.diagnosticComplete || false,
+        accessBlocked: student.accessBlocked || false,
       },
       stats: {
         mastered,

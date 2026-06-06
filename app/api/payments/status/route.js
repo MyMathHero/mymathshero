@@ -1,6 +1,8 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 let client
 async function connectDB() {
   if (!client) {
@@ -23,7 +25,13 @@ export async function GET(request) {
     const parent = await db.collection('parents').findOne({ id: parentId })
 
     if (!parent) {
-      return NextResponse.json({ subscribed: false, status: 'not_found', trialEndsAt: null })
+      return NextResponse.json({
+        subscribed: false,
+        plan: 'free',
+        accessBlocked: false,
+        status: 'not_found',
+        trialEndsAt: null,
+      })
     }
 
     // Find the most recent active payment session for this parent
@@ -35,12 +43,17 @@ export async function GET(request) {
     let trialEndsAt = null
     if (parent.subscribedAt) {
       const trialEnd = new Date(parent.subscribedAt)
-      trialEnd.setDate(trialEnd.getDate() + 14)
+      trialEnd.setDate(trialEnd.getDate() + 30)
       trialEndsAt = trialEnd.toISOString()
     }
 
     return NextResponse.json({
       subscribed: parent.subscribed ?? false,
+      plan: parent.plan ?? (parent.subscribed ? 'standard' : 'free'),
+      accessBlocked: parent.accessBlocked ?? false,
+      subscriptionStatus: parent.subscriptionStatus ?? null,
+      foundingFamily: parent.foundingFamily ?? false,
+      currentPeriodEnd: parent.currentPeriodEnd ?? null,
       status: paymentSession?.status ?? 'none',
       trialEndsAt,
     })
