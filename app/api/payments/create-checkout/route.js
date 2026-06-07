@@ -45,6 +45,7 @@ export async function POST(request) {
     const {
       parentId, priceId, planKey, email,
       isFoundingFamily, applyFreeMonth,
+      isSiblingAddOn,
     } = await request.json()
 
     if (!parentId) {
@@ -156,9 +157,17 @@ export async function POST(request) {
       cancel_url: `${baseUrl}/pricing`,
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
-      metadata: { parentId },
+      // Mark sibling add-on purchases so the webhook can flip
+      // parent.siblingAddonActive once Stripe confirms the checkout.
+      metadata: {
+        parentId,
+        ...(isSiblingAddOn === true ? { isSiblingAddOn: 'true' } : {}),
+      },
       subscription_data: {
-        metadata: { parentId },
+        metadata: {
+          parentId,
+          ...(isSiblingAddOn === true ? { isSiblingAddOn: 'true' } : {}),
+        },
       },
     }
 

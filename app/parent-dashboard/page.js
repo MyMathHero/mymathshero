@@ -58,6 +58,19 @@ export default function ParentDashboard() {
   // NPS survey — fires at most once every 30 days. Dismissal also counts as
   // "asked" so we don't pester someone who closes it.
   const [showNPS, setShowNPS] = useState(false)
+
+  // Subscription + account actions
+  const [subStatus, setSubStatus] = useState(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [changePwForm, setChangePwForm] = useState({ current: '', newPw: '', confirm: '' })
+  const [changePwLoading, setChangePwLoading] = useState(false)
+  const [changePwError, setChangePwError] = useState('')
+  const [showAddChildModal, setShowAddChildModal] = useState(false)
+  const [addChildForm, setAddChildForm] = useState({ name: '', grade: '3', pin: '' })
+  const [addChildLoading, setAddChildLoading] = useState(false)
+  const [addChildError, setAddChildError] = useState('')
+  const [actionToast, setActionToast] = useState(null)
   const [lastReportSent, setLastReportSent] = useState(null)
 
   // ── Auth check on mount ────────────────────────────────────────────────────
@@ -72,6 +85,10 @@ export default function ParentDashboard() {
         if (auth.authenticated && auth.user?.role === 'parent') {
           const parentId = auth.user.userId
           setParentData({ id: parentId, name: auth.user.name, email: auth.user.email })
+          // Fire-and-forget subscription status load so the sidebar can render
+          // billing state. Failures are swallowed; we just don't show the
+          // section until a value lands.
+          loadSubStatus(parentId)
           const cr = await fetch(`/api/parent/children?parentId=${parentId}`)
           const cdata = await cr.json()
           if (!cancelled && cr.ok && cdata.children?.length > 0) {
@@ -170,6 +187,200 @@ export default function ParentDashboard() {
     } catch {
       // Already dismissed locally — silent fail is fine.
     }
+  }
+
+  function showActionToast(message, type = 'success') {
+    setActionToast({ message, type })
+    setTimeout(() => setActionToast(null), 3000)
+  }
+
+  // Load subscription status. Spec wanted a hard redirect on accessBlocked;
+  // we show a banner instead so the parent can hit the sidebar's Resubscribe
+  // button without bouncing off the page.
+  async function loadSubStatus(pId) {
+    try {
+      const res = await fetch(`/api/payments/status?parentId=${encodeURIComponent(pId)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setSubStatus(data)
+    } catch {
+      // Silent — sidebar will just not show subscription details.
+    }
+  }
+
+  async function openBillingPortal() {
+    if (!parentData?.id) return
+    setPortalLoading(true)
+    try {
+      const res = await fetch('/api/payments/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parentId: parentData.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+      showActionToast(data.error || 'Could not open billing portal', 'error')
+    } catch {
+      showActionToast('Connection error — try again', 'error')
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault()
+    setChangePwError('')
+    if (changePwForm.newPw !== changePwForm.confirm) {
+      setChangePwError('New passwords do not match'); return
+    }
+    if (changePwForm.newPw.length < 8) {
+      setChangePwError('Password must be at least 8 characters'); return
+    }
+    setChangePwLoading(true)
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: changePwForm.current,
+          newPassword: changePwForm.newPw,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.success) {
+        setShowChangePassword(false)
+        setChangePwForm({ current: '', newPw: '', confirm: '' })
+        showActionToast('Password changed ✅')
+      } else {
+        setChangePwError(data.error || 'Failed to change password')
+      }
+    } catch {
+      setChangePwError('Connection error')
+    } finally {
+      setChangePwLoading(false)
+    }
+  }
+
+  async function handleResetChildPin(child) {
+    const newPin = prompt(`Set a new 4-digit PIN for ${child.name}:`)
+    if (newPin === null) return
+    if (!/^\d{4}$/.test(newPin)) {
+      alert('PIN must be exactly 4 digits')
+      return
+    }
+    try {
+      const res = await fetch('/api/parent/reset-child-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: child.id, newPin }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.success) {
+        showActionToast(`PIN reset for ${child.name} ✅`)
+      } else {
+        alert(data.error || 'Failed to reset PIN')
+      }
+    } catch {
+      alert('Connection error')
+    }
+  }
+
+  // Add-child flow.
+  // First child: open the modal directly.
+  // Second+ child:
+  //   • If sibling add-on already active → open modal directly.
+  //   • Else → confirm + start a $10/mo sibling checkout. The webhook flips
+  //     siblingAddonActive; the user can add the child on return.
+  async function handleAddChildClick() {
+    if (subStatus && subStatus.accessBlocked) {
+      showActionToast('Resubscribe to add children', 'error')
+      return
+    }
+    const existingChildren = children?.length || 0
+    if (existingChildren >= 1 && !subStatus?.siblingAddonActive) {
+      const ok = confirm(
+        'Adding another child costs $10/month (sibling add-on).\n\nYou\'ll be sent to checkout. Once paid, come back here and tap "Add Another Child" again to enter their details.\n\nContinue?'
+      )
+      if (!ok) return
+      try {
+        const res = await fetch('/api/payments/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parentId: parentData?.id,
+            planKey: 'siblingMonthly',
+            isSiblingAddOn: true,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (data.url) {
+          sessionStorage.setItem('pendingAddChild', 'true')
+          window.location.href = data.url
+          return
+        }
+        showActionToast(data.error || 'Could not start checkout', 'error')
+      } catch {
+        showActionToast('Connection error starting checkout', 'error')
+      }
+      return
+    }
+
+    setAddChildError('')
+    setShowAddChildModal(true)
+  }
+
+  async function handleAddChildSubmit(e) {
+    e.preventDefault()
+    setAddChildError('')
+    if (!addChildForm.name.trim()) {
+      setAddChildError('Name is required'); return
+    }
+    if (!/^\d{4}$/.test(addChildForm.pin)) {
+      setAddChildError('PIN must be 4 digits'); return
+    }
+    setAddChildLoading(true)
+    try {
+      const res = await fetch('/api/parent/add-child', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: addChildForm.name.trim(),
+          grade: addChildForm.grade,
+          pin: addChildForm.pin,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (data.success) {
+        showActionToast(`${addChildForm.name.trim()} added! ✅`)
+        setShowAddChildModal(false)
+        setAddChildForm({ name: '', grade: '3', pin: '' })
+        // Refresh children list
+        if (parentData?.id) {
+          const cr = await fetch(`/api/parent/children?parentId=${parentData.id}`)
+          const cd = await cr.json().catch(() => ({}))
+          if (Array.isArray(cd.children)) setChildren(cd.children)
+        }
+      } else if (data.requiresSiblingAddon) {
+        setAddChildError('Sibling add-on payment is required for additional children.')
+      } else if (data.requiresSubscription) {
+        setAddChildError('An active subscription is required.')
+      } else {
+        setAddChildError(data.error || 'Failed to add child')
+      }
+    } catch {
+      setAddChildError('Connection error')
+    } finally {
+      setAddChildLoading(false)
+    }
+  }
+
+  function handleLogout() {
+    fetch('/api/auth/logout', { method: 'POST' })
+      .then(() => { window.location.href = '/login' })
+      .catch(() => { window.location.href = '/login' })
   }
 
   async function fetchInsights(studentId, parentId, cancelledRef) {
@@ -728,25 +939,163 @@ export default function ParentDashboard() {
               <h3 className="font-semibold text-navy text-sm">Account Settings</h3>
               <button onClick={() => setShowSidebar(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} className="text-gray-400" /></button>
             </div>
-            <div className="p-5 space-y-4">
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Name</p>
-                <p className="text-sm font-bold text-navy">{parentData?.name || 'Not available'}</p>
+            <div style={{ padding: 20 }}>
+              {/* PROFILE */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
+                  My Account
+                </h3>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, color: '#64748B', display: 'block', marginBottom: 4 }}>Full Name</label>
+                  <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{parentData?.name || '—'}</p>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: 12, color: '#64748B', display: 'block', marginBottom: 4 }}>Email</label>
+                  <p style={{ fontWeight: 600, color: '#1B2B4B', margin: 0, fontSize: 14 }}>{parentData?.email || '—'}</p>
+                </div>
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  style={{ width: '100%', padding: '10px 16px',
+                    background: '#F0F4F8', border: '1px solid #E2E8F0',
+                    borderRadius: 10, fontWeight: 600, fontSize: 14,
+                    color: '#1B2B4B', cursor: 'pointer', textAlign: 'left' }}
+                >🔑 Change Password</button>
               </div>
-              {parentData?.email && (
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Email</p>
-                  <p className="text-sm font-bold text-navy">{parentData.email}</p>
+
+              {/* SUBSCRIPTION */}
+              <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
+                  Subscription
+                </h3>
+                <div style={{
+                  background: subStatus?.accessBlocked ? '#FEE2E2' : '#DCFCE7',
+                  borderRadius: 12, padding: 14, marginBottom: 12,
+                }}>
+                  <p style={{ fontWeight: 800, margin: '0 0 2px', color: '#1B2B4B', fontSize: 14 }}>
+                    {subStatus?.plan === 'premium' ? '⭐ Premium Plan'
+                      : subStatus?.plan === 'standard' ? '📚 Standard Plan'
+                      : subStatus?.subscribed ? '✅ Active Plan'
+                      : '🔓 No Active Plan'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12,
+                    color: subStatus?.accessBlocked ? '#991B1B' : '#166534' }}>
+                    {subStatus?.subscriptionStatus === 'trialing' && subStatus?.trialEndsAt
+                      ? `🎉 Free trial — ends ${new Date(subStatus.trialEndsAt).toLocaleDateString('en-AU')}`
+                      : subStatus?.accessBlocked
+                      ? '❌ Access paused — payment required'
+                      : subStatus?.currentPeriodEnd
+                      ? `✅ Renews ${new Date(subStatus.currentPeriodEnd).toLocaleDateString('en-AU')}`
+                      : subStatus?.subscribed ? '✅ Active' : 'No subscription'}
+                  </p>
+                  {subStatus?.foundingFamily && (
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#C49A1A', fontWeight: 700 }}>
+                      🏅 Founding Family Member
+                    </p>
+                  )}
+                  {subStatus?.siblingAddonActive && (
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#1B2B4B', fontWeight: 700 }}>
+                      👫 Sibling add-on active
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={openBillingPortal}
+                  disabled={portalLoading}
+                  style={{ width: '100%', padding: '10px 16px',
+                    background: '#1B2B4B', color: 'white',
+                    border: '2px solid #C49A1A', borderRadius: 10,
+                    fontWeight: 700, fontSize: 13,
+                    cursor: portalLoading ? 'not-allowed' : 'pointer',
+                    marginBottom: 8 }}
+                >{portalLoading ? 'Loading…' : '💳 Manage Billing & Cancel'}</button>
+                {subStatus?.accessBlocked && (
+                  <a href="/pricing"
+                    style={{ display: 'block', width: '100%',
+                      padding: '10px 16px', background: '#C49A1A',
+                      color: 'white', borderRadius: 10,
+                      fontWeight: 700, fontSize: 13,
+                      textDecoration: 'none', textAlign: 'center',
+                      boxSizing: 'border-box' }}>
+                    🚀 Resubscribe Now
+                  </a>
+                )}
+              </div>
+
+              {/* CHILDREN */}
+              <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
+                  My Children
+                </h3>
+                {(children || []).map((child, i) => (
+                  <div key={child.id || i} style={{
+                    background: '#F8FAFC', borderRadius: 12,
+                    padding: 14, marginBottom: 8,
+                    border: '1px solid #E2E8F0',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between',
+                      alignItems: 'center', gap: 8 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0, fontSize: 14 }}>
+                          {child.avatar || '🧒'} {child.name}
+                        </p>
+                        <p style={{ color: '#64748B', fontSize: 12, margin: '2px 0 0' }}>
+                          {child.grade === 0 || child.grade === '0' ? 'Prep' : `Year ${child.grade}`} · {child.xp || 0} Hero Points
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleResetChildPin(child)}
+                        style={{ background: '#F0F4F8', border: '1px solid #E2E8F0',
+                          borderRadius: 8, padding: '6px 12px', fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', color: '#1B2B4B',
+                          whiteSpace: 'nowrap' }}
+                      >🔢 Reset PIN</button>
+                    </div>
+                  </div>
+                ))}
+                {(!children || children.length === 0) && (
+                  <p style={{ color: '#94A3B8', fontSize: 13, margin: '0 0 8px' }}>No children yet.</p>
+                )}
+
+                {(() => {
+                  const existingCount = children?.length || 0
+                  const needsSiblingPayment = existingCount >= 1 && !subStatus?.siblingAddonActive
+                  return (
+                    <button
+                      onClick={handleAddChildClick}
+                      style={{ width: '100%', padding: '10px 16px',
+                        background: '#F0F4F8', border: '2px dashed #CBD5E1',
+                        borderRadius: 10, fontWeight: 700, fontSize: 13,
+                        color: '#64748B', cursor: 'pointer' }}
+                    >
+                      {needsSiblingPayment
+                        ? '+ Add Another Child — $10/month'
+                        : '+ Add a Child'}
+                    </button>
+                  )
+                })()}
+              </div>
+
+              {/* ARCADE — keep the existing component */}
+              {flags.arcadeEnabled && parentData?.id && children.length > 0 && (
+                <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
+                  <ArcadeSettings parentId={parentData.id} children={children} />
                 </div>
               )}
 
-              {/* Hero Arcade parent controls — per-child, only when the feature is on. */}
-              {flags.arcadeEnabled && parentData?.id && children.length > 0 && (
-                <ArcadeSettings parentId={parentData.id} children={children} />
-              )}
-
-              <button onClick={() => setStep('addChild')} className="w-full bg-[#C49A1A] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#1B2B4B] transition-colors">Add Another Child</button>
-              <button onClick={() => { fetch('/api/auth/logout', { method: 'POST' }).then(() => { window.location.href = '/login' }) }} className="w-full bg-[#1B2B4B] text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-[#C49A1A] transition-colors">Log out</button>
+              {/* DANGER ZONE */}
+              <div style={{ paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
+                <button
+                  onClick={handleLogout}
+                  style={{ width: '100%', padding: '10px 16px',
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    borderRadius: 10, fontWeight: 700, fontSize: 14,
+                    color: '#EF4444', cursor: 'pointer' }}
+                >🚪 Log Out</button>
+              </div>
             </div>
           </div>
         </div>
@@ -760,6 +1109,191 @@ export default function ParentDashboard() {
         >
           <User size={14} /> Account
         </button>
+      )}
+
+      {/* ACCESS-BLOCKED BANNER — shows when sub lapsed, instead of hard-redirecting */}
+      {subStatus?.accessBlocked && step === 'dashboard' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0,
+          background: '#FEE2E2',
+          borderBottom: '2px solid #EF4444',
+          padding: '12px 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 16, zIndex: 90, flexWrap: 'wrap',
+        }}>
+          <span style={{ fontSize: 20 }}>⚠️</span>
+          <span style={{ color: '#991B1B', fontWeight: 700, fontSize: 14 }}>
+            Your subscription has lapsed. Reactivate to keep your child&apos;s progress.
+          </span>
+          <a href="/pricing" style={{
+            background: '#1B2B4B', color: 'white',
+            padding: '6px 14px', borderRadius: 8,
+            fontWeight: 700, fontSize: 13, textDecoration: 'none',
+            border: '2px solid #C49A1A',
+          }}>Resubscribe →</a>
+        </div>
+      )}
+
+      {/* TOAST — bottom-centre, 3s auto-dismiss */}
+      {actionToast && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%',
+          transform: 'translateX(-50%)',
+          background: actionToast.type === 'error' ? '#FEE2E2' : '#1B2B4B',
+          color: actionToast.type === 'error' ? '#991B1B' : 'white',
+          padding: '12px 20px', borderRadius: 12,
+          fontWeight: 700, fontSize: 14,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          border: actionToast.type === 'error'
+            ? '1px solid #EF4444' : '2px solid #C49A1A',
+          zIndex: 600,
+        }}>
+          {actionToast.message}
+        </div>
+      )}
+
+      {/* CHANGE PASSWORD MODAL */}
+      {showChangePassword && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 500, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'white', borderRadius: 20,
+            padding: 32, maxWidth: 400, width: '100%' }}>
+            <h2 style={{ fontWeight: 800, color: '#1B2B4B', marginBottom: 20, fontSize: 20 }}>
+              🔑 Change Password
+            </h2>
+            <form onSubmit={handleChangePassword}>
+              {[
+                { label: 'Current Password', key: 'current' },
+                { label: 'New Password', key: 'newPw' },
+                { label: 'Confirm New Password', key: 'confirm' },
+              ].map(field => (
+                <div key={field.key} style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                    {field.label}
+                  </label>
+                  <input
+                    type="password"
+                    autoComplete={field.key === 'current' ? 'current-password' : 'new-password'}
+                    value={changePwForm[field.key]}
+                    onChange={e => setChangePwForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    required
+                    style={{ width: '100%', padding: '12px 14px',
+                      border: '1.5px solid #E2E8F0', borderRadius: 10,
+                      fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+              {changePwError && (
+                <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{changePwError}</p>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button"
+                  onClick={() => { setShowChangePassword(false); setChangePwError('') }}
+                  style={{ flex: 1, padding: 12, background: 'white',
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={changePwLoading}
+                  style={{ flex: 2, padding: 12, background: '#1B2B4B',
+                    color: 'white', border: '2px solid #C49A1A',
+                    borderRadius: 10, fontWeight: 800,
+                    cursor: changePwLoading ? 'not-allowed' : 'pointer' }}>
+                  {changePwLoading ? 'Saving…' : 'Change Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD CHILD MODAL */}
+      {showAddChildModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 500, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'white', borderRadius: 20,
+            padding: 32, maxWidth: 400, width: '100%' }}>
+            <h2 style={{ fontWeight: 800, color: '#1B2B4B', marginBottom: 4, fontSize: 20 }}>
+              🧒 Add Child
+            </h2>
+            <p style={{ color: '#64748B', fontSize: 14, marginBottom: 20 }}>
+              Add your child&apos;s details to get started
+            </p>
+            <form onSubmit={handleAddChildSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                  Child&apos;s Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Emma"
+                  value={addChildForm.name}
+                  onChange={e => setAddChildForm(prev => ({ ...prev, name: e.target.value }))}
+                  required
+                  style={{ width: '100%', padding: '12px 14px',
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                  Year Level
+                </label>
+                <select
+                  value={addChildForm.grade}
+                  onChange={e => setAddChildForm(prev => ({ ...prev, grade: e.target.value }))}
+                  style={{ width: '100%', padding: '12px 14px',
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    fontSize: 14, boxSizing: 'border-box' }}
+                >
+                  <option value="0">Prep</option>
+                  {[1, 2, 3, 4, 5, 6].map(g => (
+                    <option key={g} value={String(g)}>{`Year ${g}`}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                  4-digit PIN (child uses this to log in)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="1234"
+                  value={addChildForm.pin}
+                  onChange={e => setAddChildForm(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  required
+                  style={{ width: '100%', padding: '12px 14px',
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    fontSize: 20, letterSpacing: 8,
+                    boxSizing: 'border-box' }}
+                />
+              </div>
+              {addChildError && (
+                <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{addChildError}</p>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button"
+                  onClick={() => { setShowAddChildModal(false); setAddChildError('') }}
+                  style={{ flex: 1, padding: 12, background: 'white',
+                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={addChildLoading}
+                  style={{ flex: 2, padding: 12, background: '#1B2B4B',
+                    color: 'white', border: '2px solid #C49A1A',
+                    borderRadius: 10, fontWeight: 800,
+                    cursor: addChildLoading ? 'not-allowed' : 'pointer' }}>
+                  {addChildLoading ? 'Adding…' : 'Add Child ✓'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* NPS SURVEY — bottom-right popup, monthly */}

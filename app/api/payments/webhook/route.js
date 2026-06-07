@@ -166,6 +166,7 @@ export async function POST(request) {
       case 'checkout.session.completed': {
         const session = event.data.object
         const parentId = session.metadata?.parentId
+        const isSiblingAddOn = session.metadata?.isSiblingAddOn === 'true'
 
         await db.collection('payment_sessions').updateOne(
           { sessionId: session.id },
@@ -173,21 +174,33 @@ export async function POST(request) {
             status: 'active',
             subscriptionId: session.subscription,
             customerId: session.customer,
+            isSiblingAddOn,
             updatedAt: new Date(),
           }}
         )
 
         if (parentId) {
+          // Sibling add-on checkouts unlock additional children but don't
+          // grant the main subscription. Main subs unlock everything.
+          const update = isSiblingAddOn
+            ? {
+                siblingAddonActive: true,
+                siblingSubscriptionId: session.subscription,
+                stripeCustomerId: session.customer,
+                customerId: session.customer,
+                accessBlocked: false,
+              }
+            : {
+                subscribed: true,
+                stripeCustomerId: session.customer,
+                customerId: session.customer,
+                subscriptionId: session.subscription,
+                subscribedAt: new Date(),
+                accessBlocked: false,
+              }
           await db.collection('parents').updateOne(
             { id: parentId },
-            { $set: {
-              subscribed: true,
-              stripeCustomerId: session.customer,
-              customerId: session.customer,
-              subscriptionId: session.subscription,
-              subscribedAt: new Date(),
-              accessBlocked: false,
-            }}
+            { $set: update }
           )
         }
         break
@@ -267,6 +280,21 @@ export async function POST(request) {
       case 'customer.subscription.deleted': {
         const sub = event.data.object
         const customerId = sub.customer
+
+        // Sibling add-on cancellation only removes the add-on flag. It must
+        // NOT block dashboard access or downgrade plan — that would punish a
+        // family that still has an active main subscription.
+        if (sub.metadata?.isSiblingAddOn === 'true') {
+          await db.collection('parents').updateOne(
+            { stripeCustomerId: customerId },
+            { $set: {
+              siblingAddonActive: false,
+              siblingSubscriptionId: null,
+              siblingCancelledAt: new Date(),
+            }}
+          )
+          break
+        }
 
         await db.collection('parents').updateOne(
           { stripeCustomerId: customerId },
