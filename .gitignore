@@ -89,3 +89,4 @@ node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 .env.local
 .emergent
 .env.production.example
+.env.production.example
