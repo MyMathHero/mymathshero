@@ -205,6 +205,9 @@ export default function StudentDashboard() {
   const questionStartTimeRef = useRef(null)
   const [authStudentId, setAuthStudentId] = useState(STUDENT_ID)
 
+  // Subscription plan (from parent, source of truth) — gates Premium features.
+  const [studentPlan, setStudentPlan] = useState('free')
+
   // Live question timer (seconds), separate from the start-time ref above.
   const [questionTimer, setQuestionTimer] = useState(0)
   const timerRef = useRef(null)
@@ -283,6 +286,7 @@ export default function StudentDashboard() {
       }
 
       setStudent(data.student)
+      setStudentPlan(data.student.plan || 'free')
       setTotalXp(data.student.xp || 0)
       setCoins(data.student.coins || 0)
       setStreak(data.student.streak || 0)
@@ -919,7 +923,10 @@ export default function StudentDashboard() {
           })
         }
       }
-      const readyForExam = recs.find(s => (s.currentScore || 0) >= 70 && !s.mastered)
+      // Exam nudge is Premium-only — Skill Mastery Exams are gated.
+      const readyForExam = studentPlan === 'premium'
+        ? recs.find(s => (s.currentScore || 0) >= 70 && !s.mastered)
+        : null
       if (readyForExam) {
         const info = getSkillInfo(readyForExam.id || readyForExam.skillId)
         if (info) {
@@ -1050,7 +1057,19 @@ export default function StudentDashboard() {
           <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>
             {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
           </p>
-          <p style={{ color: '#C49A1A', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <p style={{ color: '#C49A1A', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
+            {/* Plan badge — shows the student their current plan */}
+            <span style={{
+              background: studentPlan === 'premium' ? '#1B2B4B' : '#F0F4F8',
+              color: studentPlan === 'premium' ? '#C49A1A' : '#94A3B8',
+              border: studentPlan === 'premium' ? '1px solid #C49A1A' : '1px solid #E2E8F0',
+              borderRadius: 10, padding: '3px 10px',
+              fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
+            }}>
+              {studentPlan === 'premium' ? '⭐ Premium' : '📚 Standard'}
+            </span>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {/* Coin counter — preserved as a button so it opens the shop */}
@@ -1312,24 +1331,51 @@ export default function StudentDashboard() {
                             </div>
                           </div>
 
-                          {/* Exam unlock button */}
+                          {/* Exam unlock button — Premium only */}
                           {isReady && !skill.mastered && (
-                            <button
-                              onClick={e => {
-                                e.stopPropagation()
-                                openSkillExam(skill)
-                              }}
-                              style={{
-                                background: '#1B2B4B', color: '#C49A1A',
-                                border: '2px solid #C49A1A',
-                                borderRadius: 10, padding: '6px 12px',
-                                fontSize: 12, fontWeight: 700,
-                                cursor: 'pointer', whiteSpace: 'nowrap',
-                                flexShrink: 0,
-                              }}
-                            >
-                              🏆 Take Exam!
-                            </button>
+                            studentPlan === 'premium' ? (
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  openSkillExam(skill)
+                                }}
+                                style={{
+                                  background: '#1B2B4B', color: '#C49A1A',
+                                  border: '2px solid #C49A1A',
+                                  borderRadius: 10, padding: '6px 12px',
+                                  fontSize: 12, fontWeight: 700,
+                                  cursor: 'pointer', whiteSpace: 'nowrap',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                🏆 Take Exam!
+                              </button>
+                            ) : (
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  window.location.href = '/subscribe'
+                                }}
+                                style={{
+                                  background: '#F0F4F8',
+                                  border: '1px dashed #CBD5E1',
+                                  borderRadius: 12, padding: '6px 12px',
+                                  color: '#94A3B8', fontWeight: 600,
+                                  fontSize: 12, cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  whiteSpace: 'nowrap', flexShrink: 0,
+                                }}
+                              >
+                                🏆 Mastery Exam
+                                <span style={{
+                                  background: '#E2E8F0', color: '#94A3B8',
+                                  borderRadius: 8, padding: '2px 8px',
+                                  fontSize: 10, fontWeight: 800,
+                                }}>
+                                  PREMIUM
+                                </span>
+                              </button>
+                            )
                           )}
                         </div>
                       )
@@ -2047,7 +2093,7 @@ export default function StudentDashboard() {
                         })}
                       </div>
 
-                      {questionTimer >= 60 && !answerState && !showAskHero && (
+                      {questionTimer >= 60 && !answerState && !showAskHero && studentPlan === 'premium' && (
                         <div style={{
                           background: '#FFFBEB',
                           border: '1px solid #C49A1A',
@@ -2082,25 +2128,49 @@ export default function StudentDashboard() {
                         </div>
                       )}
                       {!answerState && (
-                        <button
-                          onClick={() => {
-                            Analytics.askHeroOpened(practiceModal?.skillId)
-                            setShowAskHero(true)
-                            setAskHeroAttempts(prev => prev + 1)
-                          }}
-                          style={{
-                            display: 'flex', alignItems: 'center',
-                            gap: 8, background: '#1B2B4B', color: 'white',
-                            border: '2px solid #C49A1A', borderRadius: 12,
-                            padding: '10px 20px', fontWeight: 700,
-                            fontSize: 15, cursor: 'pointer',
-                            width: '100%', justifyContent: 'center',
-                            marginBottom: 12,
-                          }}
-                        >
-                          <span>🤖</span>
-                          <span>Ask <span style={{ color: '#C49A1A' }}>Hero</span> ✦✦</span>
-                        </button>
+                        studentPlan === 'premium' ? (
+                          <button
+                            onClick={() => {
+                              Analytics.askHeroOpened(practiceModal?.skillId)
+                              setShowAskHero(true)
+                              setAskHeroAttempts(prev => prev + 1)
+                            }}
+                            style={{
+                              display: 'flex', alignItems: 'center',
+                              gap: 8, background: '#1B2B4B', color: 'white',
+                              border: '2px solid #C49A1A', borderRadius: 12,
+                              padding: '10px 20px', fontWeight: 700,
+                              fontSize: 15, cursor: 'pointer',
+                              width: '100%', justifyContent: 'center',
+                              marginBottom: 12,
+                            }}
+                          >
+                            <span>🤖</span>
+                            <span>Ask <span style={{ color: '#C49A1A' }}>Hero</span> ✦✦</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { window.location.href = '/subscribe' }}
+                            style={{
+                              display: 'flex', alignItems: 'center',
+                              gap: 8, background: 'linear-gradient(135deg, #1B2B4B, #2D4A7A)',
+                              border: '2px solid #C49A1A', borderRadius: 14,
+                              padding: '12px 20px', color: 'white', fontWeight: 700,
+                              fontSize: 14, cursor: 'pointer',
+                              width: '100%', justifyContent: 'center',
+                              marginBottom: 12,
+                            }}
+                          >
+                            🤖 Ask Hero
+                            <span style={{
+                              background: '#C49A1A', color: '#1B2B4B',
+                              borderRadius: 10, padding: '2px 8px',
+                              fontSize: 11, fontWeight: 900,
+                            }}>
+                              PREMIUM
+                            </span>
+                          </button>
+                        )
                       )}
                       {showHint && !answerState && (
                         <div className="border border-[#C49A1A] bg-amber-50 rounded-xl p-4 mb-3 text-sm text-[#1B2B4B] font-medium flex items-start gap-2">

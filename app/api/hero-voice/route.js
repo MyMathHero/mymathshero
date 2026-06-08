@@ -1,10 +1,39 @@
 import { NextResponse } from 'next/server'
+import { MongoClient } from 'mongodb'
+import { getPlanFeatures } from '@/lib/planGating'
+
+let client
+async function connectDB() {
+  if (!client) {
+    client = new MongoClient(process.env.MONGODB_URI)
+    await client.connect()
+  }
+  return client.db(process.env.DB_NAME || 'mymathshero')
+}
 
 export async function POST(request) {
   try {
-    const { text } = await request.json()
+    const { text, studentId } = await request.json()
     if (!text) {
       return NextResponse.json({ error: 'text required' }, { status: 400 })
+    }
+
+    // Plan gate — premium TTS voice requires a Premium plan. When a studentId is
+    // provided we resolve the plan from the parent (source of truth) → child.
+    // Standard/free callers get a hard 403 (no premium-quality voice).
+    if (studentId) {
+      const db = await connectDB()
+      const student = await db.collection('children').findOne({ id: studentId })
+      const parent = student?.parentId
+        ? await db.collection('parents').findOne({ id: student.parentId })
+        : null
+      const plan = parent?.plan || student?.plan || 'free'
+      if (!getPlanFeatures(plan).voiceExplanations) {
+        return NextResponse.json({
+          error: 'premium_required',
+          message: 'Voice explanations are a Premium feature.',
+        }, { status: 403 })
+      }
     }
 
     // No key configured → tell the client to fall back to browser TTS.

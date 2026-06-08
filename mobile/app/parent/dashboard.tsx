@@ -136,9 +136,28 @@ export default function ParentDashboard() {
             <Text style={styles.welcome}>Welcome back</Text>
             {parentName ? <Text style={styles.welcomeSub}>{parentName}</Text> : null}
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Log out</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/parent/account')}
+              style={{
+                backgroundColor: 'rgba(196,154,26,0.15)',
+                borderWidth: 1, borderColor: '#C49A1A',
+                borderRadius: 20, paddingHorizontal: 14,
+                paddingVertical: 7,
+                flexDirection: 'row', alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Text style={{ fontSize: 16 }}>👤</Text>
+              <Text style={{ color: '#C49A1A', fontWeight: '700',
+                fontSize: 13 }}>
+                Account
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+              <Text style={styles.logoutText}>Log out</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Child card */}

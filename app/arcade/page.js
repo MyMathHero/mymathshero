@@ -161,6 +161,11 @@ export default function ArcadePage() {
   }
 
   async function handlePlayGame(game) {
+    // Standard plan can't play games beyond the first 3, even if previously unlocked.
+    if (isGamePlanBlocked(game.id)) {
+      router.push('/subscribe')
+      return
+    }
     try {
       const res = await fetch('/api/student/arcade', {
         method: 'POST',
@@ -225,6 +230,13 @@ export default function ArcadePage() {
 
   const isUnlocked = (gameId) =>
     (arcadeData?.unlockedGames || []).includes(gameId)
+
+  // Standard plan unlocks only the first 3 games (by their fixed position in
+  // the full game list, so it's stable no matter which category is filtered).
+  // Premium (and any other plan handled elsewhere) is not slot-limited.
+  const isGamePlanBlocked = (gameId) =>
+    arcadeData?.plan === 'standard' &&
+    ARCADE_GAMES.findIndex(g => g.id === gameId) >= 3
 
   // ==================
   // LOADING
@@ -915,28 +927,48 @@ export default function ArcadePage() {
           gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
           gap: 20,
         }}>
-          {filteredGames.map(game => {
+          {filteredGames.map((game) => {
             const unlocked = isUnlocked(game.id)
             const comingSoon = game.comingSoon || !game.embedUrl
             const isPremiumBlocked = !comingSoon && game.premiumOnly &&
               arcadeData?.plan !== 'premium'
+            // Standard plan — only the first 3 games are accessible.
+            const isPlanBlocked = isGamePlanBlocked(game.id)
 
             return (
               <div
                 key={game.id}
                 className="game-card"
-                onClick={() => setSelectedGame(game)}
+                onClick={() => {
+                  if (isPlanBlocked) {
+                    window.location.href = '/subscribe'
+                    return
+                  }
+                  setSelectedGame(game)
+                }}
                 style={{
                   background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${unlocked
+                  border: `1px solid ${unlocked && !isPlanBlocked
                     ? 'rgba(34,197,94,0.4)'
                     : 'rgba(255,255,255,0.08)'}`,
                   borderRadius: 18,
                   overflow: 'hidden',
                   cursor: 'pointer',
                   position: 'relative',
+                  opacity: isPlanBlocked ? 0.5 : 1,
                 }}
               >
+                {/* Plan-blocked overlay badge (Standard, slots 4+) */}
+                {isPlanBlocked && (
+                  <div style={{
+                    position: 'absolute', top: 8, left: 8, zIndex: 2,
+                    background: '#C49A1A', borderRadius: 10,
+                    padding: '2px 8px', fontSize: 10,
+                    fontWeight: 800, color: '#0A0A1A',
+                  }}>
+                    ⭐ PREMIUM
+                  </div>
+                )}
                 {/* Game thumbnail / emoji */}
                 <div style={{
                   height: 140,
@@ -1087,7 +1119,28 @@ export default function ArcadePage() {
               ))}
             </div>
 
-            {(selectedGame.comingSoon || !selectedGame.embedUrl) ? (
+            {isGamePlanBlocked(selectedGame.id) ? (
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ color: '#C49A1A', fontWeight: 700,
+                  marginBottom: 8 }}>
+                  ⭐ Premium plan required
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.5)',
+                  fontSize: 13, marginBottom: 16 }}>
+                  Standard plan includes 3 games.
+                  Upgrade for all {ARCADE_GAMES.length} games!
+                </p>
+                <button
+                  onClick={() => router.push('/subscribe')}
+                  style={{ width: '100%', padding: 16,
+                    background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
+                    color: '#0A0A1A', border: 'none',
+                    borderRadius: 14, fontWeight: 800,
+                    fontSize: 16, cursor: 'pointer' }}>
+                  Upgrade to Premium →
+                </button>
+              </div>
+            ) : (selectedGame.comingSoon || !selectedGame.embedUrl) ? (
               <div style={{ textAlign: 'center' }}>
                 <p style={{ color: 'rgba(255,255,255,0.6)',
                   fontSize: 14, marginBottom: 16 }}>

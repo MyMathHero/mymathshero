@@ -49,6 +49,13 @@ export async function GET(request) {
       }
     }
 
+    // Resolve subscription plan from the parent (source of truth), falling back
+    // to the child record. Used by the dashboard to gate Premium-only features.
+    const planParent = student.parentId
+      ? await db.collection('parents').findOne({ id: student.parentId })
+      : null
+    const studentPlan = planParent?.plan || student?.plan || 'free'
+
     // 2. Get all skill scores for this student
     const skillScores = await db.collection('skill_scores')
       .find({ studentId })
@@ -126,6 +133,7 @@ export async function GET(request) {
         isDev: student.isDev || false,
         diagnosticComplete: student.diagnosticComplete || false,
         accessBlocked: student.accessBlocked || false,
+        plan: studentPlan,
       },
       stats: {
         mastered,

@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { getPlanFeatures } from '@/lib/planGating'
 
 let client
 async function connectDB() {
@@ -19,6 +20,24 @@ export async function POST(request) {
     }
 
     const db = await connectDB()
+
+    // Plan gate — Ask Hero (AI hints) requires Premium. Plan is read from the
+    // parent record (source of truth), falling back to the child record.
+    const student = await db.collection('children').findOne({ id: studentId })
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+    }
+    const parent = student.parentId
+      ? await db.collection('parents').findOne({ id: student.parentId })
+      : null
+    const plan = parent?.plan || student?.plan || 'free'
+    if (!getPlanFeatures(plan).askHero) {
+      return NextResponse.json({
+        error: 'premium_required',
+        message: 'Ask Hero is a Premium feature.',
+        upgradeUrl: '/subscribe',
+      }, { status: 403 })
+    }
 
     // Mark hintUsed on the active session
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000)

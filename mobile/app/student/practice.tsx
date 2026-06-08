@@ -34,13 +34,47 @@ export default function Practice() {
   const [speedRoundDone, setSpeedRoundDone] = useState(false)
   const [speedCorrect, setSpeedCorrect] = useState(0)
   const [showAskHero, setShowAskHero] = useState(false)
+  const [studentPlan, setStudentPlan] = useState('free')
   const [cheatWarning, setCheatWarning] = useState(false)
   const timerRef = useRef<any>(null)
   const totalTimerRef = useRef<any>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const cheatCountRef = useRef(0)
 
-  useEffect(() => { loadQuestions() }, [])
+  useEffect(() => { loadQuestions(); loadPlan() }, [])
+
+  // Resolve the subscription plan. /api/student/progress returns the plan on
+  // the student object (resolved server-side from the parent record).
+  async function loadPlan() {
+    try {
+      const id = await SecureStore.getItemAsync('user_id')
+      if (!id) return
+      const res = await studentAPI.progress(id)
+      setStudentPlan(res?.data?.student?.plan || 'free')
+    } catch {
+      // Leave as 'free' on failure — gating fails safe (feature locked).
+    }
+  }
+
+  // Ask Hero (AI tutor + voice) is a Premium feature. Standard/free users get
+  // an upgrade prompt instead of the sheet.
+  function handleAskHeroTap() {
+    if (studentPlan !== 'premium') {
+      Alert.alert(
+        '⭐ Premium Feature',
+        'Ask Hero AI Tutor is available on the Premium plan. Upgrade to get personalised hints and voice explanations!',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          {
+            text: 'Upgrade →',
+            onPress: () => router.push('/parent/subscribe'),
+          },
+        ]
+      )
+      return
+    }
+    setShowAskHero(true)
+  }
 
   useEffect(() => {
     if (questions.length > 0 && !result) startTimer()
@@ -343,7 +377,7 @@ export default function Practice() {
               🤖 Stuck? Ask Hero for help!
             </Text>
             <TouchableOpacity
-              onPress={() => setShowAskHero(true)}
+              onPress={handleAskHeroTap}
               style={styles.nudgeBtn}
             >
               <Text style={styles.nudgeBtnText}>Ask Hero ✦</Text>
@@ -439,12 +473,14 @@ export default function Practice() {
           Sibling of ScrollView so position:absolute uses the screen frame. */}
       {!result && (
         <TouchableOpacity
-          onPress={() => setShowAskHero(true)}
+          onPress={handleAskHeroTap}
           style={styles.floatingAsk}
           activeOpacity={0.85}
         >
           <Text style={styles.floatingAskEmoji}>🤖</Text>
-          <Text style={styles.floatingAskText}>Ask Hero</Text>
+          <Text style={styles.floatingAskText}>
+            Ask Hero{studentPlan !== 'premium' ? ' ⭐' : ''}
+          </Text>
         </TouchableOpacity>
       )}
 

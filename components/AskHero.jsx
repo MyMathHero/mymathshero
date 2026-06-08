@@ -97,7 +97,8 @@ export default function AskHero({
         () => {
           setIsSpeaking(false)
           setRobotState('idle')
-        }
+        },
+        studentId
       )
     }
   }
@@ -263,7 +264,8 @@ export default function AskHero({
         () => {
           setIsSpeaking(false)
           setRobotState('idle')
-        }
+        },
+        studentId
       )
     }
   }
