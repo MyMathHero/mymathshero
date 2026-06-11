@@ -1,0 +1,123 @@
+/* ============================================
+   MYMATHSHERO — THEME SYSTEM
+   Three themes: light | dark | colorblind
+   Applied via data-theme attribute on <html>
+   ============================================ */
+
+/* DEFAULT / LIGHT THEME */
+:root,
+[data-theme="light"] {
+  --bg-primary: #F0F4F8;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-header: #1B2B4B;
+  --bg-header-secondary: #2D4A7A;
+
+  --text-primary: #1B2B4B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --text-on-dark: #FFFFFF;
+
+  --accent-gold: #C49A1A;
+  --accent-gold-light: #FFFBEB;
+  --accent-gold-border: rgba(196,154,26,0.3);
+
+  --border-color: #E2E8F0;
+  --border-light: #F0F4F8;
+
+  --correct: #22C55E;
+  --correct-bg: #DCFCE7;
+  --wrong: #F59E0B;
+  --wrong-bg: #FEF3C7;
+  --error: #EF4444;
+  --error-bg: #FEE2E2;
+
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+/* DARK THEME */
+[data-theme="dark"] {
+  --bg-primary: #0F1620;
+  --bg-secondary: #1A2332;
+  --bg-card: #1E2D42;
+  --bg-header: #0A0F18;
+  --bg-header-secondary: #131D2E;
+
+  --text-primary: #F1F5F9;
+  /* Secondary/muted brightened for readable contrast on dark card surfaces
+     (the previous slate values merged into #1E2D42 cards). */
+  --text-secondary: #B6C2D4;
+  --text-muted: #93A2B8;
+  --text-on-dark: #F1F5F9;
+
+  --accent-gold: #D4AA30;
+  --accent-gold-light: rgba(212,170,48,0.12);
+  --accent-gold-border: rgba(212,170,48,0.3);
+
+  --border-color: rgba(255,255,255,0.1);
+  --border-light: rgba(255,255,255,0.05);
+
+  --correct: #34D399;
+  --correct-bg: rgba(52,211,153,0.15);
+  --wrong: #FBBF24;
+  --wrong-bg: rgba(251,191,36,0.15);
+  --error: #F87171;
+  --error-bg: rgba(248,113,113,0.15);
+
+  --shadow: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* COLOURBLIND-FRIENDLY THEME
+   Uses blue/orange instead of red/green
+   Safe for deuteranopia (most common) and protanopia */
+[data-theme="colorblind"] {
+  --bg-primary: #F5F5F0;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-header: #003366;
+  --bg-header-secondary: #004488;
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-on-dark: #FFFFFF;
+
+  --accent-gold: #E07B00;
+  --accent-gold-light: #FFF3E0;
+  --accent-gold-border: rgba(224,123,0,0.3);
+
+  --border-color: #CCCCCC;
+  --border-light: #EEEEEE;
+
+  /* Blue = correct, Orange = wrong (not red/green) */
+  --correct: #0066CC;
+  --correct-bg: #E0F0FF;
+  --wrong: #E07B00;
+  --wrong-bg: #FFF3E0;
+  --error: #CC0044;
+  --error-bg: #FFE0EA;
+
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,51,102,0.15);
+}
+
+/* ARCADE OVERRIDE — the arcade zone (/arcade) is always dark regardless of the
+   selected theme. The page sets data-theme-override="arcade" on <html> while
+   mounted and removes it on unmount. */
+[data-theme-override="arcade"] {
+  --bg-primary: #0A0A1A;
+  --bg-secondary: #0F0F2A;
+  --bg-card: rgba(255,255,255,0.04);
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.6);
+  --border-color: rgba(255,255,255,0.08);
+}
+
+/* Smooth theme transitions */
+*, *::before, *::after {
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.1s ease;
+}

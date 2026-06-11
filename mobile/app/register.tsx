@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView,
@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import api, { authAPI } from '../lib/api'
+import { useTheme, ThemeColors } from '../lib/themeContext'
 
 type Step = 'parent' | 'child' | 'plan'
 
@@ -19,6 +20,8 @@ type Step = 'parent' | 'child' | 'plan'
 
 export default function Register() {
   const router = useRouter()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const [step, setStep] = useState<Step>('parent')
   const [loading, setLoading] = useState(false)
 
@@ -298,44 +301,44 @@ export default function Register() {
   )
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F0F4F8' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', padding: 16,
-    backgroundColor: '#1B2B4B' },
-  back: { color: '#C49A1A', fontWeight: '700', fontSize: 15 },
+    backgroundColor: c.bgHeader },
+  back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
   headerTitle: { color: 'white', fontWeight: '800', fontSize: 16 },
   stepCount: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
-  progressBar: { height: 4, backgroundColor: '#1B2B4B' },
+  progressBar: { height: 4, backgroundColor: c.bgHeader },
   progressFill: { height: 4, backgroundColor: '#C49A1A' },
   scroll: { padding: 20, paddingBottom: 40 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', color: '#64748B',
+  sectionLabel: { fontSize: 13, fontWeight: '700', color: c.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
     marginBottom: 12, marginTop: 8 },
-  helper: { fontSize: 13, color: '#64748B', marginBottom: 12, lineHeight: 18 },
-  input: { backgroundColor: 'white', borderWidth: 1.5,
-    borderColor: '#E2E8F0', borderRadius: 12, padding: 16,
-    fontSize: 16, color: '#1B2B4B', marginBottom: 12 },
-  btn: { backgroundColor: '#1B2B4B', borderRadius: 14,
+  helper: { fontSize: 13, color: c.textSecondary, marginBottom: 12, lineHeight: 18 },
+  input: { backgroundColor: c.bgCard, borderWidth: 1.5,
+    borderColor: c.borderColor, borderRadius: 12, padding: 16,
+    fontSize: 16, color: c.textPrimary, marginBottom: 12 },
+  btn: { backgroundColor: c.bgHeader, borderRadius: 14,
     padding: 18, alignItems: 'center',
     borderWidth: 2, borderColor: '#C49A1A', marginTop: 8 },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: 'white', fontSize: 16, fontWeight: '800' },
   gradeBtn: { paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 2, borderColor: '#E2E8F0',
-    backgroundColor: 'white' },
+    borderRadius: 20, borderWidth: 2, borderColor: c.borderColor,
+    backgroundColor: c.bgCard },
   gradeBtnActive: { borderColor: '#C49A1A', backgroundColor: '#FFFBEB' },
-  gradeBtnText: { color: '#64748B', fontWeight: '700', fontSize: 13 },
-  gradeBtnTextActive: { color: '#1B2B4B' },
-  launchBanner: { backgroundColor: '#1B2B4B', borderRadius: 14,
+  gradeBtnText: { color: c.textSecondary, fontWeight: '700', fontSize: 13 },
+  gradeBtnTextActive: { color: c.textPrimary },
+  launchBanner: { backgroundColor: c.bgHeader, borderRadius: 14,
     padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#C49A1A' },
-  launchTitle: { color: '#C49A1A', fontWeight: '800',
+  launchTitle: { color: c.accentGold, fontWeight: '800',
     fontSize: 15, marginBottom: 4 },
   launchDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 18 },
-  planCard: { backgroundColor: 'white', borderRadius: 16,
-    padding: 18, marginBottom: 12, borderWidth: 2, borderColor: '#E2E8F0' },
+  planCard: { backgroundColor: c.bgCard, borderRadius: 16,
+    padding: 18, marginBottom: 12, borderWidth: 2, borderColor: c.borderColor },
   planCardActive: { borderColor: '#1B2B4B' },
-  planCardPremium: { backgroundColor: '#1B2B4B',
+  planCardPremium: { backgroundColor: c.bgHeader,
     borderColor: '#1B2B4B', position: 'relative', paddingTop: 28 },
   planCardPremiumActive: { borderColor: '#C49A1A' },
   premiumBadge: { position: 'absolute', top: -1, left: 16,
@@ -343,9 +346,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 3 },
   premiumBadgeText: { color: 'white', fontSize: 10, fontWeight: '800' },
   planHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  planName: { fontSize: 17, fontWeight: '800', color: '#1B2B4B' },
-  planPrice: { fontSize: 17, fontWeight: '800', color: '#C49A1A' },
+  planName: { fontSize: 17, fontWeight: '800', color: c.textPrimary },
+  planPrice: { fontSize: 17, fontWeight: '800', color: c.accentGold },
   planFeature: { fontSize: 13, color: '#334155', marginBottom: 4 },
-  planFeatureMuted: { fontSize: 13, color: '#94A3B8', marginBottom: 4 },
-  terms: { textAlign: 'center', color: '#94A3B8', fontSize: 12, marginTop: 12 },
+  planFeatureMuted: { fontSize: 13, color: c.textMuted, marginBottom: 4 },
+  terms: { textAlign: 'center', color: c.textMuted, fontSize: 12, marginTop: 12 },
 })

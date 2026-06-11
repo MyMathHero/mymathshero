@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert,
   Modal, Platform, Animated, Dimensions,
   Image,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { WebView } from 'react-native-webview'
 import { useVideoPlayer, VideoView } from 'expo-video'
@@ -64,10 +64,20 @@ export default function ArcadeScreen() {
     }
   )
 
+  // Clear the heartbeat timer on unmount.
   useEffect(() => {
-    loadData()
     return () => clearInterval(timerRef.current)
   }, [])
+
+  // Refresh arcade data every time the screen gains focus (including first
+  // mount). Keeps minutesToday current across devices when returning to the
+  // arcade tab. Not active while a game is being played in the modal.
+  useFocusEffect(
+    useCallback(() => {
+      if (!playingGame) loadData()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [playingGame])
+  )
 
   useEffect(() => {
     if (!loading && arcadeData) {
@@ -168,10 +178,10 @@ export default function ArcadeScreen() {
     const isUnlocked = (arcadeData?.unlockedGames || []).includes(game.id)
 
     if (!isUnlocked) {
-      if ((arcadeData?.xp || 0) < game.pointsCost) {
+      if ((arcadeData?.coins || 0) < game.coinsCost) {
         Alert.alert(
-          '🔒 Not Enough Hero Points',
-          `You need ${game.pointsCost} Hero Points to unlock ${game.title}.\n\nYou have ${arcadeData?.xp || 0} points.\n\nKeep answering Maths questions to earn more!`,
+          '🪙 Not Enough Coins',
+          `Need ${game.coinsCost} coins to unlock ${game.title}.\n\nYou have ${arcadeData?.coins || 0} coins.\n\nKeep answering Maths questions to earn coins!`,
           [
             { text: 'OK' },
             { text: '✦ Go Practice', onPress: () => router.back() },
@@ -181,11 +191,11 @@ export default function ArcadeScreen() {
       }
       Alert.alert(
         `🔓 Unlock ${game.title}?`,
-        `Spend ${game.pointsCost} Hero Points to unlock this game forever!\n\nYou have ${arcadeData?.xp || 0} points.`,
+        `Spend ${game.coinsCost} coins 🪙 to unlock this game forever!\n\nYou have ${arcadeData?.coins || 0} coins.`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: `Unlock (${game.pointsCost} pts) →`,
+            text: `Unlock (${game.coinsCost} 🪙) →`,
             onPress: () => unlockAndPlay(game),
           },
         ]
@@ -203,7 +213,7 @@ export default function ArcadeScreen() {
       if (data.success || data.alreadyUnlocked) {
         setArcadeData((prev: any) => ({
           ...prev,
-          xp: data.newXP ?? prev.xp,
+          coins: data.newCoins ?? prev.coins,
           unlockedGames: [...(prev.unlockedGames || []), game.id],
         }))
         await startPlayingGame(game)
@@ -233,46 +243,56 @@ export default function ArcadeScreen() {
       }
 
       if (data.success) {
-        setSessionId(data.sessionId)
+        const newSessionId = data.sessionId
+        setSessionId(newSessionId)
         setPlayingGame(game)
         setSessionMinutes(0)
         setWebViewError(false)
         clearInterval(timerRef.current)
 
-        // Track time every minute
-        timerRef.current = setInterval(() => {
-          setSessionMinutes(prev => {
-            const newMins = prev + 1
-            // Update arcade data remaining time
-            setArcadeData((ad: any) => {
-              if (!ad) return ad
-              const newToday = (ad.minutesToday || 0) + 1
-              const limit = ad.arcadeSettings?.dailyMinutes || 30
-              // Auto-end session when limit hit
-              if (newToday >= limit) {
-                handleTimeLimitHit()
-              }
-              return { ...ad, minutesToday: newToday }
-            })
-            return newMins
-          })
-        }, 60000) // every real minute
+        let localMinutes = 0
+
+        // Heartbeat every 60s — persists durationMinutes to the DB and pulls
+        // back the server's authoritative minutesToday so time stays in sync
+        // across devices even if the app is later closed mid-game.
+        timerRef.current = setInterval(async () => {
+          localMinutes += 1
+          setSessionMinutes(localMinutes)
+
+          try {
+            const hbRes = await arcadeAPI.heartbeat(
+              newSessionId,
+              studentId,
+              localMinutes
+            )
+            const hbData = hbRes.data
+
+            if (hbData.minutesToday !== undefined) {
+              setArcadeData((prev: any) => ({
+                ...prev,
+                minutesToday: hbData.minutesToday,
+                minutesRemaining: hbData.minutesRemaining,
+              }))
+            }
+
+            if (hbData.limitReached) {
+              clearInterval(timerRef.current)
+              Alert.alert(
+                '⏰ Time is Up!',
+                'You have reached your daily arcade limit. Great gaming today!',
+                [{ text: 'OK', onPress: () => exitGame(true) }]
+              )
+            }
+          } catch {
+            // Heartbeat failed — keep playing, time tracked locally for now.
+          }
+        }, 60000)
       } else {
         Alert.alert('Error', data.error || 'Could not start game')
       }
     } catch {
       Alert.alert('Error', 'Connection error. Please try again.')
     }
-  }
-
-  function handleTimeLimitHit() {
-    // Auto-exit game when daily limit reached
-    clearInterval(timerRef.current)
-    Alert.alert(
-      '⏰ Time is Up!',
-      "You've reached your daily arcade limit. Great gaming today! Come back tomorrow.",
-      [{ text: 'OK', onPress: () => exitGame(true) }]
-    )
   }
 
   function exitGame(fromLimit = false) {
@@ -366,9 +386,9 @@ export default function ArcadeScreen() {
   }
 
   // ==================
-  // XP LOCKED
+  // COIN LOCKED
   // ==================
-  if ((arcadeData?.xp || 0) < 20) {
+  if ((arcadeData?.coins || 0) < 20) {
     return (
       <SafeAreaView style={s.fullDark}>
         <TouchableOpacity
@@ -385,20 +405,20 @@ export default function ArcadeScreen() {
           <Text style={s.lockedSub}>
             You need at least{' '}
             <Text style={{ color: '#C49A1A', fontWeight: '800' }}>
-              20 Hero Points
+              20 coins 🪙
             </Text>{' '}
-            to enter the Arcade. Answer Maths questions to earn points!
+            to enter the Arcade. Answer Maths questions to earn coins!
           </Text>
           <View style={s.xpBox}>
             <Text style={{ color: '#C49A1A', fontSize: 13,
-              marginBottom: 4 }}>Your Hero Points</Text>
+              marginBottom: 4 }}>Your Coins 🪙</Text>
             <Text style={{ color: 'white', fontSize: 52,
               fontWeight: '900' }}>
-              {arcadeData?.xp || 0}
+              {arcadeData?.coins || 0}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.5)',
               fontSize: 12, marginTop: 4 }}>
-              Need 20 to unlock
+              Need 20 coins to unlock
             </Text>
           </View>
           <TouchableOpacity
@@ -631,10 +651,10 @@ export default function ArcadeScreen() {
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ color: '#C49A1A', fontWeight: '800',
               fontSize: 14 }}>
-              ⚡ {arcadeData?.xp || 0}
+              🪙 {arcadeData?.coins || 0}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.3)',
-              fontSize: 10 }}>Hero Points</Text>
+              fontSize: 10 }}>Coins</Text>
           </View>
         </View>
 
@@ -716,7 +736,7 @@ export default function ArcadeScreen() {
         >
           {filteredGames.map(game => {
             const unlocked = isUnlocked(game.id)
-            const canAffordIt = (arcadeData?.xp || 0) >= game.pointsCost
+            const canAffordIt = (arcadeData?.coins || 0) >= game.coinsCost
             const limitHit = isTimeLimitReached()
 
             return (
@@ -792,7 +812,7 @@ export default function ArcadeScreen() {
                       !canAffordIt && s.costPillPoor]}>
                       <Text style={[s.costText,
                         !canAffordIt && s.costTextPoor]}>
-                        ⚡{game.pointsCost}
+                        🪙{game.coinsCost}
                       </Text>
                     </View>
                   )}

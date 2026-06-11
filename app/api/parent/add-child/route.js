@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { MongoClient } from 'mongodb'
 import bcrypt from 'bcryptjs'
 import { getRequestToken, verifyToken } from '@/lib/auth'
+import { normaliseGrade } from '@/lib/normaliseGrade'
 
 let client
 async function connectDB() {
@@ -76,13 +77,7 @@ export async function POST(request) {
       }, { status: 403 })
     }
 
-    // Grade: accept 'prep' / 'Prep' / '0' / numeric. Default to 3.
-    const gradeNum = (() => {
-      const raw = String(grade ?? '').toLowerCase()
-      if (raw === 'prep' || raw === '0') return 0
-      const n = parseInt(raw, 10)
-      return Number.isFinite(n) && n >= 0 && n <= 6 ? n : 3
-    })()
+    const gradeNum = normaliseGrade(grade)
 
     const hashedPin = await bcrypt.hash(String(pin), 10)
     const studentId = generateId()

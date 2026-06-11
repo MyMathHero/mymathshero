@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Ball Smash</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    color: white;
+    user-select: none;
+  }
+  h1 { color: #C49A1A; font-size: 22px;
+    font-weight: 900; letter-spacing: 2px;
+    margin-bottom: 8px; }
+  #hud { display: flex; gap: 24px;
+    margin-bottom: 8px; font-size: 14px; }
+  #hud span { color: #C49A1A; font-weight: 700; }
+  canvas {
+    border: 2px solid rgba(196,154,26,0.4);
+    border-radius: 4px;
+    display: block;
+    touch-action: none;
+  }
+  #msg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #msg h2 { color: #C49A1A; font-size: 28px;
+    font-weight: 900; margin-bottom: 8px; }
+  #msg p { color: rgba(255,255,255,0.6);
+    margin-bottom: 20px; }
+  #msg button {
+    background: linear-gradient(135deg, #C49A1A, #FFD700);
+    color: #0A0A1A; border: none; border-radius: 12px;
+    padding: 14px 36px; font-size: 16px;
+    font-weight: 900; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🏓 Ball Smash</h1>
+<div id="hud">
+  <div>Score: <span id="score">0</span></div>
+  <div>Lives: <span id="lives">❤️❤️❤️</span></div>
+  <div>Level: <span id="level">1</span></div>
+</div>
+<canvas id="c" width="400" height="500"></canvas>
+<div id="msg">
+  <h2>🏓 Ball Smash</h2>
+  <p>Break all the bricks!</p>
+  <button onclick="startGame()">▶ START</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c')
+const ctx = canvas.getContext('2d')
+const W = canvas.width, H = canvas.height
+
+const BRICK_ROWS = 5
+const BRICK_COLS = 10
+const BRICK_W = W / BRICK_COLS
+const BRICK_H = 22
+const BRICK_PAD = 2
+const BRICK_TOP = 60
+
+const ROW_COLORS = [
+  '#EF4444', '#F97316', '#C49A1A',
+  '#22C55E', '#3B82F6'
+]
+const ROW_PTS = [50, 40, 30, 20, 10]
+
+let paddle, ball, bricks, score, lives
+let level, running, animId
+
+function makeBricks() {
+  const b = []
+  for (let r = 0; r < BRICK_ROWS; r++)
+    for (let c = 0; c < BRICK_COLS; c++)
+      b.push({ r, c, alive: true })
+  return b
+}
+
+function startGame() {
+  document.getElementById('msg').style.display = 'none'
+  score = 0; lives = 3; level = 1
+  paddle = { x: W/2 - 40, y: H - 30,
+    w: 80, h: 12, color: '#C49A1A' }
+  ball = {
+    x: W/2, y: H/2, r: 7,
+    dx: 3.5, dy: -3.5, color: 'white'
+  }
+  bricks = makeBricks()
+  updateHUD()
+  running = true
+  cancelAnimationFrame(animId)
+  loop()
+}
+
+function nextLevel() {
+  level++
+  bricks = makeBricks()
+  ball.x = W/2; ball.y = H/2
+  const spd = 3.5 + level * 0.4
+  ball.dx = spd * (Math.random() > 0.5 ? 1 : -1)
+  ball.dy = -spd
+  updateHUD()
+}
+
+function updateHUD() {
+  document.getElementById('score').textContent = score
+  document.getElementById('lives').textContent =
+    '❤️'.repeat(lives)
+  document.getElementById('level').textContent = level
+}
+
+function loop() {
+  if (!running) return
+  update()
+  draw()
+  animId = requestAnimationFrame(loop)
+}
+
+function update() {
+  // Move ball
+  ball.x += ball.dx
+  ball.y += ball.dy
+
+  // Wall bounce
+  if (ball.x - ball.r < 0) {
+    ball.x = ball.r; ball.dx = Math.abs(ball.dx)
+  }
+  if (ball.x + ball.r > W) {
+    ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx)
+  }
+  if (ball.y - ball.r < 0) {
+    ball.y = ball.r; ball.dy = Math.abs(ball.dy)
+  }
+
+  // Paddle hit
+  if (ball.dy > 0 &&
+    ball.x > paddle.x && ball.x < paddle.x + paddle.w &&
+    ball.y + ball.r > paddle.y &&
+    ball.y - ball.r < paddle.y + paddle.h) {
+    const hit = (ball.x - (paddle.x + paddle.w/2)) /
+      (paddle.w/2)
+    ball.dx = hit * 5
+    ball.dy = -Math.abs(ball.dy)
+  }
+
+  // Bottom — lose life
+  if (ball.y - ball.r > H) {
+    lives--
+    updateHUD()
+    if (lives <= 0) {
+      running = false
+      showEnd(false)
+      return
+    }
+    ball.x = W/2; ball.y = H/2
+    ball.dx = 3.5; ball.dy = -3.5
+  }
+
+  // Brick collision
+  let allGone = true
+  for (const b of bricks) {
+    if (!b.alive) continue
+    allGone = false
+    const bx = b.c * BRICK_W + BRICK_PAD
+    const by = BRICK_TOP + b.r * BRICK_H + BRICK_PAD
+    const bw = BRICK_W - BRICK_PAD * 2
+    const bh = BRICK_H - BRICK_PAD * 2
+
+    if (ball.x + ball.r > bx && ball.x - ball.r < bx + bw &&
+        ball.y + ball.r > by && ball.y - ball.r < by + bh) {
+      b.alive = false
+      score += ROW_PTS[b.r]
+      updateHUD()
+      // Which side hit?
+      const overlapX = Math.min(
+        Math.abs(ball.x - bx),
+        Math.abs(ball.x - (bx + bw))
+      )
+      const overlapY = Math.min(
+        Math.abs(ball.y - by),
+        Math.abs(ball.y - (by + bh))
+      )
+      if (overlapX < overlapY) ball.dx *= -1
+      else ball.dy *= -1
+      break
+    }
+  }
+  if (allGone) nextLevel()
+}
+
+function draw() {
+  ctx.fillStyle = '#0A0A1A'
+  ctx.fillRect(0, 0, W, H)
+
+  // Nothing to draw until the game has started.
+  if (!bricks || !paddle || !ball) return
+
+  // Bricks
+  for (const b of bricks) {
+    if (!b.alive) continue
+    const bx = b.c * BRICK_W + BRICK_PAD
+    const by = BRICK_TOP + b.r * BRICK_H + BRICK_PAD
+    const bw = BRICK_W - BRICK_PAD * 2
+    const bh = BRICK_H - BRICK_PAD * 2
+    ctx.fillStyle = ROW_COLORS[b.r]
+    ctx.beginPath()
+    ctx.roundRect(bx, by, bw, bh, 3)
+    ctx.fill()
+  }
+
+  // Paddle
+  ctx.fillStyle = paddle.color
+  ctx.beginPath()
+  ctx.roundRect(paddle.x, paddle.y,
+    paddle.w, paddle.h, 6)
+  ctx.fill()
+
+  // Ball
+  ctx.fillStyle = ball.color
+  ctx.beginPath()
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Glow on ball
+  ctx.shadowColor = 'white'
+  ctx.shadowBlur = 8
+  ctx.fill()
+  ctx.shadowBlur = 0
+}
+
+function showEnd(won) {
+  const m = document.getElementById('msg')
+  m.innerHTML = `
+    <h2>${won ? '🏆 You Win!' : '💥 Game Over'}</h2>
+    <p>Score: ${score}</p>
+    <button onclick="startGame()">▶ PLAY AGAIN</button>
+  `
+  m.style.display = 'flex'
+}
+
+// Mouse
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect()
+  paddle.x = e.clientX - rect.left - paddle.w / 2
+  paddle.x = Math.max(0,
+    Math.min(W - paddle.w, paddle.x))
+})
+
+// Touch
+canvas.addEventListener('touchmove', e => {
+  const rect = canvas.getBoundingClientRect()
+  paddle.x = e.touches[0].clientX -
+    rect.left - paddle.w / 2
+  paddle.x = Math.max(0,
+    Math.min(W - paddle.w, paddle.x))
+  e.preventDefault()
+}, { passive: false })
+
+// Keys
+let leftKey = false, rightKey = false
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') leftKey = true
+  if (e.key === 'ArrowRight') rightKey = true
+})
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft') leftKey = false
+  if (e.key === 'ArrowRight') rightKey = false
+})
+setInterval(() => {
+  if (leftKey) paddle.x = Math.max(0, paddle.x - 8)
+  if (rightKey) paddle.x = Math.min(W - paddle.w,
+    paddle.x + 8)
+}, 16)
+
+draw()
+</script>
+</body>
+</html>

@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo} from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, ActivityIndicator, Alert,
 } from 'react-native'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { parentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 export default function ParentDashboard() {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
   const [parentId, setParentId] = useState('')
   const [parentName, setParentName] = useState('')
@@ -300,14 +303,14 @@ export default function ParentDashboard() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F4F8' },
-  loading: { flex: 1, backgroundColor: '#1B2B4B',
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bgPrimary },
+  loading: { flex: 1, backgroundColor: c.bgHeader,
     alignItems: 'center', justifyContent: 'center' },
   loadingLogo: { fontSize: 32, fontWeight: '800', color: 'white' },
-  loadingText: { color: '#C49A1A', marginTop: 12, fontWeight: '600' },
+  loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
 
-  header: { backgroundColor: '#1B2B4B', padding: 20, paddingBottom: 16 },
+  header: { backgroundColor: c.bgHeader, padding: 20, paddingBottom: 16 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'flex-start' },
   eyebrow: { color: 'rgba(255,255,255,0.6)', fontSize: 11,
@@ -325,11 +328,11 @@ const styles = StyleSheet.create({
   activeChildAvatar: { width: 48, height: 48, borderRadius: 24,
     backgroundColor: '#C49A1A', alignItems: 'center', justifyContent: 'center' },
   activeChildName: { color: 'white', fontWeight: '800', fontSize: 16 },
-  activeChildMeta: { color: '#C49A1A', fontSize: 12, fontWeight: '600' },
+  activeChildMeta: { color: c.accentGold, fontSize: 12, fontWeight: '600' },
   activeChildStreak: { color: 'white', fontWeight: '800', fontSize: 15 },
   activeChildStreakLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 },
 
-  childRow: { backgroundColor: '#1B2B4B', paddingBottom: 12 },
+  childRow: { backgroundColor: c.bgHeader, paddingBottom: 12 },
   childChip: { flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'transparent' },
@@ -340,42 +343,42 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyText: { fontSize: 17, fontWeight: '700', color: '#1B2B4B', marginTop: 12 },
-  emptySub: { fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 6 },
+  emptyText: { fontSize: 17, fontWeight: '700', color: c.textPrimary, marginTop: 12 },
+  emptySub: { fontSize: 13, color: c.textSecondary, textAlign: 'center', marginTop: 6 },
 
   statsGrid: { flexDirection: 'row', gap: 10, padding: 16 },
-  statCard: { flex: 1, backgroundColor: 'white', borderRadius: 12,
+  statCard: { flex: 1, backgroundColor: c.bgCard, borderRadius: 12,
     padding: 12, alignItems: 'center',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   statValue: { fontSize: 18, fontWeight: '800', marginTop: 4 },
-  statLabel: { fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
+  statLabel: { fontSize: 10, color: c.textMuted, marginTop: 2, textAlign: 'center' },
 
-  insightCard: { backgroundColor: '#1B2B4B', borderRadius: 16, padding: 18,
+  insightCard: { backgroundColor: c.bgHeader, borderRadius: 16, padding: 18,
     marginHorizontal: 16, marginBottom: 16,
     borderWidth: 1, borderColor: '#C49A1A' },
   insightHeader: { flexDirection: 'row', alignItems: 'center',
     gap: 8, marginBottom: 10 },
-  insightTitle: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
+  insightTitle: { color: c.accentGold, fontWeight: '800', fontSize: 14 },
   insightText: { color: 'white', fontSize: 14, lineHeight: 22 },
 
-  cardSection: { backgroundColor: 'white', borderRadius: 16, padding: 18,
+  cardSection: { backgroundColor: c.bgCard, borderRadius: 16, padding: 18,
     marginHorizontal: 16, marginBottom: 16,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   cardSectionTitle: { fontSize: 16, fontWeight: '800',
-    color: '#1B2B4B', marginBottom: 16 },
-  cardBody: { fontSize: 13, color: '#64748B', lineHeight: 20, marginBottom: 12 },
-  cardFooter: { fontSize: 12, color: '#C49A1A', fontWeight: '600' },
+    color: c.textPrimary, marginBottom: 16 },
+  cardBody: { fontSize: 13, color: c.textSecondary, lineHeight: 20, marginBottom: 12 },
+  cardFooter: { fontSize: 12, color: c.accentGold, fontWeight: '600' },
 
   skillHeaderRow: { flexDirection: 'row',
     justifyContent: 'space-between', marginBottom: 4 },
-  skillNameText: { fontSize: 13, fontWeight: '600', color: '#1B2B4B', flex: 1 },
+  skillNameText: { fontSize: 13, fontWeight: '600', color: c.textPrimary, flex: 1 },
   skillScoreText: { fontSize: 12, fontWeight: '800', marginLeft: 8 },
-  skillBarOuter: { height: 8, backgroundColor: '#F0F4F8',
+  skillBarOuter: { height: 8, backgroundColor: c.bgPrimary,
     borderRadius: 4, overflow: 'hidden' },
   skillBarInner: { height: '100%', borderRadius: 4 },
 
   legendRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { fontSize: 11, color: '#64748B' },
+  legendLabel: { fontSize: 11, color: c.textSecondary },
 })

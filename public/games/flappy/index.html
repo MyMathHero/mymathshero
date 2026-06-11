@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flappy Hero</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    user-select: none;
+    touch-action: none;
+  }
+  canvas {
+    border: 2px solid rgba(196,154,26,0.4);
+    border-radius: 8px;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="360" height="560"></canvas>
+
+<script>
+const canvas = document.getElementById('c')
+const ctx = canvas.getContext('2d')
+const W = canvas.width, H = canvas.height
+
+const GRAVITY = 0.45
+const FLAP = -8.5
+const PIPE_W = 52
+const PIPE_GAP = 145
+const PIPE_SPEED = 2.4
+
+let bird, pipes, score, hiScore, state
+// states: 'start', 'playing', 'dead'
+
+function init() {
+  bird = { x: 80, y: H/2, vy: 0, r: 18, angle: 0 }
+  pipes = []
+  score = 0
+  hiScore = parseInt(
+    localStorage.getItem('flappy_hi') || '0'
+  )
+  state = 'start'
+}
+
+function addPipe() {
+  const minY = 80, maxY = H - 80 - PIPE_GAP
+  const topH = minY + Math.random() * (maxY - minY)
+  pipes.push({
+    x: W + 10,
+    topH,
+    scored: false,
+  })
+}
+
+function flap() {
+  if (state === 'dead') {
+    init()
+    state = 'playing'
+    return
+  }
+  if (state === 'start') state = 'playing'
+  bird.vy = FLAP
+}
+
+function update() {
+  if (state !== 'playing') return
+
+  bird.vy += GRAVITY
+  bird.y += bird.vy
+  bird.angle = Math.min(Math.PI/4,
+    Math.max(-Math.PI/4, bird.vy * 0.06))
+
+  // Floor / ceiling
+  if (bird.y + bird.r > H - 30) {
+    bird.y = H - 30 - bird.r
+    die()
+  }
+  if (bird.y - bird.r < 0) {
+    bird.y = bird.r
+    bird.vy = 0
+  }
+
+  // Pipes
+  if (!pipes.length ||
+    pipes[pipes.length-1].x < W - 200) {
+    addPipe()
+  }
+
+  for (const p of pipes) {
+    p.x -= PIPE_SPEED + score * 0.03
+
+    // Score
+    if (!p.scored && p.x + PIPE_W < bird.x) {
+      p.scored = true
+      score++
+      if (score > hiScore) {
+        hiScore = score
+        localStorage.setItem('flappy_hi', hiScore)
+      }
+    }
+
+    // Collision
+    const inX = bird.x + bird.r - 6 > p.x &&
+      bird.x - bird.r + 6 < p.x + PIPE_W
+    const inTop = bird.y - bird.r + 6 < p.topH
+    const inBot = bird.y + bird.r - 6 >
+      p.topH + PIPE_GAP
+    if (inX && (inTop || inBot)) die()
+  }
+
+  // Remove off-screen pipes
+  pipes = pipes.filter(p => p.x > -PIPE_W - 10)
+}
+
+function die() {
+  state = 'dead'
+  bird.vy = FLAP * 0.5
+}
+
+function drawBird() {
+  ctx.save()
+  ctx.translate(bird.x, bird.y)
+  ctx.rotate(bird.angle)
+
+  // Body
+  ctx.fillStyle = state === 'dead'
+    ? '#EF4444' : 'white'
+  ctx.beginPath()
+  ctx.roundRect(-bird.r, -bird.r,
+    bird.r*2, bird.r*2, 8)
+  ctx.fill()
+
+  // Gold border
+  ctx.strokeStyle = '#C49A1A'
+  ctx.lineWidth = 3
+  ctx.stroke()
+
+  // Eyes
+  ctx.fillStyle = '#C49A1A'
+  ctx.beginPath()
+  ctx.arc(4, -5, 5, 0, Math.PI*2)
+  ctx.fill()
+  ctx.fillStyle = '#0A0A1A'
+  ctx.beginPath()
+  ctx.arc(5, -5, 2.5, 0, Math.PI*2)
+  ctx.fill()
+
+  // Antenna
+  ctx.strokeStyle = '#C49A1A'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(0, -bird.r)
+  ctx.lineTo(0, -bird.r - 10)
+  ctx.stroke()
+  ctx.fillStyle = '#C49A1A'
+  ctx.beginPath()
+  ctx.arc(0, -bird.r - 13, 4, 0, Math.PI*2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+function drawPipe(p) {
+  const radius = 6
+
+  // Top pipe
+  ctx.fillStyle = '#1B2B4B'
+  ctx.strokeStyle = '#C49A1A'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.roundRect(p.x, 0, PIPE_W, p.topH - 10, [0,0,radius,radius])
+  ctx.fill(); ctx.stroke()
+  // Cap
+  ctx.beginPath()
+  ctx.roundRect(p.x - 4, p.topH - 20,
+    PIPE_W + 8, 20, radius)
+  ctx.fill(); ctx.stroke()
+
+  // Bottom pipe
+  const botY = p.topH + PIPE_GAP
+  ctx.beginPath()
+  ctx.roundRect(p.x - 4, botY,
+    PIPE_W + 8, 20, radius)
+  ctx.fill(); ctx.stroke()
+  ctx.beginPath()
+  ctx.roundRect(p.x, botY + 10, PIPE_W,
+    H - botY - 10, [radius,radius,0,0])
+  ctx.fill(); ctx.stroke()
+}
+
+function draw() {
+  // Sky
+  const grad = ctx.createLinearGradient(0,0,0,H)
+  grad.addColorStop(0, '#0A0A1A')
+  grad.addColorStop(1, '#1B2B4B')
+  ctx.fillStyle = grad
+  ctx.fillRect(0,0,W,H)
+
+  // Stars
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  for (let i = 0; i < 30; i++) {
+    ctx.fillRect(
+      (i * 137 + 50) % W,
+      (i * 89 + 30) % (H * 0.7),
+      1.5, 1.5
+    )
+  }
+
+  // Pipes
+  pipes.forEach(drawPipe)
+
+  // Ground
+  ctx.fillStyle = '#1B2B4B'
+  ctx.fillRect(0, H - 30, W, 30)
+  ctx.fillStyle = '#C49A1A'
+  ctx.fillRect(0, H - 32, W, 3)
+
+  // Bird
+  drawBird()
+
+  // Score
+  ctx.fillStyle = 'white'
+  ctx.font = 'bold 36px -apple-system'
+  ctx.textAlign = 'center'
+  ctx.fillText(score, W/2, 50)
+
+  // Start screen
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'
+    ctx.fillRect(0,0,W,H)
+    ctx.fillStyle = '#C49A1A'
+    ctx.font = 'bold 32px -apple-system'
+    ctx.fillText('Flappy Hero 🤖', W/2, H/2 - 40)
+    ctx.fillStyle = 'white'
+    ctx.font = '18px -apple-system'
+    ctx.fillText('Tap or press Space to fly!', W/2, H/2)
+    ctx.font = '14px -apple-system'
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.fillText(`Best: ${hiScore}`, W/2, H/2 + 40)
+  }
+
+  // Dead screen
+  if (state === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.fillRect(0,0,W,H)
+    ctx.fillStyle = '#EF4444'
+    ctx.font = 'bold 32px -apple-system'
+    ctx.fillText('Game Over!', W/2, H/2 - 40)
+    ctx.fillStyle = 'white'
+    ctx.font = '20px -apple-system'
+    ctx.fillText(`Score: ${score}`, W/2, H/2)
+    ctx.fillText(`Best: ${hiScore}`, W/2, H/2 + 30)
+    ctx.fillStyle = '#C49A1A'
+    ctx.font = '16px -apple-system'
+    ctx.fillText('Tap to play again', W/2, H/2 + 70)
+  }
+}
+
+function loop() {
+  update()
+  draw()
+  requestAnimationFrame(loop)
+}
+
+canvas.addEventListener('click', flap)
+canvas.addEventListener('touchstart', e => {
+  flap(); e.preventDefault()
+}, { passive: false })
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    flap(); e.preventDefault()
+  }
+})
+
+init()
+loop()
+</script>
+</body>
+</html>

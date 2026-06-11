@@ -151,10 +151,14 @@ export async function POST(request) {
       }
     }
 
-    // 9. Update student XP and coins
+    // 9. Update student XP and coins.
+    // XP = leaderboard ranking only. Coins = the spending currency (arcade,
+    // vouchers, avatars). Coins are awarded at a lower rate than XP to deter
+    // farming: correct = 2, wrong = 0, plus a one-off +20 when a skill is
+    // mastered.
     const xpGain = correct ? (mastered ? 50 : 10) : 2
-    // Coin economy rebalance to deter farming: correct = 2 (was 5), wrong = 0 (was 1)
-    const coinGain = correct ? 2 : 0
+    let coinGain = correct ? 2 : 0
+    if (mastered) coinGain += 20
     await db.collection('children').updateOne(
       { id: studentId },
       { $inc: { xp: xpGain, coins: coinGain } }

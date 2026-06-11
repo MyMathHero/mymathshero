@@ -6,7 +6,7 @@ import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 const BRAND_DARK = '#1B2B4B'
-const BRAND_GOLD = '#C49A1A'
+const BRAND_GOLD = 'var(--accent-gold)'
 const BRAND_BG = '#F0F4F8'
 const BRAND_SUBTEXT = '#64748B'
 
@@ -148,8 +148,8 @@ export default function DiagnosticPage() {
       {/* Welcome */}
       {stage === 'welcome' && (
         <div style={{
-          maxWidth: 520, width: '100%', background: 'white', borderRadius: 24,
-          border: '1px solid #E2E8F0', padding: 32, textAlign: 'center',
+          maxWidth: 520, width: '100%', background: 'var(--bg-card)', borderRadius: 24,
+          border: '1px solid var(--border-color)', padding: 32, textAlign: 'center',
           boxShadow: '0 12px 32px rgba(27,43,75,0.08)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
@@ -188,8 +188,8 @@ export default function DiagnosticPage() {
         const q = questions[index]
         return (
           <div style={{
-            maxWidth: 560, width: '100%', background: 'white', borderRadius: 24,
-            border: '1px solid #E2E8F0', padding: 28,
+            maxWidth: 560, width: '100%', background: 'var(--bg-card)', borderRadius: 24,
+            border: '1px solid var(--border-color)', padding: 28,
             boxShadow: '0 12px 32px rgba(27,43,75,0.08)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -199,7 +199,7 @@ export default function DiagnosticPage() {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: BRAND_BG, borderRadius: 8, padding: '4px 12px',
-                border: '1px solid #E2E8F0',
+                border: '1px solid var(--border-color)',
               }}>
                 <span style={{ fontSize: 16 }}>⏱️</span>
                 <span style={{
@@ -230,7 +230,7 @@ export default function DiagnosticPage() {
                 const isCorrectChoice = answerLocked !== null && opt === q.correctAnswer
                 let bg = 'white', border = '#E2E8F0', color = BRAND_DARK
                 if (answerLocked !== null) {
-                  if (isCorrectChoice) { bg = '#ECFDF5'; border = '#22C55E'; color = '#15803d' }
+                  if (isCorrectChoice) { bg = '#ECFDF5'; border = 'var(--correct)'; color = '#15803d' }
                   else if (isSelected) { bg = '#FEF2F2'; border = '#FCA5A5'; color = '#B91C1C' }
                 }
                 return (
@@ -266,8 +266,8 @@ export default function DiagnosticPage() {
       {/* Results */}
       {stage === 'results' && (
         <div style={{
-          maxWidth: 560, width: '100%', background: 'white', borderRadius: 24,
-          border: '1px solid #E2E8F0', padding: 28, textAlign: 'center',
+          maxWidth: 560, width: '100%', background: 'var(--bg-card)', borderRadius: 24,
+          border: '1px solid var(--border-color)', padding: 28, textAlign: 'center',
           boxShadow: '0 12px 32px rgba(27,43,75,0.08)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
@@ -284,7 +284,7 @@ export default function DiagnosticPage() {
               <div key={s.name} style={{
                 display: 'flex', alignItems: 'center', gap: 12,
                 background: BRAND_BG, borderRadius: 12, padding: '12px 16px',
-                border: '1px solid #E2E8F0', textAlign: 'left',
+                border: '1px solid var(--border-color)', textAlign: 'left',
               }}>
                 <span style={{ fontSize: 28 }}>{s.emoji}</span>
                 <div>

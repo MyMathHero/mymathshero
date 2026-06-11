@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
 import { sendWelcomeEmail, sendEmail } from '@/lib/email'
+import { normaliseGrade } from '@/lib/normaliseGrade'
 
 let client
 let db
@@ -261,7 +262,12 @@ async function handleRoute(request, { params }) {
 
       if (!parent_id) return handleCORS(NextResponse.json({ error: 'Parent ID is required' }, { status: 400 }))
       if (!child_name || !child_name.trim()) return handleCORS(NextResponse.json({ error: 'Child name is required' }, { status: 400 }))
-      if (!grade) return handleCORS(NextResponse.json({ error: 'Grade is required' }, { status: 400 }))
+      if (grade === undefined || grade === null || grade === '') return handleCORS(NextResponse.json({ error: 'Grade is required' }, { status: 400 }))
+
+      // Normalise the grade to an integer (0–6). Historically this route
+      // stored whatever string the client sent ("Year 4" etc.) which broke
+      // every numeric query downstream.
+      const gradeInt = normaliseGrade(grade)
 
       const username = child_name.toLowerCase().replace(/[^a-z]/g, '') + new Date().getFullYear()
       const pin = String(Math.floor(1000 + Math.random() * 9000))
@@ -277,7 +283,7 @@ async function handleRoute(request, { params }) {
         name: child_name.trim(),
         username,
         pin,
-        grade,
+        grade: gradeInt,
         avatar: avatar || '🦊',
         coins: 100,
         xp: 0,
@@ -333,7 +339,7 @@ async function handleRoute(request, { params }) {
         name: studentName.trim(),
         username,
         pin,
-        grade: grade ?? cls.grade,
+        grade: grade != null && grade !== '' ? normaliseGrade(grade) : normaliseGrade(cls.grade),
         avatar: avatar || '🦊',
         classId: cls.id,
         coins: 100,

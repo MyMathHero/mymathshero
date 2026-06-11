@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Alert, KeyboardAvoidingView,
@@ -8,12 +8,15 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { authAPI } from '../lib/api'
 import { theme } from '../lib/theme'
+import { useTheme, ThemeColors } from '../lib/themeContext'
 import HeroRobot from '../components/HeroRobot'
 
 type Role = 'student' | 'parent' | null
 
 export default function Login() {
   const router = useRouter()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const [role, setRole] = useState<Role>(null)
   const [username, setUsername] = useState('')
   const [pin, setPin] = useState('')
@@ -197,8 +200,8 @@ export default function Login() {
   )
 }
 
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.colors.navy },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bgHeader },
   hero: {
     alignItems: 'center',
     paddingTop: 60,
@@ -213,7 +216,7 @@ const s = StyleSheet.create({
     fontSize: 14, marginTop: 4,
   },
   card: {
-    backgroundColor: theme.colors.background,
+    backgroundColor: c.bgPrimary,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 28,
@@ -222,7 +225,7 @@ const s = StyleSheet.create({
   },
   label: {
     fontSize: 15, fontWeight: '700',
-    color: theme.colors.textSecondary,
+    color: c.textSecondary,
     marginBottom: 14,
   },
   roleRow: {
@@ -232,36 +235,36 @@ const s = StyleSheet.create({
   roleCard: {
     flex: 1, paddingVertical: 18,
     borderRadius: 14, borderWidth: 2,
-    borderColor: theme.colors.border,
-    backgroundColor: 'white',
+    borderColor: c.borderColor,
+    backgroundColor: c.bgCard,
     alignItems: 'center',
   },
   roleCardActive: {
-    borderColor: theme.colors.gold,
-    backgroundColor: theme.colors.goldLight,
+    borderColor: c.accentGold,
+    backgroundColor: c.accentGoldLight,
   },
   roleEmoji: { fontSize: 32, marginBottom: 6 },
   roleLabel: {
-    fontSize: 13, color: theme.colors.textSecondary, fontWeight: '600',
+    fontSize: 13, color: c.textSecondary, fontWeight: '600',
   },
-  roleLabelActive: { color: theme.colors.textPrimary, fontWeight: '800' },
+  roleLabelActive: { color: c.textPrimary, fontWeight: '800' },
   form: { gap: 12, marginBottom: 16 },
   input: {
-    backgroundColor: 'white',
-    borderWidth: 1.5, borderColor: theme.colors.border,
+    backgroundColor: c.bgCard,
+    borderWidth: 1.5, borderColor: c.borderColor,
     borderRadius: 12, padding: 16,
-    fontSize: 16, color: theme.colors.textPrimary,
+    fontSize: 16, color: c.textPrimary,
   },
   btn: {
-    backgroundColor: theme.colors.navy,
+    backgroundColor: c.bgHeader,
     borderRadius: 14, padding: 18,
     alignItems: 'center',
-    borderWidth: 2, borderColor: theme.colors.gold,
+    borderWidth: 2, borderColor: c.accentGold,
     marginBottom: 16,
   },
   btnDisabled: { opacity: 0.6 },
   btnText: { color: 'white', fontSize: 17, fontWeight: '800' },
   signupRow: { marginTop: 4, alignItems: 'center' },
-  signupText: { fontSize: 14, color: theme.colors.textSecondary },
-  signupLink: { color: theme.colors.gold, fontWeight: '700' },
+  signupText: { fontSize: 14, color: c.textSecondary },
+  signupLink: { color: c.accentGold, fontWeight: '700' },
 })

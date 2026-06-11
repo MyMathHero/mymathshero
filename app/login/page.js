@@ -6,7 +6,7 @@ import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 const BRAND_DARK = '#1B2B4B'
-const BRAND_GOLD = '#C49A1A'
+const BRAND_GOLD = 'var(--accent-gold)'
 const BRAND_BG = '#F0F4F8'
 const BRAND_BORDER = '#E2E8F0'
 const BRAND_SUBTEXT = '#64748B'
@@ -152,7 +152,7 @@ export default function LoginPage() {
       {/* Card */}
       <div style={{
         width: '100%', maxWidth: 480,
-        background: '#FFFFFF',
+        background: 'var(--bg-card)',
         borderRadius: 24,
         border: `1px solid ${BRAND_BORDER}`,
         padding: 32,
@@ -172,7 +172,7 @@ export default function LoginPage() {
                   onClick={() => selectRole(role.id)}
                   style={{
                     width: '100%',
-                    background: isSelected ? '#FFFBEB' : '#F8FAFC',
+                    background: isSelected ? 'var(--accent-gold-light)' : '#F8FAFC',
                     border: isSelected
                       ? `2px solid ${BRAND_GOLD}`
                       : `1px solid ${BRAND_BORDER}`,
@@ -209,7 +209,7 @@ export default function LoginPage() {
                   <form
                     onSubmit={handleSubmit}
                     style={{
-                      background: '#FFFFFF',
+                      background: 'var(--bg-card)',
                       borderRadius: '0 0 16px 16px',
                       border: `2px solid ${BRAND_GOLD}`,
                       borderTop: 'none',
@@ -279,7 +279,7 @@ export default function LoginPage() {
                         <div style={{ textAlign: 'right', marginBottom: 16 }}>
                           <a
                             href="/forgot-password"
-                            style={{ color: '#C49A1A', fontSize: 13,
+                            style={{ color: 'var(--accent-gold)', fontSize: 13,
                               textDecoration: 'none', fontWeight: 600 }}
                           >
                             Forgot password?
@@ -290,7 +290,7 @@ export default function LoginPage() {
 
                     {pendingInfo && role.id === 'teacher' && (
                       <div style={{
-                        background: '#FFFBEB',
+                        background: 'var(--accent-gold-light)',
                         border: `1px solid ${BRAND_GOLD}`,
                         borderRadius: 10,
                         padding: '14px 16px',
@@ -405,7 +405,7 @@ function inputStyle() {
     padding: '11px 14px',
     borderRadius: 10,
     border: `1.5px solid ${BRAND_BORDER}`,
-    background: '#FFFFFF',
+    background: 'var(--bg-card)',
     color: BRAND_DARK,
     fontSize: 15,
     outline: 'none',

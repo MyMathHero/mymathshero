@@ -154,5 +154,13 @@ module.exports = {
                 }
         }
     },
-    plugins: [require("tailwindcss-animate")],
+    plugins: [
+      require("tailwindcss-animate"),
+      // Custom `colorblind:` variant — active when <html> has the .colorblind
+      // class (set by the theme system alongside data-theme="colorblind").
+      // Lets us write e.g. `colorblind:bg-[#003366]` for the third theme.
+      function ({ addVariant }) {
+        addVariant('colorblind', '.colorblind &')
+      },
+    ],
   }

@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo} from 'react'
 import { View, Text, ScrollView, StyleSheet,
   ActivityIndicator, TouchableOpacity } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
+import { useRouter, usePathname } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+import * as Haptics from 'expo-haptics'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import HeroRobot from '../../components/HeroRobot'
 import { theme } from '../../lib/theme'
 
 export default function League() {
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
+  const pathname = usePathname()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [myId, setMyId] = useState('')
@@ -35,7 +40,7 @@ export default function League() {
   const topThree = userRank <= 3
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerTopRow}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.back}>← Back</Text>
@@ -74,33 +79,84 @@ export default function League() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
+
+      {/* Bottom tab bar — mirrors student/dashboard so navigation is
+          consistent. SafeAreaView's bottom edge gives us safe-area padding
+          automatically; the tabBar style adds extra room for the home
+          indicator on devices without a bottom edge. */}
+      <View style={styles.tabBar}>
+        {[
+          { key: 'home',    label: 'Home',    emoji: '🏠', route: '/student/dashboard' },
+          { key: 'league',  label: 'League',  emoji: '🏆', route: '/student/league' },
+          { key: 'arcade',  label: 'Arcade',  emoji: '🕹️', route: '/student/arcade' },
+          { key: 'profile', label: 'Profile', emoji: '👤', route: '/student/profile' },
+        ].map(tab => {
+          const isActive = pathname === tab.route
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={styles.tab}
+              onPress={async () => {
+                try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) } catch {}
+                if (!isActive) router.push(tab.route as any)
+              }}
+              activeOpacity={0.7}
+            >
+              {isActive && <View style={styles.tabIndicator} />}
+              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+              <Text style={[
+                styles.tabLabel,
+                isActive && { color: theme.colors.gold, fontWeight: '800' },
+              ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
     </SafeAreaView>
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bgPrimary },
   headerTopRow: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: 16,
-    paddingTop: 12, backgroundColor: theme.colors.navy },
-  back: { color: theme.colors.gold, fontWeight: '700', fontSize: 15 },
+    paddingTop: 12, backgroundColor: c.bgHeader },
+  back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
   heroHeader: {
-    backgroundColor: theme.colors.navy,
+    backgroundColor: c.bgHeader,
     paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20,
     alignItems: 'center',
   },
   heroHeaderTitle: { color: 'white', fontWeight: '800', fontSize: 20, marginTop: 8 },
-  heroHeaderSub: { color: theme.colors.gold, fontSize: 13, marginTop: 4 },
+  heroHeaderSub: { color: c.accentGold, fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1, padding: 16 },
-  resetText: { color: '#64748B', fontSize: 13,
+  resetText: { color: c.textSecondary, fontSize: 13,
     textAlign: 'center', marginBottom: 16 },
-  row: { backgroundColor: 'white', borderRadius: 12, padding: 14,
+  row: { backgroundColor: c.bgCard, borderRadius: 12, padding: 14,
     marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: '#E2E8F0' },
+    borderWidth: 1, borderColor: c.borderColor },
   rowMe: { borderColor: '#C49A1A', backgroundColor: '#FFFBEB', borderWidth: 2 },
   rank: { fontSize: 22, width: 36, textAlign: 'center' },
-  name: { fontSize: 15, fontWeight: '700', color: '#1B2B4B' },
-  grade: { fontSize: 12, color: '#94A3B8' },
-  points: { fontSize: 15, fontWeight: '800', color: '#C49A1A' },
+  name: { fontSize: 15, fontWeight: '700', color: c.textPrimary },
+  grade: { fontSize: 12, color: c.textMuted },
+  points: { fontSize: 15, fontWeight: '800', color: c.accentGold },
+
+  // Bottom tab bar (mirrors dashboard.tsx so look and behaviour are identical)
+  tabBar: {
+    flexDirection: 'row', backgroundColor: c.bgCard,
+    borderTopWidth: 1, borderTopColor: c.borderColor,
+    paddingBottom: 20, paddingTop: 10,
+  },
+  tab: { flex: 1, alignItems: 'center', gap: 2 },
+  tabIndicator: {
+    width: 32, height: 3,
+    backgroundColor: c.accentGold,
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  tabEmoji: { fontSize: 22 },
+  tabLabel: { fontSize: 11, color: c.textMuted, fontWeight: '600' },
 })

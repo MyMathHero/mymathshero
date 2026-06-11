@@ -78,7 +78,7 @@ export default function HowItWorksPage() {
             Deep Dive
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-            How <span style={{ color: '#C49A1A' }}>MyMathsHero</span> Works
+            How <span style={{ color: 'var(--accent-gold)' }}>MyMathsHero</span> Works
           </h1>
           <p className="text-lg sm:text-xl text-white/70 max-w-2xl mx-auto">
             From diagnostic to mastery — here's how our AI creates a truly personalised learning experience.
@@ -96,12 +96,12 @@ export default function HowItWorksPage() {
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-electric/10 text-electric text-sm font-semibold mb-4">
                     Step {step.num}
                   </div>
-                  <h2 className="text-3xl font-bold text-navy mb-2">{step.title}</h2>
+                  <h2 className="text-3xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{step.title}</h2>
                   <p className="text-electric font-medium mb-4">{step.subtitle}</p>
-                  <p className="text-gray-600 leading-relaxed mb-6">{step.description}</p>
+                  <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">{step.description}</p>
                   <ul className="space-y-3">
                     {step.details.map((d, j) => (
-                      <li key={j} className="flex items-center gap-2.5 text-gray-700">
+                      <li key={j} className="flex items-center gap-2.5 text-gray-700 dark:text-slate-200">
                         <CheckCircle2 size={18} className="text-success flex-shrink-0" />
                         <span className="text-sm">{d}</span>
                       </li>
@@ -109,7 +109,7 @@ export default function HowItWorksPage() {
                   </ul>
                 </div>
                 <div className="flex-1">
-                  <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-lg">
+                  <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
                     <div className="w-16 h-16 rounded-2xl bg-electric/10 flex items-center justify-center mb-6">
                       <step.icon size={32} className="text-electric" />
                     </div>
@@ -127,27 +127,27 @@ export default function HowItWorksPage() {
       </section>
 
       {/* SmartScore */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">SmartScore</span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Your Child's Learning, Quantified</h2>
-              <p className="text-gray-600 leading-relaxed mb-6">
+              <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Your Child's Learning, Quantified</h2>
+              <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">
                 SmartScore is a 0–100 measure of skill mastery. Unlike simple percentages, it factors in response time, error patterns, hint usage, and consistency to give a true picture of understanding.
               </p>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-sm text-gray-600"><strong>0–39:</strong> Needs Practice — skill not yet understood</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-300"><strong>0–39:</strong> Needs Practice — skill not yet understood</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-warning" />
-                  <span className="text-sm text-gray-600"><strong>40–69:</strong> Getting There — building understanding</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-300"><strong>40–69:</strong> Getting There — building understanding</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-success" />
-                  <span className="text-sm text-gray-600"><strong>70–100:</strong> Mastered — confident and consistent</span>
+                  <span className="text-sm text-gray-600 dark:text-slate-300"><strong>70–100:</strong> Mastered — confident and consistent</span>
                 </div>
               </div>
             </div>
@@ -163,8 +163,8 @@ export default function HowItWorksPage() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-5xl font-bold text-navy">{smartScore}</span>
-                  <span className="text-sm text-gray-500 font-medium">SmartScore</span>
+                  <span className="text-5xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{smartScore}</span>
+                  <span className="text-sm text-gray-500 dark:text-slate-300 font-medium">SmartScore</span>
                   <span className="text-xs text-success font-semibold mt-1">Mastered</span>
                 </div>
               </div>
@@ -178,25 +178,25 @@ export default function HowItWorksPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">Skill Tree</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Visual Skill Progression</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto text-lg">Skills unlock as prerequisites are mastered, creating a clear learning pathway.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Visual Skill Progression</h2>
+            <p className="text-gray-500 dark:text-slate-300 max-w-2xl mx-auto text-lg">Skills unlock as prerequisites are mastered, creating a clear learning pathway.</p>
           </div>
 
           <div className="max-w-3xl mx-auto">
             <div className="space-y-4">
               {skillTreeData.map((skill, i) => (
-                <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${skill.unlocked ? 'bg-white border-gray-100 hover:border-electric/20 hover:shadow-md' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
+                <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${skill.unlocked ? 'bg-white dark:bg-[#1E2D42] colorblind:bg-white border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-md' : 'bg-gray-50 dark:bg-[#16202e] border-gray-100 dark:border-white/10 opacity-60'}`}>
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${skill.mastered ? 'bg-success/10' : skill.unlocked ? 'bg-electric/10' : 'bg-gray-100'}`}>
                     {skill.unlocked ? (
                       skill.mastered ? <CheckCircle2 size={20} className="text-success" /> : <Unlock size={20} className="text-electric" />
                     ) : (
-                      <Lock size={20} className="text-gray-400" />
+                      <Lock size={20} className="text-gray-400 dark:text-slate-400" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className={`font-semibold text-sm ${skill.unlocked ? 'text-navy' : 'text-gray-400'}`}>{skill.name}</span>
-                      {skill.unlocked && <span className="text-sm font-bold text-navy">{skill.score}/100</span>}
+                      <span className={`font-semibold text-sm ${skill.unlocked ? 'text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]' : 'text-gray-400 dark:text-slate-400'}`}>{skill.name}</span>
+                      {skill.unlocked && <span className="text-sm font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{skill.score}/100</span>}
                     </div>
                     {skill.unlocked && (
                       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -215,13 +215,13 @@ export default function HowItWorksPage() {
       </section>
 
       {/* AI Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">AI Engine</span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Our AI Watches How Your Child Learns</h2>
-              <p className="text-gray-600 leading-relaxed mb-6">
+              <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Our AI Watches How Your Child Learns</h2>
+              <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">
                 MyMathsHero's AI doesn't just check if an answer is right or wrong. It analyses the entire learning process to build a complete picture of each student.
               </p>
               <div className="space-y-5">
@@ -235,8 +235,8 @@ export default function HowItWorksPage() {
                       <item.icon size={20} className="text-electric" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-navy text-sm">{item.title}</h4>
-                      <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+                      <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">{item.title}</h4>
+                      <p className="text-gray-500 dark:text-slate-300 text-sm leading-relaxed">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -276,22 +276,22 @@ export default function HowItWorksPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Students</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Learning That Feels Like Playing</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Learning That Feels Like Playing</h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {studentFeatures.map((f, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-electric/20 hover:shadow-lg transition-all duration-300 text-center">
+              <div key={i} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-lg transition-all duration-300 text-center">
                 <div className="w-14 h-14 rounded-2xl bg-electric/10 flex items-center justify-center mx-auto mb-4">
                   <f.icon size={28} className="text-electric" />
                 </div>
-                <h3 className="font-bold text-navy mb-2">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.description}</p>
+                <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{f.title}</h3>
+                <p className="text-gray-500 dark:text-slate-300 text-sm leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
           {/* Leaderboard Preview */}
-          <div className="mt-12 max-w-lg mx-auto bg-white rounded-2xl p-6 border border-gray-100 shadow-md">
-            <h4 className="font-bold text-navy mb-4 flex items-center gap-2"><Trophy size={18} className="text-warning" /> Class Leaderboard</h4>
+          <div className="mt-12 max-w-lg mx-auto bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-md">
+            <h4 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4 flex items-center gap-2"><Trophy size={18} className="text-warning" /> Class Leaderboard</h4>
             {[
               { rank: 1, name: 'Emma', xp: 2840, avatar: 'E' },
               { rank: 2, name: 'Alex', xp: 2650, avatar: 'A' },
@@ -299,10 +299,10 @@ export default function HowItWorksPage() {
               { rank: 4, name: 'Liam', xp: 2180, avatar: 'L' },
             ].map((s, i) => (
               <div key={i} className={`flex items-center gap-4 py-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-warning/10 text-warning' : i === 1 ? 'bg-gray-100 text-gray-600' : i === 2 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 text-gray-400'}`}>{s.rank}</span>
+                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-warning/10 text-warning' : i === 1 ? 'bg-gray-100 text-gray-600 dark:text-slate-300' : i === 2 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 dark:bg-[#16202e] text-gray-400 dark:text-slate-400'}`}>{s.rank}</span>
                 <div className="w-8 h-8 rounded-full bg-electric/10 flex items-center justify-center text-electric font-bold text-xs">{s.avatar}</div>
-                <span className="font-medium text-navy text-sm flex-1">{s.name}</span>
-                <span className="text-sm text-gray-500">{s.xp.toLocaleString()} XP</span>
+                <span className="font-medium text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm flex-1">{s.name}</span>
+                <span className="text-sm text-gray-500 dark:text-slate-300">{s.xp.toLocaleString()} XP</span>
               </div>
             ))}
           </div>
@@ -310,24 +310,24 @@ export default function HowItWorksPage() {
       </section>
 
       {/* For Teachers */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Teachers</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Your Classroom, Supercharged</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Your Classroom, Supercharged</h2>
           </div>
-          <div className="bg-offwhite rounded-2xl p-8 border border-gray-100">
+          <div className="bg-offwhite rounded-2xl p-8 border border-gray-100 dark:border-white/10">
             <div className="flex items-center gap-3 mb-6">
               <BarChart3 size={20} className="text-electric" />
-              <span className="font-semibold text-navy">Class Skill Heatmap — Grade 4</span>
+              <span className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Class Skill Heatmap — Grade 4</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-2 font-semibold text-gray-500">Student</th>
+                    <th className="text-left py-3 px-2 font-semibold text-gray-500 dark:text-slate-300">Student</th>
                     {['Addition', 'Subtraction', 'Multiply', 'Fractions', 'Decimals', 'Geometry'].map(s => (
-                      <th key={s} className="py-3 px-2 font-semibold text-gray-500 text-center">{s}</th>
+                      <th key={s} className="py-3 px-2 font-semibold text-gray-500 dark:text-slate-300 text-center">{s}</th>
                     ))}
                   </tr>
                 </thead>
@@ -339,7 +339,7 @@ export default function HowItWorksPage() {
                     { name: 'Sophie', scores: [88, 82, 78, 60, 48, 72] },
                   ].map((student, i) => (
                     <tr key={i} className="border-b border-gray-50">
-                      <td className="py-3 px-2 font-medium text-navy">{student.name}</td>
+                      <td className="py-3 px-2 font-medium text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{student.name}</td>
                       {student.scores.map((score, j) => (
                         <td key={j} className="py-3 px-2 text-center">
                           <span className={`inline-block w-10 h-7 rounded text-xs font-bold flex items-center justify-center ${score >= 70 ? 'bg-success/15 text-success' : score >= 40 ? 'bg-warning/15 text-warning' : 'bg-red-100 text-red-600'}`}>
@@ -361,10 +361,10 @@ export default function HowItWorksPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Parents</span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-navy mb-4">Stay in the Loop, Every Week</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Stay in the Loop, Every Week</h2>
           </div>
           <div className="max-w-xl mx-auto">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl border border-gray-100 dark:border-white/10 shadow-lg overflow-hidden">
               <div className="bg-navy p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <Mail size={18} className="text-electric" />
@@ -375,49 +375,49 @@ export default function HowItWorksPage() {
               </div>
               <div className="p-6 space-y-5">
                 <div>
-                  <h4 className="font-semibold text-navy text-sm mb-3">Highlights</h4>
+                  <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-3">Highlights</h4>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
                       <CheckCircle2 size={16} className="text-success" />
                       Mastered "Multiplication Tables" (SmartScore: 92)
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
                       <Flame size={16} className="text-orange-500" />
                       5-day practice streak maintained
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
                       <TrendingUp size={16} className="text-electric" />
                       Fractions improved from 38 to 52
                     </div>
                   </div>
                 </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <h4 className="font-semibold text-navy text-sm mb-3">Focus Areas</h4>
+                <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+                  <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-3">Focus Areas</h4>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Fractions</span>
+                      <span className="text-gray-600 dark:text-slate-300">Fractions</span>
                       <span className="text-warning font-semibold">52/100</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Decimals</span>
+                      <span className="text-gray-600 dark:text-slate-300">Decimals</span>
                       <span className="text-red-500 font-semibold">30/100</span>
                     </div>
                   </div>
                 </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <h4 className="font-semibold text-navy text-sm mb-2">Week Stats</h4>
+                <div className="border-t border-gray-100 dark:border-white/10 pt-4">
+                  <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-2">Week Stats</h4>
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div className="bg-skyblue/50 rounded-lg p-3">
-                      <div className="text-xl font-bold text-navy">47</div>
-                      <div className="text-xs text-gray-500">Questions</div>
+                      <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">47</div>
+                      <div className="text-xs text-gray-500 dark:text-slate-300">Questions</div>
                     </div>
                     <div className="bg-skyblue/50 rounded-lg p-3">
-                      <div className="text-xl font-bold text-navy">78%</div>
-                      <div className="text-xs text-gray-500">Accuracy</div>
+                      <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">78%</div>
+                      <div className="text-xs text-gray-500 dark:text-slate-300">Accuracy</div>
                     </div>
                     <div className="bg-skyblue/50 rounded-lg p-3">
-                      <div className="text-xl font-bold text-navy">3</div>
-                      <div className="text-xs text-gray-500">Skills Up</div>
+                      <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">3</div>
+                      <div className="text-xs text-gray-500 dark:text-slate-300">Skills Up</div>
                     </div>
                   </div>
                 </div>

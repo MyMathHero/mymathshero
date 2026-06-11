@@ -9,7 +9,9 @@
         "build": "next build",
         "start": "next start",
         "check-questions": "node scripts/check-questions.mjs",
-        "generate-questions": "node scripts/generate-maths-questions.mjs"
+        "generate-questions": "node scripts/generate-maths-questions.mjs",
+        "generate-grade6": "node scripts/generateGrade6Questions.mjs",
+        "fix-grades": "node scripts/fixGrades.mjs"
     },
     "dependencies": {
         "@hookform/resolvers": "^5.1.1",

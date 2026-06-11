@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo} from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Alert, TextInput, Modal, ActivityIndicator,
@@ -8,9 +8,13 @@ import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { studentAPI } from '../../lib/api'
 import HeroRobot from '../../components/HeroRobot'
+import ThemeToggle from '../../components/ThemeToggle'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function Profile() {
   const router = useRouter()
+  const { colors } = useTheme()
+  const p = useMemo(() => makeStyles(colors), [colors])
   const [student, setStudent] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -192,6 +196,23 @@ export default function Profile() {
           </View>
         </View>
 
+        {/* Display Theme */}
+        <View style={[p.section, {
+          backgroundColor: colors.bgCard,
+          borderColor: colors.borderColor,
+        }]}>
+          <Text style={[p.sectionTitle, { color: colors.textPrimary }]}>
+            🎨 Display Theme
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
+            Choose how the app looks for you
+          </Text>
+          <ThemeToggle compact={false} />
+          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 8 }}>
+            👁️ Colour-Safe mode helps colourblind students
+          </Text>
+        </View>
+
         <TouchableOpacity style={p.logoutBtn} onPress={handleLogout}>
           <Text style={p.logoutText}>Log Out</Text>
         </TouchableOpacity>
@@ -254,18 +275,18 @@ export default function Profile() {
   )
 }
 
-const p = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F0F4F8' },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bgPrimary },
   header: { flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', padding: 16, backgroundColor: '#1B2B4B' },
-  back: { color: '#C49A1A', fontWeight: '700', fontSize: 15 },
+    justifyContent: 'space-between', padding: 16, backgroundColor: c.bgHeader },
+  back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
   title: { color: 'white', fontWeight: '800', fontSize: 18 },
 
-  heroCard: { backgroundColor: '#1B2B4B', margin: 16,
+  heroCard: { backgroundColor: c.bgHeader, margin: 16,
     borderRadius: 20, padding: 24, alignItems: 'center',
     borderWidth: 2, borderColor: '#C49A1A' },
   heroName: { color: 'white', fontWeight: '800', fontSize: 22, marginBottom: 4 },
-  heroGrade: { color: '#C49A1A', fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  heroGrade: { color: c.accentGold, fontSize: 14, fontWeight: '600', marginBottom: 2 },
   heroLevel: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 14 },
   xpBarBg: { width: '80%', height: 8, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
@@ -274,53 +295,53 @@ const p = StyleSheet.create({
 
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10,
     paddingHorizontal: 16, marginBottom: 16 },
-  statCard: { backgroundColor: 'white', borderRadius: 14,
+  statCard: { backgroundColor: c.bgCard, borderRadius: 14,
     padding: 14, alignItems: 'center', width: '31%',
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   statEmoji: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: 17, fontWeight: '800', color: '#1B2B4B' },
-  statLabel: { fontSize: 10, color: '#94A3B8', marginTop: 2, textAlign: 'center' },
+  statValue: { fontSize: 17, fontWeight: '800', color: c.textPrimary },
+  statLabel: { fontSize: 10, color: c.textMuted, marginTop: 2, textAlign: 'center' },
 
-  section: { backgroundColor: 'white', borderRadius: 16,
+  section: { backgroundColor: c.bgCard, borderRadius: 16,
     padding: 18, marginHorizontal: 16, marginBottom: 12,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: '#1B2B4B', marginBottom: 14 },
+  sectionTitle: { fontSize: 15, fontWeight: '800', color: c.textPrimary, marginBottom: 14 },
   voucherCard: {
-    backgroundColor: '#1B2B4B', marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: c.bgHeader, marginHorizontal: 16, marginBottom: 12,
     borderRadius: 16, padding: 16,
     borderWidth: 2, borderColor: '#C49A1A',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  voucherTitle: { color: '#C49A1A', fontWeight: '800', fontSize: 15 },
+  voucherTitle: { color: c.accentGold, fontWeight: '800', fontSize: 15 },
   voucherSub: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
-  voucherArrow: { color: '#C49A1A', fontSize: 22, fontWeight: '700' },
+  voucherArrow: { color: c.accentGold, fontSize: 22, fontWeight: '700' },
 
   actionBtn: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingVertical: 12,
     borderBottomWidth: 1, borderColor: '#F0F4F8' },
-  actionBtnText: { fontSize: 15, color: '#1B2B4B', fontWeight: '600' },
-  actionBtnArrow: { fontSize: 20, color: '#94A3B8' },
+  actionBtnText: { fontSize: 15, color: c.textPrimary, fontWeight: '600' },
+  actionBtnArrow: { fontSize: 20, color: c.textMuted },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 10, borderBottomWidth: 1, borderColor: '#F0F4F8' },
-  infoLabel: { color: '#64748B', fontSize: 14 },
-  infoValue: { color: '#1B2B4B', fontWeight: '700', fontSize: 14 },
+  infoLabel: { color: c.textSecondary, fontSize: 14 },
+  infoValue: { color: c.textPrimary, fontWeight: '700', fontSize: 14 },
 
-  logoutBtn: { marginHorizontal: 16, backgroundColor: '#FEE2E2',
+  logoutBtn: { marginHorizontal: 16, backgroundColor: c.errorBg,
     borderRadius: 14, padding: 16, alignItems: 'center',
     borderWidth: 1, borderColor: '#EF4444' },
-  logoutText: { color: '#EF4444', fontWeight: '800', fontSize: 16 },
+  logoutText: { color: c.error, fontWeight: '800', fontSize: 16 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: 'white', borderTopLeftRadius: 24,
+  modalCard: { backgroundColor: c.bgCard, borderTopLeftRadius: 24,
     borderTopRightRadius: 24, padding: 28 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#1B2B4B',
+  modalTitle: { fontSize: 20, fontWeight: '800', color: c.textPrimary,
     marginBottom: 6, textAlign: 'center' },
-  modalSub: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 18 },
-  modalInput: { borderWidth: 1.5, borderColor: '#E2E8F0',
+  modalSub: { fontSize: 13, color: c.textSecondary, textAlign: 'center', marginBottom: 18 },
+  modalInput: { borderWidth: 1.5, borderColor: c.borderColor,
     borderRadius: 12, padding: 14, fontSize: 16,
-    color: '#1B2B4B', marginBottom: 12 },
-  modalBtn: { backgroundColor: '#1B2B4B', borderRadius: 12,
+    color: c.textPrimary, marginBottom: 12 },
+  modalBtn: { backgroundColor: c.bgHeader, borderRadius: 12,
     padding: 16, alignItems: 'center',
     borderWidth: 2, borderColor: '#C49A1A', marginTop: 4 },
   modalBtnText: { color: 'white', fontWeight: '800', fontSize: 16 },

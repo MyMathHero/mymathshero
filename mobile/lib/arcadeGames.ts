@@ -15,7 +15,7 @@ export interface ArcadeGame {
   category: string
   emoji: string
   description: string
-  pointsCost: number
+  coinsCost: number
   premiumOnly: boolean
   ageRating: string
   embedUrl: string | null
@@ -48,9 +48,8 @@ export const ARCADE_TIERS: Record<'standard' | 'premium', ArcadeTier> = {
   },
 }
 
-// embedUrl / comingSoon policy mirrors the web app: every external URL supplied
-// was verified dead (gamedistribution "Not found at origin"; play2048 frame-
-// blocked), so only the two self-hosted games are immediately playable.
+// All playable games are SELF-HOSTED single-file HTML5 games in /public/games,
+// served from the web origin via the WebView. Mirrors web lib/arcadeGames.js.
 export const ARCADE_GAMES: ArcadeGame[] = [
   {
     id: 'block_blast',
@@ -58,11 +57,11 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     category: 'Puzzle',
     emoji: '🧩',
     description: 'Stack the blocks and clear the lines!',
-    pointsCost: 20,
+    coinsCost: 10,
     premiumOnly: false,
     ageRating: '5+',
-    embedUrl: null,
-    comingSoon: true,
+    embedUrl: '/games/tetris/index.html',
+    comingSoon: false,
     tags: ['puzzle', 'classic', 'free'],
   },
   {
@@ -71,7 +70,7 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     category: 'Classic',
     emoji: '🐍',
     description: 'Grow your snake and eat everything!',
-    pointsCost: 15,
+    coinsCost: 5,
     premiumOnly: false,
     ageRating: '5+',
     embedUrl: '/games/snake/index.html',
@@ -79,69 +78,56 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     tags: ['classic', 'easy', 'free'],
   },
   {
-    id: '2048_game',
-    title: '2048',
+    id: 'number_crunch',
+    title: 'Number Crunch',
     category: 'Puzzle',
     emoji: '🔢',
     description: 'Combine the tiles to reach 2048!',
-    pointsCost: 25,
+    coinsCost: 20,
     premiumOnly: false,
     ageRating: '7+',
-    embedUrl: null,
-    comingSoon: true,
+    embedUrl: '/games/2048/index.html',
+    comingSoon: false,
     tags: ['puzzle', 'maths', 'popular', 'free'],
   },
   {
-    id: 'bubble_pop',
-    title: 'Bubble Pop',
-    category: 'Puzzle',
-    emoji: '🫧',
-    description: 'Match and pop all the bubbles!',
-    pointsCost: 20,
+    id: 'ball_smash',
+    title: 'Ball Smash',
+    category: 'Action',
+    emoji: '🏓',
+    description: 'Break all the bricks with the ball!',
+    coinsCost: 15,
+    premiumOnly: false,
+    ageRating: '6+',
+    embedUrl: '/games/breakout/index.html',
+    comingSoon: false,
+    tags: ['action', 'classic', 'free'],
+  },
+  {
+    id: 'flappy_hero',
+    title: 'Flappy Hero',
+    category: 'Action',
+    emoji: '🤖',
+    description: 'Fly the Hero robot through the pipes!',
+    coinsCost: 20,
+    premiumOnly: false,
+    ageRating: '6+',
+    embedUrl: '/games/flappy/index.html',
+    comingSoon: false,
+    tags: ['action', 'skill', 'free'],
+  },
+  {
+    id: 'whack_it',
+    title: 'Whack It!',
+    category: 'Action',
+    emoji: '🔨',
+    description: 'Whack the moles before they escape!',
+    coinsCost: 10,
     premiumOnly: false,
     ageRating: '5+',
-    embedUrl: null,
-    comingSoon: true,
-    tags: ['puzzle', 'match', 'free'],
-  },
-  {
-    id: 'space_blaster',
-    title: 'Space Blaster',
-    category: 'Action',
-    emoji: '🚀',
-    description: 'Defend Earth from the alien invasion!',
-    pointsCost: 35,
-    premiumOnly: false,
-    ageRating: '6+',
-    embedUrl: null,
-    comingSoon: true,
-    tags: ['action', 'shooting', 'free'],
-  },
-  {
-    id: 'car_rush',
-    title: 'Car Rush',
-    category: 'Racing',
-    emoji: '🏎️',
-    description: 'Race to the finish at top speed!',
-    pointsCost: 40,
-    premiumOnly: false,
-    ageRating: '6+',
-    embedUrl: null,
-    comingSoon: true,
-    tags: ['racing', 'speed', 'free'],
-  },
-  {
-    id: 'word_search',
-    title: 'Word Search',
-    category: 'Education',
-    emoji: '🔤',
-    description: 'Find all the hidden words!',
-    pointsCost: 20,
-    premiumOnly: false,
-    ageRating: '6+',
-    embedUrl: null,
-    comingSoon: true,
-    tags: ['education', 'words', 'free'],
+    embedUrl: '/games/whack/index.html',
+    comingSoon: false,
+    tags: ['action', 'reflex', 'free'],
   },
   {
     id: 'math_blaster',
@@ -149,7 +135,7 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     category: 'Education',
     emoji: '🧮',
     description: 'Answer maths questions and beat the clock!',
-    pointsCost: 20,
+    coinsCost: 5,
     premiumOnly: false,
     ageRating: '6+',
     embedUrl: '/games/math_blaster/index.html',
@@ -157,17 +143,17 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     tags: ['maths', 'education', 'popular', 'free'],
   },
   {
-    id: 'tower_jump',
-    title: 'Tower Jump',
-    category: 'Action',
-    emoji: '🏃',
-    description: 'Jump as high as you can!',
-    pointsCost: 50,
+    id: 'brain_match',
+    title: 'Brain Match',
+    category: 'Puzzle',
+    emoji: '🧠',
+    description: 'Match all the pairs from memory!',
+    coinsCost: 10,
     premiumOnly: false,
-    ageRating: '6+',
-    embedUrl: null,
-    comingSoon: true,
-    tags: ['action', 'jumping'],
+    ageRating: '5+',
+    embedUrl: '/games/memory/index.html',
+    comingSoon: false,
+    tags: ['puzzle', 'memory', 'free'],
   },
   {
     id: 'castle_defense',
@@ -175,7 +161,7 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     category: 'Strategy',
     emoji: '🏰',
     description: 'Build towers to defend your kingdom!',
-    pointsCost: 80,
+    coinsCost: 40,
     premiumOnly: true,
     ageRating: '8+',
     embedUrl: null,
@@ -196,14 +182,14 @@ export const ARCADE_CATEGORIES: ArcadeCategory[] = [
 
 export function canPlayGame(
   game: ArcadeGame,
-  studentXP: number,
+  studentCoins: number,
   plan?: string
 ): { allowed: boolean; reason?: string } {
   if (game.comingSoon || !game.embedUrl) {
     return { allowed: false, reason: 'Coming soon!' }
   }
-  if (studentXP < game.pointsCost) {
-    return { allowed: false, reason: `Need ${game.pointsCost} Hero Points to unlock` }
+  if (studentCoins < game.coinsCost) {
+    return { allowed: false, reason: `Need ${game.coinsCost} coins 🪙 to unlock` }
   }
   if (game.premiumOnly && plan !== 'premium') {
     return { allowed: false, reason: 'Premium subscription required' }

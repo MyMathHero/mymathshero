@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo} from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, TextInput, Alert, ActivityIndicator,
 } from 'react-native'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import api from '../../lib/api'
 
 export default function ParentAccountScreen() {
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [parentData, setParentData] = useState<any>(null)
@@ -571,46 +574,46 @@ export default function ParentAccountScreen() {
   )
 }
 
-const s = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: '#F0F4F8',
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  loading: { flex: 1, backgroundColor: c.bgPrimary,
     alignItems: 'center', justifyContent: 'center' },
   header: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16, backgroundColor: '#1B2B4B' },
+    padding: 16, backgroundColor: c.bgHeader },
   headerTitle: { color: 'white', fontWeight: '800',
     fontSize: 17 },
   section: { paddingHorizontal: 16, paddingTop: 20 },
   sectionTitle: { fontSize: 11, fontWeight: '800',
-    color: '#94A3B8', letterSpacing: 1.5,
+    color: c.textMuted, letterSpacing: 1.5,
     textTransform: 'uppercase', marginBottom: 8 },
-  card: { backgroundColor: 'white', borderRadius: 14,
+  card: { backgroundColor: c.bgCard, borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.04,
     shadowRadius: 8, elevation: 2 },
   row: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', padding: 16 },
-  label: { fontSize: 13, color: '#64748B',
+  label: { fontSize: 13, color: c.textSecondary,
     fontWeight: '500' },
   value: { fontSize: 15, fontWeight: '700',
-    color: '#1B2B4B' },
+    color: c.textPrimary },
   actionRow: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', padding: 16 },
   actionText: { fontSize: 15, fontWeight: '600',
-    color: '#1B2B4B' },
-  input: { backgroundColor: 'white', borderWidth: 1.5,
-    borderColor: '#E2E8F0', borderRadius: 10,
+    color: c.textPrimary },
+  input: { backgroundColor: c.bgCard, borderWidth: 1.5,
+    borderColor: c.borderColor, borderRadius: 10,
     padding: 12, fontSize: 15, marginBottom: 10,
-    color: '#1B2B4B' },
-  primaryBtn: { backgroundColor: '#1B2B4B',
+    color: c.textPrimary },
+  primaryBtn: { backgroundColor: c.bgHeader,
     borderRadius: 10, padding: 14,
     alignItems: 'center',
     borderWidth: 2, borderColor: '#C49A1A',
     marginTop: 4 },
   primaryBtnText: { color: 'white', fontWeight: '800',
     fontSize: 15 },
-  smallBtn: { backgroundColor: '#F0F4F8',
+  smallBtn: { backgroundColor: c.bgPrimary,
     borderRadius: 8, paddingHorizontal: 12,
     paddingVertical: 6 },
   smallBtnText: { fontSize: 12, fontWeight: '700',
-    color: '#1B2B4B' },
+    color: c.textPrimary },
 })

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, ActivityIndicator, Alert,
@@ -10,6 +10,8 @@ import { studentAPI } from '../../lib/api'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
+import ThemeToggle from '../../components/ThemeToggle'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 import HeroRobot from '../../components/HeroRobot'
 import {
   getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP, type SkillCategoryKey,
@@ -109,6 +111,8 @@ function buildNudges(
 }
 
 export default function StudentDashboard() {
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
   const pathname = usePathname()
   const [student, setStudent] = useState<any>(null)
@@ -269,7 +273,7 @@ export default function StudentDashboard() {
   const firstName = student?.name?.split(' ')[0] || 'Hero'
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    <SafeAreaView style={[s.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
       {/* AI Hero nudge banner — appears at top, auto-dismisses after 6s */}
       {heroNudge && (
         <TouchableOpacity
@@ -298,7 +302,7 @@ export default function StudentDashboard() {
       )}
 
       {/* A) Full navy hero header */}
-      <View style={s.header}>
+      <View style={[s.header, { backgroundColor: colors.bgHeader }]}>
         {/* Top row: logo + coins + streak */}
         <View style={s.topRow}>
           <Text style={s.brand}>
@@ -307,6 +311,7 @@ export default function StudentDashboard() {
           <View style={s.topStats}>
             <Text style={s.coins}>🪙 {student?.coins || 0}</Text>
             <Text style={s.streak}>🔥 {student?.streak || 0}</Text>
+            <ThemeToggle compact />
           </View>
         </View>
 
@@ -353,7 +358,7 @@ export default function StudentDashboard() {
       >
         {/* C) Today's Challenges — horizontal cards */}
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Today&apos;s Challenges ✦</Text>
+          <Text style={[s.sectionTitle, { color: colors.textPrimary }]}>Today&apos;s Challenges ✦</Text>
           <Text style={s.sectionSub}>Complete to earn bonus Hero Points</Text>
 
           <ScrollView
@@ -586,31 +591,31 @@ export default function StudentDashboard() {
   )
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bgPrimary },
   loading: {
-    flex: 1, backgroundColor: theme.colors.navy,
+    flex: 1, backgroundColor: c.bgHeader,
     alignItems: 'center', justifyContent: 'center',
   },
   loadingLogo: { fontSize: 32, fontWeight: '800', color: 'white' },
-  loadingText: { color: theme.colors.gold, marginTop: 12, fontWeight: '600' },
+  loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
 
   // Header
-  header: { backgroundColor: theme.colors.navy, paddingTop: 8, paddingBottom: 20, paddingHorizontal: 20 },
+  header: { backgroundColor: c.bgHeader, paddingTop: 8, paddingBottom: 20, paddingHorizontal: 20 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   brand: { color: 'white', fontWeight: '800', fontSize: 20 },
   topStats: { flexDirection: 'row', gap: 16 },
-  coins: { color: theme.colors.gold, fontWeight: '800', fontSize: 15 },
+  coins: { color: c.accentGold, fontWeight: '800', fontSize: 15 },
   streak: { color: '#FF6B35', fontWeight: '800', fontSize: 15 },
   greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   greetingHi: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
   greetingName: { color: 'white', fontWeight: '800', fontSize: 22, marginTop: 2 },
-  greetingXp: { color: theme.colors.gold, fontSize: 13, fontWeight: '600', marginTop: 2 },
+  greetingXp: { color: c.accentGold, fontSize: 13, fontWeight: '600', marginTop: 2 },
   xpBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, marginTop: 8, overflow: 'hidden' },
-  xpBarFill: { height: '100%', backgroundColor: theme.colors.gold, borderRadius: 3 },
+  xpBarFill: { height: '100%', backgroundColor: c.accentGold, borderRadius: 3 },
 
   // Stats strip
-  statsStrip: { backgroundColor: theme.colors.navyDark, flexGrow: 0 },
+  statsStrip: { backgroundColor: c.bgHeaderSecondary, flexGrow: 0 },
   statTile: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16,
@@ -624,8 +629,8 @@ const s = StyleSheet.create({
   // Scroll body
   scroll: { flex: 1 },
   section: { paddingTop: 20, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: theme.colors.textPrimary, marginBottom: 4 },
-  sectionSub: { color: theme.colors.textSecondary, fontSize: 13, marginBottom: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: c.textPrimary, marginBottom: 4 },
+  sectionSub: { color: c.textSecondary, fontSize: 13, marginBottom: 14 },
 
   // Challenges
   challenge: {
@@ -633,10 +638,10 @@ const s = StyleSheet.create({
     borderWidth: 2,
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
-  challengeDark: { backgroundColor: theme.colors.navy, borderColor: theme.colors.gold },
-  challengeGold: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },
-  challengeWhite: { backgroundColor: 'white', borderColor: theme.colors.border },
-  challengeWeak: { backgroundColor: theme.colors.goldLight, borderColor: theme.colors.warningLight },
+  challengeDark: { backgroundColor: c.bgHeader, borderColor: c.accentGold },
+  challengeGold: { backgroundColor: c.accentGold, borderColor: c.accentGold },
+  challengeWhite: { backgroundColor: c.bgCard, borderColor: c.borderColor },
+  challengeWeak: { backgroundColor: c.accentGoldLight, borderColor: c.wrongBg },
   challengeEmoji: { fontSize: 36, marginBottom: 8 },
   challengeTitle: { fontWeight: '800', fontSize: 15, marginBottom: 4 },
   challengeSub: { fontSize: 12, marginBottom: 10 },
@@ -646,17 +651,17 @@ const s = StyleSheet.create({
   // Missions
   missionsHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   emptyMissions: { padding: 24, alignItems: 'center', gap: 12 },
-  emptyText: { color: theme.colors.textMuted, fontSize: 14, textAlign: 'center' },
+  emptyText: { color: c.textMuted, fontSize: 14, textAlign: 'center' },
   startCatBtn: {
-    backgroundColor: theme.colors.navy, borderRadius: 12,
+    backgroundColor: c.bgHeader, borderRadius: 12,
     paddingHorizontal: 18, paddingVertical: 12,
-    borderWidth: 2, borderColor: theme.colors.gold,
+    borderWidth: 2, borderColor: c.accentGold,
   },
   startCatBtnText: { color: 'white', fontWeight: '800', fontSize: 13 },
   missionRow: {
-    backgroundColor: 'white', borderRadius: 16, padding: 16,
+    backgroundColor: c.bgCard, borderRadius: 16, padding: 16,
     marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 14,
-    borderWidth: 1, borderColor: theme.colors.border,
+    borderWidth: 1, borderColor: c.borderColor,
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
   scoreRing: {
@@ -665,31 +670,31 @@ const s = StyleSheet.create({
     borderWidth: 2.5,
   },
   scoreRingText: { fontSize: 22, fontWeight: '800' },
-  missionName: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary, marginBottom: 2 },
+  missionName: { fontSize: 15, fontWeight: '700', color: c.textPrimary, marginBottom: 2 },
   missionCategory: { fontSize: 11, fontWeight: '600', marginBottom: 6 },
-  barOuter: { height: 6, backgroundColor: theme.colors.background, borderRadius: 3, overflow: 'hidden' },
+  barOuter: { height: 6, backgroundColor: c.bgPrimary, borderRadius: 3, overflow: 'hidden' },
   barInner: { height: '100%', borderRadius: 3 },
   missionCta: {
-    backgroundColor: theme.colors.navy, borderRadius: 10,
+    backgroundColor: c.bgHeader, borderRadius: 10,
     paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1.5, borderColor: theme.colors.gold,
+    borderWidth: 1.5, borderColor: c.accentGold,
   },
   missionCtaText: { color: 'white', fontWeight: '700', fontSize: 12 },
   examBtn: {
-    backgroundColor: theme.colors.navy, borderRadius: 10,
+    backgroundColor: c.bgHeader, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 2, borderColor: theme.colors.gold,
+    borderWidth: 2, borderColor: c.accentGold,
   },
-  examBtnText: { color: theme.colors.gold, fontWeight: '800', fontSize: 12 },
+  examBtnText: { color: c.accentGold, fontWeight: '800', fontSize: 12 },
 
   // Category filter pills
   catPill: {
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 16, borderWidth: 1.5,
-    borderColor: theme.colors.border, backgroundColor: 'white',
+    borderColor: c.borderColor, backgroundColor: c.bgCard,
   },
-  catPillActive: { backgroundColor: theme.colors.navy, borderColor: theme.colors.navy },
-  catPillText: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary },
+  catPillActive: { backgroundColor: c.bgHeader, borderColor: c.bgHeader },
+  catPillText: { fontSize: 12, fontWeight: '700', color: c.textSecondary },
   catPillTextActive: { color: 'white' },
 
   // Nudge banner
@@ -699,23 +704,23 @@ const s = StyleSheet.create({
     padding: 12, borderRadius: 14, borderWidth: 2,
   },
   nudgeEmoji: { fontSize: 24 },
-  nudgeTitle: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
+  nudgeTitle: { fontSize: 14, fontWeight: '800', color: c.textPrimary },
   nudgeMsg: { fontSize: 12, color: '#334155', lineHeight: 16, marginTop: 2 },
-  nudgeClose: { fontSize: 14, color: theme.colors.textMuted, paddingHorizontal: 4 },
+  nudgeClose: { fontSize: 14, color: c.textMuted, paddingHorizontal: 4 },
 
   // Bottom tab bar
   tabIndicator: {
     width: 32, height: 3,
-    backgroundColor: theme.colors.gold,
+    backgroundColor: c.accentGold,
     borderRadius: 2,
     marginBottom: 4,
   },
   tabBar: {
-    flexDirection: 'row', backgroundColor: 'white',
-    borderTopWidth: 1, borderTopColor: theme.colors.border,
+    flexDirection: 'row', backgroundColor: c.bgCard,
+    borderTopWidth: 1, borderTopColor: c.borderColor,
     paddingBottom: 20, paddingTop: 10,
   },
   tab: { flex: 1, alignItems: 'center', gap: 2 },
   tabEmoji: { fontSize: 22 },
-  tabLabel: { fontSize: 11, color: theme.colors.textMuted, fontWeight: '600' },
+  tabLabel: { fontSize: 11, color: c.textMuted, fontWeight: '600' },
 })

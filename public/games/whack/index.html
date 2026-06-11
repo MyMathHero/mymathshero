@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Whack It!</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    color: white;
+    user-select: none;
+  }
+  h1 { color: #C49A1A; font-size: 26px;
+    font-weight: 900; margin-bottom: 8px; }
+  #hud { display: flex; gap: 24px;
+    margin-bottom: 16px; }
+  .hud-item { text-align: center; }
+  .hud-item label { font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px; display: block; }
+  .hud-item span { font-size: 24px;
+    font-weight: 800; color: #C49A1A; }
+  #timer-bar-bg {
+    width: 300px; height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  #timer-bar {
+    height: 100%;
+    background: linear-gradient(
+      90deg, #22C55E, #C49A1A, #EF4444);
+    border-radius: 4px;
+    transition: width 1s linear;
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 12px;
+  }
+  .hole {
+    background: rgba(27,43,75,0.8);
+    border: 2px solid rgba(196,154,26,0.3);
+    border-radius: 50%;
+    width: 100px; height: 100px;
+    display: flex; align-items: center;
+    justify-content: center;
+    font-size: 0px;
+    cursor: pointer;
+    transition: font-size 0.12s ease;
+    overflow: hidden;
+    position: relative;
+  }
+  .hole.up { font-size: 52px; }
+  .hole.whacked {
+    background: rgba(34,197,94,0.3);
+    border-color: #22C55E;
+  }
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #overlay h2 { color: #C49A1A; font-size: 28px;
+    font-weight: 900; margin-bottom: 8px; }
+  #overlay p { color: rgba(255,255,255,0.6);
+    margin-bottom: 20px; font-size: 16px; }
+  #overlay button {
+    background: linear-gradient(135deg, #C49A1A, #FFD700);
+    color: #0A0A1A; border: none; border-radius: 12px;
+    padding: 14px 36px; font-size: 16px;
+    font-weight: 900; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🔨 Whack It!</h1>
+<div id="hud">
+  <div class="hud-item">
+    <label>Score</label><span id="score">0</span>
+  </div>
+  <div class="hud-item">
+    <label>Time</label><span id="timer">30</span>
+  </div>
+  <div class="hud-item">
+    <label>Best</label><span id="best">0</span>
+  </div>
+</div>
+<div id="timer-bar-bg">
+  <div id="timer-bar" style="width:100%"></div>
+</div>
+<div id="grid">
+  <div class="hole" onclick="whack(0)"></div>
+  <div class="hole" onclick="whack(1)"></div>
+  <div class="hole" onclick="whack(2)"></div>
+  <div class="hole" onclick="whack(3)"></div>
+  <div class="hole" onclick="whack(4)"></div>
+  <div class="hole" onclick="whack(5)"></div>
+  <div class="hole" onclick="whack(6)"></div>
+  <div class="hole" onclick="whack(7)"></div>
+  <div class="hole" onclick="whack(8)"></div>
+</div>
+
+<div id="overlay">
+  <h2>🔨 Whack It!</h2>
+  <p>Whack the moles before they escape!</p>
+  <button onclick="startGame()">▶ START</button>
+</div>
+
+<script>
+const MOLES = ['🐭','🐹','🐱','🐸','🐻','🦊']
+const TOTAL_TIME = 30
+
+let score, timeLeft, best
+let moleTimers = [], clockInterval, moleInterval
+let holes, active = Array(9).fill(false)
+let speed = 1200
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none'
+  holes = document.querySelectorAll('.hole')
+  best = parseInt(localStorage.getItem('whack_best') || '0')
+  document.getElementById('best').textContent = best
+  score = 0; timeLeft = TOTAL_TIME; speed = 1200
+  active = Array(9).fill(false)
+  holes.forEach(h => {
+    h.classList.remove('up','whacked')
+    h.textContent = ''
+  })
+  document.getElementById('score').textContent = '0'
+  document.getElementById('timer').textContent = TOTAL_TIME
+  document.getElementById('timer-bar')
+    .style.width = '100%'
+
+  // Clear any existing
+  clearInterval(clockInterval)
+  clearInterval(moleInterval)
+  moleTimers.forEach(clearTimeout)
+  moleTimers = []
+
+  // Clock
+  clockInterval = setInterval(() => {
+    timeLeft--
+    document.getElementById('timer').textContent = timeLeft
+    document.getElementById('timer-bar').style.width =
+      (timeLeft / TOTAL_TIME * 100) + '%'
+    if (timeLeft <= 10) speed = 700
+    else if (timeLeft <= 20) speed = 900
+    if (timeLeft <= 0) endGame()
+  }, 1000)
+
+  // Moles
+  popMole()
+  moleInterval = setInterval(popMole, speed)
+}
+
+function popMole() {
+  // Pick a random hole that is not active
+  const available = active
+    .map((a, i) => a ? -1 : i)
+    .filter(i => i >= 0)
+  if (!available.length) return
+
+  const idx = available[
+    Math.floor(Math.random() * available.length)
+  ]
+  const hole = holes[idx]
+  const mole = MOLES[Math.floor(Math.random() * MOLES.length)]
+
+  active[idx] = true
+  hole.textContent = mole
+  hole.classList.add('up')
+
+  // Auto hide after 1.2s
+  const t = setTimeout(() => {
+    hole.classList.remove('up', 'whacked')
+    setTimeout(() => { hole.textContent = ''; active[idx] = false }, 120)
+  }, speed * 0.9)
+  moleTimers.push(t)
+}
+
+function whack(idx) {
+  if (!active[idx]) return
+  const hole = holes[idx]
+  active[idx] = false
+  score += 10
+  if (score > best) {
+    best = score
+    localStorage.setItem('whack_best', best)
+    document.getElementById('best').textContent = best
+  }
+  document.getElementById('score').textContent = score
+  hole.classList.add('whacked')
+  hole.classList.remove('up')
+  setTimeout(() => { hole.textContent = ''; hole.classList.remove('whacked') }, 300)
+}
+
+function endGame() {
+  clearInterval(clockInterval)
+  clearInterval(moleInterval)
+  holes.forEach(h => h.classList.remove('up','whacked'))
+  const ov = document.getElementById('overlay')
+  ov.innerHTML = `
+    <h2>Time's Up! ⏰</h2>
+    <p>You scored ${score} points!</p>
+    <button onclick="startGame()">▶ PLAY AGAIN</button>
+  `
+  ov.style.display = 'flex'
+}
+</script>
+</body>
+</html>

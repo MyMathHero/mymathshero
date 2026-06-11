@@ -43,7 +43,8 @@ export async function GET(request) {
       .toArray()
 
     return NextResponse.json({
-      xp: student?.xp || 0,
+      coins: student?.coins || 0,   // spending currency used to redeem vouchers
+      xp: student?.xp || 0,         // leaderboard only; kept for display
       vouchers,
       tiers: VOUCHER_TIERS,
     })
@@ -53,14 +54,14 @@ export async function GET(request) {
   }
 }
 
-// POST — redeem points for a voucher.
+// POST — redeem coins for a voucher.
 //
 // IMPORTANT: studentId is taken from the verified session, NOT the request
-// body, so a client can't drain another kid's points by guessing IDs.
+// body, so a client can't drain another kid's coins by guessing IDs.
 //
-// The XP deduction is atomic via findOneAndUpdate({ xp: { $gte: cost } }).
+// The coin deduction is atomic via findOneAndUpdate({ coins: { $gte: cost } }).
 // If two redemption requests race or a client double-submits, exactly one
-// will succeed — the loser sees the same "not enough points" response a
+// will succeed — the loser sees the same "not enough coins" response a
 // genuine low-balance request would.
 export async function POST(request) {
   try {
@@ -78,25 +79,25 @@ export async function POST(request) {
 
     const db = await connectDB()
 
-    // Atomic deduct: only succeeds if the student currently has enough XP.
+    // Atomic deduct: only succeeds if the student currently has enough coins.
     const updated = await db.collection('children').findOneAndUpdate(
-      { id: studentId, xp: { $gte: tier.pointsCost } },
-      { $inc: { xp: -tier.pointsCost } },
+      { id: studentId, coins: { $gte: tier.coinsCost } },
+      { $inc: { coins: -tier.coinsCost } },
       { returnDocument: 'after' }
     )
 
     const student = updated.value || updated // driver compatibility
 
     if (!student) {
-      // Either student doesn't exist OR they don't have enough XP. Tell them
+      // Either student doesn't exist OR they don't have enough coins. Tell them
       // which by re-reading without the gate.
       const current = await db.collection('children').findOne({ id: studentId })
       if (!current) {
         return NextResponse.json({ error: 'Student not found' }, { status: 404 })
       }
       return NextResponse.json({
-        error: `You need ${tier.pointsCost} Hero Points. You have ${current.xp || 0}.`,
-        needMore: tier.pointsCost - (current.xp || 0),
+        error: `You need ${tier.coinsCost} coins 🪙. You have ${current.coins || 0}.`,
+        needMore: tier.coinsCost - (current.coins || 0),
       }, { status: 400 })
     }
 
@@ -109,7 +110,7 @@ export async function POST(request) {
       emoji: tier.emoji,
       code: voucherCode,
       status: 'pending', // pending → sent → redeemed
-      pointsSpent: tier.pointsCost,
+      coinsSpent: tier.coinsCost,
       createdAt: new Date(),
     }
 
@@ -117,11 +118,11 @@ export async function POST(request) {
     try {
       inserted = await db.collection('vouchers').insertOne(voucher)
     } catch (insertErr) {
-      // Insert failed after we already deducted XP — refund or the kid
-      // silently loses points. Best-effort refund.
+      // Insert failed after we already deducted coins — refund or the kid
+      // silently loses coins. Best-effort refund.
       await db.collection('children').updateOne(
         { id: studentId },
-        { $inc: { xp: tier.pointsCost } }
+        { $inc: { coins: tier.coinsCost } }
       ).catch(() => {})
       throw insertErr
     }
@@ -136,7 +137,7 @@ export async function POST(request) {
         <p><strong>Student:</strong> ${escapeHtml(student.name || studentId)} (ID: ${escapeHtml(studentId)})</p>
         <p><strong>Tier:</strong> ${escapeHtml(tier.name)} (${escapeHtml(tier.value)})</p>
         <p><strong>Reference code:</strong> ${escapeHtml(voucherCode)}</p>
-        <p><strong>Points spent:</strong> ${tier.pointsCost}</p>
+        <p><strong>Coins spent:</strong> ${tier.coinsCost}</p>
         <p>Mark this voucher fulfilled from the admin Vouchers panel once the partner code is sent to the parent.</p>
       `,
     }).catch(err => console.error('[vouchers] admin email failed:', err?.message))
@@ -158,7 +159,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       voucher: { ...voucher, _id: inserted.insertedId },
-      newXP: student.xp,
+      newCoins: student.coins,
       message: `${tier.name} redeemed! Check your parent's email.`,
     })
   } catch (error) {
@@ -191,7 +192,7 @@ function parentConfirmationHtml(student, tier, voucherCode) {
       </div>
       <div style="background:white;padding:32px;border:1px solid #E2E8F0">
         <h2 style="color:#1B2B4B">🎉 ${escapeHtml(student.name)} earned a voucher!</h2>
-        <p>Great news! ${escapeHtml(student.name)} redeemed <strong>${tier.pointsCost} Hero Points</strong> for a <strong>${escapeHtml(tier.name)}</strong>!</p>
+        <p>Great news! ${escapeHtml(student.name)} redeemed <strong>${tier.coinsCost} coins</strong> for a <strong>${escapeHtml(tier.name)}</strong>!</p>
         <div style="background:#FFFBEB;border:2px solid #C49A1A;border-radius:12px;padding:20px;text-align:center;margin:20px 0">
           <p style="font-size:48px;margin:0">${tier.emoji}</p>
           <h3 style="color:#1B2B4B;margin:8px 0">${escapeHtml(tier.name)}</h3>

@@ -1,14 +1,18 @@
+import { useMemo } from 'react'
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { WebView } from 'react-native-webview'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function ManageSubscriptionScreen() {
   const router = useRouter()
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
 
   return (
     <SafeAreaView style={{ flex: 1,
-      backgroundColor: '#1B2B4B' }}>
+      backgroundColor: colors.bgHeader }}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={{ color: '#C49A1A',
@@ -34,7 +38,7 @@ export default function ManageSubscriptionScreen() {
   )
 }
 
-const s = StyleSheet.create({
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', padding: 16 },
 })

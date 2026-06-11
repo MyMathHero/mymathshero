@@ -1,6 +1,7 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { ARCADE_GAMES, canPlayGame } from '@/lib/arcadeGames'
+import { getAESTMidnightUTC } from '@/lib/arcadeTime'
 
 let client
 async function connectDB() {
@@ -27,9 +28,10 @@ export async function GET(request) {
       { error: 'Student not found' }, { status: 404 }
     )
 
-    // Get today's arcade usage
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
+    // Get today's arcade usage (resets at AEST midnight, not UTC). Active
+    // sessions are included because the heartbeat keeps their durationMinutes
+    // current, so mid-session time is visible across devices.
+    const todayStart = getAESTMidnightUTC()
     const todaySessions = await db.collection('arcade_sessions')
       .find({
         studentId,
@@ -60,11 +62,13 @@ export async function GET(request) {
     const timeLimitReached = minutesToday >= dailyLimit
 
     return NextResponse.json({
-      xp: student.xp || 0,
+      coins: student.coins || 0,   // spending currency — gates the arcade
+      xp: student.xp || 0,         // leaderboard only; kept for display
       plan: parent?.plan || 'free',
       minutesToday,
       minutesRemaining,
       timeLimitReached,
+      dailyLimit,
       gamesPlayedToday,
       arcadeSettings,
       unlockedGames: student.unlockedGames || [],
@@ -100,7 +104,7 @@ export async function POST(request) {
       : null
 
     if (action === 'unlock') {
-      const check = canPlayGame(game, student.xp || 0, parent?.plan)
+      const check = canPlayGame(game, student.coins || 0, parent?.plan)
       if (!check.allowed) return NextResponse.json(
         { error: check.reason }, { status: 403 }
       )
@@ -111,19 +115,38 @@ export async function POST(request) {
         success: true, alreadyUnlocked: true,
       })
 
-      // Deduct XP and unlock
-      await db.collection('children').updateOne(
-        { id: studentId },
+      // Atomic deduct: only succeeds if the student still has enough coins and
+      // hasn't already unlocked this game. Guards against double-submit / races
+      // overdrawing coins into the negative.
+      const updated = await db.collection('children').findOneAndUpdate(
         {
-          $inc: { xp: -game.pointsCost },
+          id: studentId,
+          coins: { $gte: game.coinsCost },
+          unlockedGames: { $ne: gameId },
+        },
+        {
+          $inc: { coins: -game.coinsCost },
           $push: { unlockedGames: gameId },
-        }
+        },
+        { returnDocument: 'after' }
       )
+      const after = updated?.value || updated
+      if (!after) {
+        // Lost the race or balance dropped — re-check for a precise message.
+        const current = await db.collection('children').findOne({ id: studentId })
+        if ((current?.unlockedGames || []).includes(gameId)) {
+          return NextResponse.json({ success: true, alreadyUnlocked: true })
+        }
+        return NextResponse.json(
+          { error: `Need ${game.coinsCost} coins 🪙 to unlock` },
+          { status: 403 }
+        )
+      }
 
       return NextResponse.json({
         success: true,
-        xpSpent: game.pointsCost,
-        newXP: (student.xp || 0) - game.pointsCost,
+        coinsSpent: game.coinsCost,
+        newCoins: after.coins,
       })
     }
 
@@ -142,8 +165,7 @@ export async function POST(request) {
         { error: 'Arcade disabled by parent' }, { status: 403 }
       )
 
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
+      const todayStart = getAESTMidnightUTC()
       const todaySessions = await db.collection('arcade_sessions')
         .find({ studentId, startedAt: { $gte: todayStart } })
         .toArray()

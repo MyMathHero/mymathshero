@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Brain Match</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A1A;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, sans-serif;
+    color: white; padding: 16px;
+    user-select: none;
+  }
+  h1 { color: #C49A1A; font-size: 24px;
+    font-weight: 900; margin-bottom: 8px; }
+  #hud { display: flex; gap: 20px;
+    margin-bottom: 12px; }
+  .hud-item { text-align: center; }
+  .hud-item label { font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 1px;
+    display: block; }
+  .hud-item span { font-size: 20px;
+    font-weight: 800; color: #C49A1A; }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(4, 72px);
+    gap: 8px;
+  }
+  .card {
+    width: 72px; height: 72px;
+    border-radius: 12px;
+    cursor: pointer;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.35s ease;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card.matched {
+    transform: rotateY(180deg);
+    box-shadow: 0 0 12px rgba(34,197,94,0.7);
+  }
+  .card-face {
+    position: absolute; inset: 0;
+    border-radius: 12px;
+    display: flex; align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+  }
+  .card-back {
+    background: linear-gradient(135deg,
+      #1B2B4B, #2D4A7A);
+    border: 2px solid rgba(196,154,26,0.4);
+    font-size: 24px;
+  }
+  .card-front {
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(196,154,26,0.6);
+    font-size: 32px;
+    transform: rotateY(180deg);
+  }
+  .card.matched .card-front {
+    background: rgba(34,197,94,0.15);
+    border-color: #22C55E;
+  }
+  #win-msg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #win-msg h2 { color: #C49A1A; font-size: 30px;
+    font-weight: 900; margin-bottom: 8px; }
+  #win-msg p { color: rgba(255,255,255,0.7);
+    margin-bottom: 20px; font-size: 16px;
+    text-align: center; }
+  #win-msg button {
+    background: linear-gradient(135deg, #C49A1A, #FFD700);
+    color: #0A0A1A; border: none; border-radius: 12px;
+    padding: 14px 36px; font-size: 16px;
+    font-weight: 900; cursor: pointer;
+  }
+  #new-btn {
+    margin-top: 12px;
+    background: rgba(196,154,26,0.15);
+    border: 1.5px solid #C49A1A; color: #C49A1A;
+    border-radius: 10px; padding: 8px 24px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  @media (max-width: 360px) {
+    #grid { grid-template-columns: repeat(4, 64px); gap: 6px; }
+    .card { width: 64px; height: 64px; }
+  }
+</style>
+</head>
+<body>
+<h1>🧠 Brain Match</h1>
+<div id="hud">
+  <div class="hud-item">
+    <label>Moves</label><span id="moves">0</span>
+  </div>
+  <div class="hud-item">
+    <label>Pairs</label><span id="pairs">0/8</span>
+  </div>
+  <div class="hud-item">
+    <label>Time</label><span id="time">0s</span>
+  </div>
+</div>
+<div id="grid"></div>
+<button id="new-btn" onclick="newGame()">🔄 New Game</button>
+
+<div id="win-msg">
+  <h2>🧠 You Win!</h2>
+  <p id="win-detail">All pairs matched!</p>
+  <button onclick="newGame()">▶ PLAY AGAIN</button>
+</div>
+
+<script>
+const EMOJI_SETS = [
+  ['🐶','🐱','🐸','🦊','🐻','🦁','🐯','🦄'],
+  ['🚀','⭐','🌙','☄️','🪐','👾','🛸','🌟'],
+  ['🍕','🍦','🎂','🍩','🌮','🍜','🍣','🧁'],
+]
+
+let cards = [], flipped = [], matched = 0
+let moves = 0, seconds = 0, clock, locked = false
+
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function newGame() {
+  document.getElementById('win-msg').style.display = 'none'
+  clearInterval(clock)
+
+  const emojiSet = EMOJI_SETS[
+    Math.floor(Math.random() * EMOJI_SETS.length)
+  ]
+  cards = shuffle([...emojiSet, ...emojiSet])
+  flipped = []; matched = 0; moves = 0; seconds = 0
+  locked = false
+
+  document.getElementById('moves').textContent = '0'
+  document.getElementById('pairs').textContent = '0/8'
+  document.getElementById('time').textContent = '0s'
+
+  const grid = document.getElementById('grid')
+  grid.innerHTML = ''
+  cards.forEach((emoji, i) => {
+    const card = document.createElement('div')
+    card.className = 'card'
+    card.dataset.idx = i
+    card.innerHTML = `
+      <div class="card-face card-back">⭐</div>
+      <div class="card-face card-front">${emoji}</div>
+    `
+    card.addEventListener('click', () => flip(i, card))
+    grid.appendChild(card)
+  })
+
+  clock = setInterval(() => {
+    seconds++
+    document.getElementById('time').textContent =
+      seconds + 's'
+  }, 1000)
+}
+
+function flip(idx, card) {
+  if (locked) return
+  if (flipped.includes(idx)) return
+  if (card.classList.contains('matched')) return
+
+  card.classList.add('flipped')
+  flipped.push(idx)
+
+  if (flipped.length === 2) {
+    locked = true
+    moves++
+    document.getElementById('moves').textContent = moves
+
+    const [a, b] = flipped
+    const allCards = document.querySelectorAll('.card')
+
+    if (cards[a] === cards[b]) {
+      // Match!
+      allCards[a].classList.add('matched')
+      allCards[b].classList.add('matched')
+      matched++
+      document.getElementById('pairs').textContent =
+        `${matched}/8`
+      flipped = []
+      locked = false
+
+      if (matched === 8) {
+        clearInterval(clock)
+        setTimeout(showWin, 500)
+      }
+    } else {
+      // No match
+      setTimeout(() => {
+        allCards[a].classList.remove('flipped')
+        allCards[b].classList.remove('flipped')
+        flipped = []
+        locked = false
+      }, 900)
+    }
+  }
+}
+
+function showWin() {
+  const m = document.getElementById('win-msg')
+  document.getElementById('win-detail').textContent =
+    `${moves} moves in ${seconds} seconds! Amazing!`
+  m.style.display = 'flex'
+}
+
+newGame()
+</script>
+</body>
+</html>

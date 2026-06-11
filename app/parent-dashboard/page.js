@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import ArcadeSettings from '@/components/ArcadeSettings'
+import ThemeToggle from '@/components/ThemeToggle'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
 
@@ -477,10 +478,10 @@ export default function ParentDashboard() {
   // ── Loading splash (matches teacher dashboard) ──────────────────────────────
   if (step === 'loading') {
     return (
-      <div style={{ minHeight: '100vh', background: '#F0F4F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
         <img src="/assets/logos/logo-icon.png" alt="MyMathsHero" style={{ width: 80, animation: 'pulse 1.5s infinite' }} />
-        <p style={{ color: '#1B2B4B', fontWeight: 600 }}>Loading your dashboard...</p>
+        <p style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Loading your dashboard...</p>
       </div>
     )
   }
@@ -510,31 +511,31 @@ export default function ParentDashboard() {
             <div className="max-w-md mx-auto">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 rounded-2xl bg-electric/10 flex items-center justify-center mx-auto mb-4"><User size={28} className="text-electric" /></div>
-                <h2 className="text-2xl font-bold text-navy">Create Parent Account</h2>
-                <p className="text-gray-500 text-sm mt-1">Step 1 of 2</p>
+                <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Create Parent Account</h2>
+                <p className="text-gray-500 dark:text-slate-300 text-sm mt-1">Step 1 of 2</p>
               </div>
-              <form onSubmit={handleRegister} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+              <form onSubmit={handleRegister} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <div className="relative"><User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" required value={registerForm.name} onChange={e => setRegisterForm({...registerForm, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Sarah Johnson" /></div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Full Name</label>
+                  <div className="relative"><User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" /><input type="text" required value={registerForm.name} onChange={e => setRegisterForm({...registerForm, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Sarah Johnson" /></div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <div className="relative"><Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="email" required value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="sarah@email.com" /></div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Email</label>
+                  <div className="relative"><Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" /><input type="email" required value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="sarah@email.com" /></div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <div className="relative"><Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="password" required minLength={6} value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Min 6 characters" /></div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Password</label>
+                  <div className="relative"><Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" /><input type="password" required minLength={6} value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Min 6 characters" /></div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone (optional)</label>
-                  <div className="relative"><Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="tel" value={registerForm.phone} onChange={e => setRegisterForm({...registerForm, phone: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="04XX XXX XXX" /></div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Phone (optional)</label>
+                  <div className="relative"><Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" /><input type="tel" value={registerForm.phone} onChange={e => setRegisterForm({...registerForm, phone: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="04XX XXX XXX" /></div>
                 </div>
                 {error && <div className="text-amber-700 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">{error}</div>}
                 <button type="submit" disabled={submitting} className="w-full bg-[#1B2B4B] hover:bg-[#C49A1A] disabled:opacity-60 text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
                   {submitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Continue <ArrowRight size={16} /></>}
                 </button>
-                <button type="button" onClick={() => setStep('landing')} className="w-full text-gray-500 text-sm hover:text-gray-700">Back</button>
+                <button type="button" onClick={() => setStep('landing')} className="w-full text-gray-500 dark:text-slate-300 text-sm hover:text-gray-700">Back</button>
               </form>
             </div>
           </div>
@@ -545,26 +546,26 @@ export default function ParentDashboard() {
             <div className="max-w-md mx-auto">
               <div className="text-center mb-8">
                 <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4"><Plus size={28} className="text-green-600" /></div>
-                <h2 className="text-2xl font-bold text-navy">Add Your Child</h2>
-                <p className="text-gray-500 text-sm mt-1">Step 2 of 2 — Welcome, {parentData?.name}!</p>
+                <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Add Your Child</h2>
+                <p className="text-gray-500 dark:text-slate-300 text-sm mt-1">Step 2 of 2 — Welcome, {parentData?.name}!</p>
               </div>
-              <form onSubmit={handleAddChild} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
+              <form onSubmit={handleAddChild} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Child&apos;s Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Child&apos;s Name</label>
                   <input type="text" required value={childForm.name} onChange={e => setChildForm({...childForm, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Alex" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                  <select required value={childForm.grade} onChange={e => setChildForm({...childForm, grade: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm bg-white appearance-none">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Grade</label>
+                  <select required value={childForm.grade} onChange={e => setChildForm({...childForm, grade: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm bg-white dark:bg-[#1E2D42] colorblind:bg-white appearance-none">
                     <option value="">Select grade</option>
                     {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Choose an Avatar</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-2">Choose an Avatar</label>
                   <div className="flex gap-2 flex-wrap">
                     {avatarOptions.map(a => (
-                      <button key={a} type="button" onClick={() => setChildForm({...childForm, avatar: a})} className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${childForm.avatar === a ? 'bg-electric/10 border-2 border-electric scale-110 shadow-md' : 'bg-gray-50 border-2 border-gray-100 hover:border-gray-300'}`}>
+                      <button key={a} type="button" onClick={() => setChildForm({...childForm, avatar: a})} className={`w-12 h-12 rounded-xl text-2xl flex items-center justify-center transition-all ${childForm.avatar === a ? 'bg-electric/10 border-2 border-electric scale-110 shadow-md' : 'bg-gray-50 dark:bg-[#16202e] border-2 border-gray-100 dark:border-white/10 hover:border-gray-300'}`}>
                         {a}
                       </button>
                     ))}
@@ -582,10 +583,10 @@ export default function ParentDashboard() {
         {step === 'childCreated' && childData && (
           <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md mx-auto text-center">
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-lg">
+              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
                 <div className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4 text-5xl">{childData.avatar}</div>
-                <h2 className="text-2xl font-bold text-navy mb-2">{childData.name} is Ready!</h2>
-                <p className="text-gray-500 text-sm mb-6">{childData.grade} account created successfully</p>
+                <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{childData.name} is Ready!</h2>
+                <p className="text-gray-500 dark:text-slate-300 text-sm mb-6">{childData.grade} account created successfully</p>
                 <div className="bg-navy rounded-xl p-5 text-left mb-6">
                   <h3 className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-3">Child Login Credentials</h3>
                   <div className="space-y-3">
@@ -602,7 +603,7 @@ export default function ParentDashboard() {
                     </div>
                   </div>
                 </div>
-                <p className="text-gray-400 text-xs mb-6">Share these credentials with your child to log in on their device.</p>
+                <p className="text-gray-400 dark:text-slate-400 text-xs mb-6">Share these credentials with your child to log in on their device.</p>
                 <button onClick={() => setStep('dashboard')} className="w-full bg-[#1B2B4B] hover:bg-[#C49A1A] text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
                   Go to Parent Dashboard <ArrowRight size={16} />
                 </button>
@@ -653,24 +654,24 @@ export default function ParentDashboard() {
       `}</style>
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white border-b border-gray-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-lg font-bold text-[#1B2B4B]">Parent Hub — MyMathsHero</h1>
-              <p className="text-xs text-gray-500 mt-0.5">{childName} &middot; Grade {childGrade} &middot; {children.length || 1} child{(children.length || 1) === 1 ? '' : 'ren'}</p>
+              <p className="text-xs text-gray-500 dark:text-slate-300 mt-0.5">{childName} &middot; Grade {childGrade} &middot; {children.length || 1} child{(children.length || 1) === 1 ? '' : 'ren'}</p>
             </div>
             <div className="flex items-center gap-2">
               {children.length > 1 && (
                 <select
                   value={childData?.id || ''}
                   onChange={e => setChildData(children.find(c => c.id === e.target.value))}
-                  className="text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 bg-white focus:outline-none focus:ring-1 focus:ring-electric"
+                  className="text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 dark:text-slate-300 bg-white dark:bg-[#1E2D42] colorblind:bg-white focus:outline-none focus:ring-1 focus:ring-electric"
                 >
                   {children.map(c => <option key={c.id} value={c.id}>{c.avatar} {c.name}</option>)}
                 </select>
               )}
-              <a href="/student-dashboard" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-50 transition-colors">
+              <a href="/student-dashboard" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 dark:text-slate-300 text-xs font-medium hover:bg-gray-50 dark:bg-[#16202e] transition-colors">
                 <Eye size={13} />Child View
               </a>
               <button onClick={sendReport} disabled={reportSending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C49A1A] text-white text-xs font-medium hover:bg-[#1B2B4B] disabled:opacity-50 transition-colors">
@@ -684,17 +685,17 @@ export default function ParentDashboard() {
       {loading ? (
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <div className="w-10 h-10 border-4 border-[#C49A1A] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Loading {childName}&apos;s progress…</p>
+          <p className="text-sm text-gray-500 dark:text-slate-300">Loading {childName}&apos;s progress…</p>
         </div>
       ) : (
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Child Card (mirrors My Classes header strip) */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users size={15} className="text-electric" />
-              <h2 className="font-semibold text-navy text-sm">My Child</h2>
+              <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">My Child</h2>
             </div>
             <button onClick={() => setStep('addChild')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1B2B4B] text-white text-xs font-medium hover:bg-[#C49A1A] transition-colors">
               <Plus size={12} /> Add Child
@@ -708,13 +709,13 @@ export default function ParentDashboard() {
                 className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-left border transition-all min-w-[160px] ${
                   childData?.id === c.id
                     ? 'bg-[#1B2B4B] text-white border-[#C49A1A] shadow-sm'
-                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-[#C49A1A]/60'
+                    : 'bg-gray-50 dark:bg-[#16202e] text-gray-700 dark:text-slate-200 border-gray-200 hover:border-[#C49A1A]/60'
                 }`}
               >
                 <span className="text-xl">{c.avatar || '🦊'}</span>
                 <div className="leading-tight">
                   <span className="font-semibold text-xs block">{c.name}</span>
-                  <span className={`text-[10px] ${childData?.id === c.id ? 'text-white/80' : 'text-gray-400'}`}>Grade {c.grade}</span>
+                  <span className={`text-[10px] ${childData?.id === c.id ? 'text-white/80' : 'text-gray-400 dark:text-slate-400'}`}>Grade {c.grade}</span>
                 </div>
               </button>
             ))}
@@ -724,21 +725,21 @@ export default function ParentDashboard() {
         {/* Overview Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {overviewCards.map((card, i) => (
-            <div key={i} className={`bg-white rounded-xl p-4 border ${card.border} hover:shadow-sm transition-all`}>
+            <div key={i} className={`bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl p-4 border ${card.border} hover:shadow-sm transition-all`}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">{card.label}</span>
+                <span className="text-[11px] text-gray-500 dark:text-slate-300 font-medium uppercase tracking-wider">{card.label}</span>
                 <div className={`w-7 h-7 rounded-lg ${card.bg} flex items-center justify-center`}>
                   <card.icon size={14} className={card.color} />
                 </div>
               </div>
               <div className="flex items-end gap-2">
-                <span className="text-2xl font-bold text-navy">{card.value}</span>
+                <span className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{card.value}</span>
                 <span className={`text-xs font-semibold mb-0.5 flex items-center gap-0.5 ${card.positive ? 'text-emerald-600' : 'text-red-500'}`}>
                   {card.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                   {card.change}
                 </span>
               </div>
-              <span className="text-[10px] text-gray-400">{card.changeLabel}</span>
+              <span className="text-[10px] text-gray-400 dark:text-slate-400">{card.changeLabel}</span>
             </div>
           ))}
         </div>
@@ -746,13 +747,13 @@ export default function ParentDashboard() {
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Skill Heatmap */}
           <div className="flex-1 min-w-0">
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-              <div className="px-4 py-3 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <BarChart3 size={15} className="text-electric" />
-                  <h2 className="font-semibold text-navy text-sm">{childName}&apos;s Skill Heatmap</h2>
+                  <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">{childName}&apos;s Skill Heatmap</h2>
                 </div>
-                <div className="hidden md:flex items-center gap-2 text-[10px] text-gray-500">
+                <div className="hidden md:flex items-center gap-2 text-[10px] text-gray-500 dark:text-slate-300">
                   <span className="flex items-center gap-1"><span className="w-5 h-2.5 rounded-sm" style={{ background: 'rgba(22,163,74,0.25)' }} /> 80+</span>
                   <span className="flex items-center gap-1"><span className="w-5 h-2.5 rounded-sm" style={{ background: 'rgba(22,163,74,0.12)' }} /> 60+</span>
                   <span className="flex items-center gap-1"><span className="w-5 h-2.5 rounded-sm" style={{ background: 'rgba(217,119,6,0.15)' }} /> 40+</span>
@@ -761,7 +762,7 @@ export default function ParentDashboard() {
               </div>
 
               {mathsSkills.length === 0 ? (
-                <div className="py-16 text-center text-gray-400">
+                <div className="py-16 text-center text-gray-400 dark:text-slate-400">
                   <BarChart3 size={32} className="mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No skill data yet — once {childName} starts practising, progress appears here.</p>
                 </div>
@@ -773,7 +774,7 @@ export default function ParentDashboard() {
                       const cellStyle = getCellStyle(skill.score || 0)
                       return (
                         <div key={skill.id} className="flex items-center gap-3">
-                          <div className="w-[150px] text-xs font-medium text-gray-600 truncate flex items-center gap-1.5">
+                          <div className="w-[150px] text-xs font-medium text-gray-600 dark:text-slate-300 truncate flex items-center gap-1.5">
                             <span>{skill.name}</span>
                             {skill.status === 'mastered' && <Trophy size={11} className="text-emerald-500 flex-shrink-0" />}
                           </div>
@@ -788,9 +789,9 @@ export default function ParentDashboard() {
                     })}
                   </div>
                   {/* Average row (mirrors teacher "Class Avg" row) */}
-                  <div className="px-4 py-3 border-t border-gray-100 bg-navy/[0.03] flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Overall Average</span>
-                    <span className={`text-sm font-bold ${childAvg >= 70 ? 'text-emerald-700' : childAvg >= 50 ? 'text-amber-700' : childAvg > 0 ? 'text-red-700' : 'text-gray-400'}`}>
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-white/10 bg-navy/[0.03] flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-500 dark:text-slate-300 uppercase tracking-wider">Overall Average</span>
+                    <span className={`text-sm font-bold ${childAvg >= 70 ? 'text-emerald-700' : childAvg >= 50 ? 'text-amber-700' : childAvg > 0 ? 'text-red-700' : 'text-gray-400 dark:text-slate-400'}`}>
                       {childAvg > 0 ? childAvg : '—'}
                     </span>
                   </div>
@@ -799,10 +800,10 @@ export default function ParentDashboard() {
             </div>
 
             {/* Weekly Activity (extra parent card, same card chrome) */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
                 <Activity size={15} className="text-electric" />
-                <h2 className="font-semibold text-navy text-sm">Weekly Activity</h2>
+                <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Weekly Activity</h2>
               </div>
               <div className="p-4">
                 {weeklyActivity.some(d => d.questions > 0) ? (
@@ -811,14 +812,14 @@ export default function ParentDashboard() {
                       <div key={i} className="flex-1 flex flex-col items-center gap-1">
                         <div className="w-full rounded-t min-h-[3px]" style={{
                           height: `${(d.questions / maxWeekly) * 88}px`,
-                          background: d.questions >= 10 ? '#16a34a' : d.questions >= 5 ? '#C49A1A' : d.questions > 0 ? '#60a5fa' : '#e5e7eb',
+                          background: d.questions >= 10 ? '#16a34a' : d.questions >= 5 ? 'var(--accent-gold)' : d.questions > 0 ? '#60a5fa' : '#e5e7eb',
                         }} title={`${d.questions} questions · ${d.correct} correct`} />
-                        <span className="text-[9px] text-gray-400 font-medium">{d.day?.charAt(0)}</span>
+                        <span className="text-[9px] text-gray-400 dark:text-slate-400 font-medium">{d.day?.charAt(0)}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-400 text-center py-6">No activity recorded this week yet.</p>
+                  <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-6">No activity recorded this week yet.</p>
                 )}
               </div>
             </div>
@@ -826,13 +827,13 @@ export default function ParentDashboard() {
 
           {/* AI Insights (mirrors teacher AI Insights panel exactly) */}
           <div className="w-full xl:w-[340px] flex-shrink-0">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-white to-blue-50/50">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between bg-gradient-to-r from-white to-blue-50/50">
                 <div className="flex items-center gap-2">
                   <Brain size={15} className="text-electric" />
-                  <h2 className="font-semibold text-navy text-sm">AI Insights</h2>
+                  <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">AI Insights</h2>
                   {insightsSource && (
-                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[9px] text-gray-400 dark:text-slate-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
                       {insightsSource === 'ai' ? '✨ Hero' : '📋 Rules'}
                     </span>
                   )}
@@ -867,7 +868,7 @@ export default function ParentDashboard() {
                   {insights.map((insight, i) => {
                     const style = getInsightStyle(insight.type)
                     return (
-                      <div key={i} className="px-4 py-3.5 hover:bg-gray-50/50 transition-all feed-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                      <div key={i} className="px-4 py-3.5 hover:bg-gray-50 dark:bg-[#16202e]/50 transition-all feed-in" style={{ animationDelay: `${i * 0.1}s` }}>
                         <div className="flex items-start gap-3">
                           <div className="flex flex-col items-center pt-1 flex-shrink-0">
                             <div className={`w-2 h-2 rounded-full ${style.dot} ${i === 0 ? 'pulse-dot' : ''}`} />
@@ -877,30 +878,30 @@ export default function ParentDashboard() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${style.badge}`}>{style.label}</span>
                             </div>
-                            <h4 className="font-semibold text-navy text-[13px] leading-snug mb-1">{insight.title}</h4>
-                            <p className="text-gray-500 text-[11px] leading-relaxed mb-2">{insight.description}</p>
+                            <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-[13px] leading-snug mb-1">{insight.title}</h4>
+                            <p className="text-gray-500 dark:text-slate-300 text-[11px] leading-relaxed mb-2">{insight.description}</p>
                           </div>
                         </div>
                       </div>
                     )
                   })}
                   {insights.length === 0 && !insightsLoading && (
-                    <div className="px-4 py-8 text-center text-xs text-gray-400">No insights yet — once your child practises, Hero will share insights</div>
+                    <div className="px-4 py-8 text-center text-xs text-gray-400 dark:text-slate-400">No insights yet — once your child practises, Hero will share insights</div>
                   )}
                 </div>
               )}
 
-              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
-                <span className="text-[10px] text-gray-400">{insights.length} insight{insights.length !== 1 ? 's' : ''}</span>
+              <div className="px-4 py-2.5 border-t border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-[#16202e]/50 flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 dark:text-slate-400">{insights.length} insight{insights.length !== 1 ? 's' : ''}</span>
                 {insightsLoading && <span className="text-[10px] text-electric animate-pulse">Analysing {childName}&apos;s data…</span>}
               </div>
             </div>
 
             {/* Recent Sessions (mirrors teacher's secondary list) */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
                 <Activity size={15} className="text-electric" />
-                <h2 className="font-semibold text-navy text-sm">Recent Sessions</h2>
+                <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Recent Sessions</h2>
               </div>
               {weeklyActivity.some(d => d.questions > 0) ? (
                 <div className="divide-y divide-gray-50">
@@ -908,19 +909,19 @@ export default function ParentDashboard() {
                     const acc = d.questions > 0 ? Math.round((d.correct / d.questions) * 100) : 0
                     return (
                       <div key={i} className="px-4 py-3 flex items-center justify-between">
-                        <span className="font-medium text-navy text-xs">{d.day}</span>
-                        <span className="text-[11px] text-gray-500">{d.questions} questions · {acc}% correct</span>
+                        <span className="font-medium text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-xs">{d.day}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-slate-300">{d.questions} questions · {acc}% correct</span>
                       </div>
                     )
                   })}
                 </div>
               ) : (
-                <div className="px-4 py-8 text-center text-xs text-gray-400">No sessions logged this week</div>
+                <div className="px-4 py-8 text-center text-xs text-gray-400 dark:text-slate-400">No sessions logged this week</div>
               )}
             </div>
 
             {reportMsg && (
-              <p className="text-[11px] text-navy font-medium mt-3 bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] font-medium mt-3 bg-white dark:bg-[#1E2D42] colorblind:bg-white border border-gray-200 rounded-lg px-3 py-2">
                 {reportMsg}{lastReportSent ? ` · ${lastReportSent.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}` : ''}
               </p>
             )}
@@ -934,46 +935,46 @@ export default function ParentDashboard() {
       {showSidebar && (
         <div className="fixed inset-0 z-[100] flex justify-end" onClick={() => setShowSidebar(false)}>
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          <div className="relative w-full max-w-[420px] bg-white shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center justify-between z-10">
-              <h3 className="font-semibold text-navy text-sm">Account Settings</h3>
-              <button onClick={() => setShowSidebar(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} className="text-gray-400" /></button>
+          <div className="relative w-full max-w-[420px] bg-white dark:bg-[#1E2D42] colorblind:bg-white shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#1E2D42] colorblind:bg-white border-b border-gray-100 dark:border-white/10 px-5 py-3 flex items-center justify-between z-10">
+              <h3 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Account Settings</h3>
+              <button onClick={() => setShowSidebar(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} className="text-gray-400 dark:text-slate-400" /></button>
             </div>
             <div style={{ padding: 20 }}>
               {/* PROFILE */}
               <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
                   My Account
                 </h3>
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#64748B', display: 'block', marginBottom: 4 }}>Full Name</label>
-                  <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{parentData?.name || '—'}</p>
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Full Name</label>
+                  <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{parentData?.name || '—'}</p>
                 </div>
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: '#64748B', display: 'block', marginBottom: 4 }}>Email</label>
-                  <p style={{ fontWeight: 600, color: '#1B2B4B', margin: 0, fontSize: 14 }}>{parentData?.email || '—'}</p>
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Email</label>
+                  <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>{parentData?.email || '—'}</p>
                 </div>
                 <button
                   onClick={() => setShowChangePassword(true)}
                   style={{ width: '100%', padding: '10px 16px',
-                    background: '#F0F4F8', border: '1px solid #E2E8F0',
+                    background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
                     borderRadius: 10, fontWeight: 600, fontSize: 14,
-                    color: '#1B2B4B', cursor: 'pointer', textAlign: 'left' }}
+                    color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left' }}
                 >🔑 Change Password</button>
               </div>
 
               {/* SUBSCRIPTION */}
               <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
                   Subscription
                 </h3>
                 <div style={{
-                  background: subStatus?.accessBlocked ? '#FEE2E2' : '#DCFCE7',
+                  background: subStatus?.accessBlocked ? 'var(--error-bg)' : 'var(--correct-bg)',
                   borderRadius: 12, padding: 14, marginBottom: 12,
                 }}>
-                  <p style={{ fontWeight: 800, margin: '0 0 2px', color: '#1B2B4B', fontSize: 14 }}>
+                  <p style={{ fontWeight: 800, margin: '0 0 2px', color: 'var(--text-primary)', fontSize: 14 }}>
                     {subStatus?.plan === 'premium' ? '⭐ Premium Plan'
                       : subStatus?.plan === 'standard' ? '📚 Standard Plan'
                       : subStatus?.subscribed ? '✅ Active Plan'
@@ -990,12 +991,12 @@ export default function ParentDashboard() {
                       : subStatus?.subscribed ? '✅ Active' : 'No subscription'}
                   </p>
                   {subStatus?.foundingFamily && (
-                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#C49A1A', fontWeight: 700 }}>
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--accent-gold)', fontWeight: 700 }}>
                       🏅 Founding Family Member
                     </p>
                   )}
                   {subStatus?.siblingAddonActive && (
-                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#1B2B4B', fontWeight: 700 }}>
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-primary)', fontWeight: 700 }}>
                       👫 Sibling add-on active
                     </p>
                   )}
@@ -1004,7 +1005,7 @@ export default function ParentDashboard() {
                   onClick={openBillingPortal}
                   disabled={portalLoading}
                   style={{ width: '100%', padding: '10px 16px',
-                    background: '#1B2B4B', color: 'white',
+                    background: 'var(--bg-header)', color: 'white',
                     border: '2px solid #C49A1A', borderRadius: 10,
                     fontWeight: 700, fontSize: 13,
                     cursor: portalLoading ? 'not-allowed' : 'pointer',
@@ -1013,7 +1014,7 @@ export default function ParentDashboard() {
                 {subStatus?.accessBlocked && (
                   <a href="/pricing"
                     style={{ display: 'block', width: '100%',
-                      padding: '10px 16px', background: '#C49A1A',
+                      padding: '10px 16px', background: 'var(--accent-gold)',
                       color: 'white', borderRadius: 10,
                       fontWeight: 700, fontSize: 13,
                       textDecoration: 'none', textAlign: 'center',
@@ -1025,7 +1026,7 @@ export default function ParentDashboard() {
 
               {/* CHILDREN */}
               <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: '#94A3B8',
+                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
                   My Children
                 </h3>
@@ -1033,30 +1034,30 @@ export default function ParentDashboard() {
                   <div key={child.id || i} style={{
                     background: '#F8FAFC', borderRadius: 12,
                     padding: 14, marginBottom: 8,
-                    border: '1px solid #E2E8F0',
+                    border: '1px solid var(--border-color)',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between',
                       alignItems: 'center', gap: 8 }}>
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0, fontSize: 14 }}>
+                        <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>
                           {child.avatar || '🧒'} {child.name}
                         </p>
-                        <p style={{ color: '#64748B', fontSize: 12, margin: '2px 0 0' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '2px 0 0' }}>
                           {child.grade === 0 || child.grade === '0' ? 'Prep' : `Year ${child.grade}`} · {child.xp || 0} Hero Points
                         </p>
                       </div>
                       <button
                         onClick={() => handleResetChildPin(child)}
-                        style={{ background: '#F0F4F8', border: '1px solid #E2E8F0',
+                        style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
                           borderRadius: 8, padding: '6px 12px', fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', color: '#1B2B4B',
+                          fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)',
                           whiteSpace: 'nowrap' }}
                       >🔢 Reset PIN</button>
                     </div>
                   </div>
                 ))}
                 {(!children || children.length === 0) && (
-                  <p style={{ color: '#94A3B8', fontSize: 13, margin: '0 0 8px' }}>No children yet.</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 8px' }}>No children yet.</p>
                 )}
 
                 {(() => {
@@ -1066,9 +1067,9 @@ export default function ParentDashboard() {
                     <button
                       onClick={handleAddChildClick}
                       style={{ width: '100%', padding: '10px 16px',
-                        background: '#F0F4F8', border: '2px dashed #CBD5E1',
+                        background: 'var(--bg-primary)', border: '2px dashed #CBD5E1',
                         borderRadius: 10, fontWeight: 700, fontSize: 13,
-                        color: '#64748B', cursor: 'pointer' }}
+                        color: 'var(--text-secondary)', cursor: 'pointer' }}
                     >
                       {needsSiblingPayment
                         ? '+ Add Another Child — $10/month'
@@ -1085,6 +1086,29 @@ export default function ParentDashboard() {
                 </div>
               )}
 
+              {/* THEME SECTION */}
+              <div style={{
+                paddingTop: 20,
+                borderTop: '1px solid var(--border-light)',
+                marginBottom: 16,
+              }}>
+                <p style={{
+                  fontWeight: 800, fontSize: 13,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1, margin: '0 0 10px',
+                }}>
+                  Display
+                </p>
+                <ThemeToggle compact={false} />
+                <p style={{
+                  color: 'var(--text-muted)',
+                  fontSize: 11, marginTop: 8,
+                }}>
+                  👁️ Colour-Safe mode helps colourblind students
+                </p>
+              </div>
+
               {/* DANGER ZONE */}
               <div style={{ paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
                 <button
@@ -1093,7 +1117,7 @@ export default function ParentDashboard() {
                     background: 'rgba(239,68,68,0.08)',
                     border: '1px solid rgba(239,68,68,0.2)',
                     borderRadius: 10, fontWeight: 700, fontSize: 14,
-                    color: '#EF4444', cursor: 'pointer' }}
+                    color: 'var(--error)', cursor: 'pointer' }}
                 >🚪 Log Out</button>
               </div>
             </div>
@@ -1115,7 +1139,7 @@ export default function ParentDashboard() {
       {subStatus?.accessBlocked && step === 'dashboard' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0,
-          background: '#FEE2E2',
+          background: 'var(--error-bg)',
           borderBottom: '2px solid #EF4444',
           padding: '12px 20px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1126,7 +1150,7 @@ export default function ParentDashboard() {
             Your subscription has lapsed. Reactivate to keep your child&apos;s progress.
           </span>
           <a href="/pricing" style={{
-            background: '#1B2B4B', color: 'white',
+            background: 'var(--bg-header)', color: 'white',
             padding: '6px 14px', borderRadius: 8,
             fontWeight: 700, fontSize: 13, textDecoration: 'none',
             border: '2px solid #C49A1A',
@@ -1139,7 +1163,7 @@ export default function ParentDashboard() {
         <div style={{
           position: 'fixed', bottom: 24, left: '50%',
           transform: 'translateX(-50%)',
-          background: actionToast.type === 'error' ? '#FEE2E2' : '#1B2B4B',
+          background: actionToast.type === 'error' ? 'var(--error-bg)' : '#1B2B4B',
           color: actionToast.type === 'error' ? '#991B1B' : 'white',
           padding: '12px 20px', borderRadius: 12,
           fontWeight: 700, fontSize: 14,
@@ -1157,9 +1181,9 @@ export default function ParentDashboard() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           zIndex: 500, display: 'flex', alignItems: 'center',
           justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: 'white', borderRadius: 20,
+          <div style={{ background: 'var(--bg-card)', borderRadius: 20,
             padding: 32, maxWidth: 400, width: '100%' }}>
-            <h2 style={{ fontWeight: 800, color: '#1B2B4B', marginBottom: 20, fontSize: 20 }}>
+            <h2 style={{ fontWeight: 800, color: 'var(--text-primary)', marginBottom: 20, fontSize: 20 }}>
               🔑 Change Password
             </h2>
             <form onSubmit={handleChangePassword}>
@@ -1169,7 +1193,7 @@ export default function ParentDashboard() {
                 { label: 'Confirm New Password', key: 'confirm' },
               ].map(field => (
                 <div key={field.key} style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                  <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                     {field.label}
                   </label>
                   <input
@@ -1185,18 +1209,18 @@ export default function ParentDashboard() {
                 </div>
               ))}
               {changePwError && (
-                <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{changePwError}</p>
+                <p style={{ color: 'var(--error)', fontSize: 13, marginBottom: 12 }}>{changePwError}</p>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button"
                   onClick={() => { setShowChangePassword(false); setChangePwError('') }}
-                  style={{ flex: 1, padding: 12, background: 'white',
+                  style={{ flex: 1, padding: 12, background: 'var(--bg-card)',
                     border: '1.5px solid #E2E8F0', borderRadius: 10,
-                    fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                    fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={changePwLoading}
-                  style={{ flex: 2, padding: 12, background: '#1B2B4B',
+                  style={{ flex: 2, padding: 12, background: 'var(--bg-header)',
                     color: 'white', border: '2px solid #C49A1A',
                     borderRadius: 10, fontWeight: 800,
                     cursor: changePwLoading ? 'not-allowed' : 'pointer' }}>
@@ -1213,17 +1237,17 @@ export default function ParentDashboard() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           zIndex: 500, display: 'flex', alignItems: 'center',
           justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: 'white', borderRadius: 20,
+          <div style={{ background: 'var(--bg-card)', borderRadius: 20,
             padding: 32, maxWidth: 400, width: '100%' }}>
-            <h2 style={{ fontWeight: 800, color: '#1B2B4B', marginBottom: 4, fontSize: 20 }}>
+            <h2 style={{ fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4, fontSize: 20 }}>
               🧒 Add Child
             </h2>
-            <p style={{ color: '#64748B', fontSize: 14, marginBottom: 20 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>
               Add your child&apos;s details to get started
             </p>
             <form onSubmit={handleAddChildSubmit}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                   Child&apos;s Name
                 </label>
                 <input
@@ -1238,7 +1262,7 @@ export default function ParentDashboard() {
                 />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                   Year Level
                 </label>
                 <select
@@ -1255,7 +1279,7 @@ export default function ParentDashboard() {
                 </select>
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 13, color: '#64748B', display: 'block', marginBottom: 4 }}>
+                <label style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
                   4-digit PIN (child uses this to log in)
                 </label>
                 <input
@@ -1273,18 +1297,18 @@ export default function ParentDashboard() {
                 />
               </div>
               {addChildError && (
-                <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{addChildError}</p>
+                <p style={{ color: 'var(--error)', fontSize: 13, marginBottom: 12 }}>{addChildError}</p>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button"
                   onClick={() => { setShowAddChildModal(false); setAddChildError('') }}
-                  style={{ flex: 1, padding: 12, background: 'white',
+                  style={{ flex: 1, padding: 12, background: 'var(--bg-card)',
                     border: '1.5px solid #E2E8F0', borderRadius: 10,
-                    fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                    fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={addChildLoading}
-                  style={{ flex: 2, padding: 12, background: '#1B2B4B',
+                  style={{ flex: 2, padding: 12, background: 'var(--bg-header)',
                     color: 'white', border: '2px solid #C49A1A',
                     borderRadius: 10, fontWeight: 800,
                     cursor: addChildLoading ? 'not-allowed' : 'pointer' }}>
@@ -1300,25 +1324,25 @@ export default function ParentDashboard() {
       {showNPS && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24,
-          background: 'white', borderRadius: 20,
+          background: 'var(--bg-card)', borderRadius: 20,
           padding: 24, maxWidth: 360,
           boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-          border: '1px solid #E2E8F0', zIndex: 300,
+          border: '1px solid var(--border-color)', zIndex: 300,
         }}>
           <button
             onClick={dismissNPS}
             aria-label="Dismiss survey"
             style={{ position: 'absolute', top: 12, right: 16,
               background: 'none', border: 'none',
-              cursor: 'pointer', color: '#94A3B8',
+              cursor: 'pointer', color: 'var(--text-muted)',
               fontSize: 18 }}>
             ✕
           </button>
-          <p style={{ fontWeight: 800, color: '#1B2B4B',
+          <p style={{ fontWeight: 800, color: 'var(--text-primary)',
             marginBottom: 6, fontSize: 15 }}>
             How likely are you to recommend MyMathsHero?
           </p>
-          <p style={{ color: '#64748B', fontSize: 12,
+          <p style={{ color: 'var(--text-secondary)', fontSize: 12,
             marginBottom: 16 }}>
             0 = Not at all · 10 = Definitely!
           </p>
@@ -1329,9 +1353,9 @@ export default function ParentDashboard() {
                 style={{
                   width: 36, height: 36,
                   borderRadius: 8, border: '1.5px solid #E2E8F0',
-                  background: n >= 9 ? '#DCFCE7'
-                    : n >= 7 ? '#FFFBEB' : 'white',
-                  color: '#1B2B4B', fontWeight: 700,
+                  background: n >= 9 ? 'var(--correct-bg)'
+                    : n >= 7 ? 'var(--accent-gold-light)' : 'white',
+                  color: 'var(--text-primary)', fontWeight: 700,
                   fontSize: 13, cursor: 'pointer',
                 }}>
                 {n}

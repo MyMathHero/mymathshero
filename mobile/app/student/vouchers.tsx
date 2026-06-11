@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo} from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert, RefreshControl,
 } from 'react-native'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { voucherAPI } from '../../lib/api'
@@ -15,7 +16,7 @@ type Tier = {
   id: string
   name: string
   emoji: string
-  pointsCost: number
+  coinsCost: number
   description: string
   value: string
   color: string
@@ -29,16 +30,18 @@ type Voucher = {
   emoji: string
   code: string
   status: 'pending' | 'sent' | 'redeemed' | string
-  pointsSpent: number
+  coinsSpent: number
   createdAt?: string
 }
 
 export default function VouchersScreen() {
+  const { colors } = useTheme()
+  const s = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [redeeming, setRedeeming] = useState<string | null>(null)
-  const [xp, setXp] = useState(0)
+  const [coins, setCoins] = useState(0)
   const [vouchers, setVouchers] = useState<Voucher[]>([])
   const [tiers, setTiers] = useState<Tier[]>([])
 
@@ -48,7 +51,7 @@ export default function VouchersScreen() {
     try {
       const res = await voucherAPI.list()
       const data = res?.data || {}
-      setXp(data.xp || 0)
+      setCoins(data.coins || 0)
       setVouchers(Array.isArray(data.vouchers) ? data.vouchers : [])
       setTiers(Array.isArray(data.tiers) ? data.tiers : [])
     } catch (err: any) {
@@ -70,16 +73,16 @@ export default function VouchersScreen() {
   }
 
   function confirmRedeem(tier: Tier) {
-    if (xp < tier.pointsCost) {
+    if (coins < tier.coinsCost) {
       Alert.alert(
-        'Not enough Hero Points',
-        `You need ${tier.pointsCost - xp} more points for the ${tier.name}.`
+        'Not enough coins',
+        `You need ${tier.coinsCost - coins} more coins 🪙 for the ${tier.name}.`
       )
       return
     }
     Alert.alert(
       `Redeem ${tier.name}?`,
-      `Spend ${tier.pointsCost} Hero Points for ${tier.value} Hero Arcade Credits?`,
+      `Spend ${tier.coinsCost} coins 🪙 for ${tier.value} Hero Arcade Credits?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Redeem', style: 'default', onPress: () => redeem(tier) },
@@ -94,7 +97,7 @@ export default function VouchersScreen() {
       const res = await voucherAPI.redeem(tier.id)
       const data = res?.data
       if (data?.success) {
-        setXp(typeof data.newXP === 'number' ? data.newXP : xp)
+        setCoins(typeof data.newCoins === 'number' ? data.newCoins : coins)
         if (data.voucher) setVouchers(prev => [data.voucher, ...prev])
         Alert.alert(
           '🎉 Voucher Redeemed!',
@@ -128,7 +131,7 @@ export default function VouchersScreen() {
         </TouchableOpacity>
         <Text style={s.title}>🎟️ Hero Vouchers</Text>
         <View style={s.pointsPill}>
-          <Text style={s.pointsText}>⚡ {xp}</Text>
+          <Text style={s.pointsText}>🪙 {coins}</Text>
         </View>
       </View>
 
@@ -147,9 +150,9 @@ export default function VouchersScreen() {
         <View style={s.howCard}>
           <Text style={s.howTitle}>🕹️ How Hero Vouchers Work</Text>
           {[
-            '1. Answer Maths questions to earn Hero Points ⚡',
-            '2. Reach enough points to unlock a tier',
-            '3. Redeem your points for Hero Arcade Credits',
+            '1. Answer Maths questions to earn coins 🪙',
+            '2. Reach enough coins to unlock a tier',
+            '3. Redeem your coins for Hero Arcade Credits',
             "4. Your parent gets the code by email",
           ].map((line, i) => (
             <Text key={i} style={s.howLine}>{line}</Text>
@@ -161,8 +164,8 @@ export default function VouchersScreen() {
         {tiers.length === 0 ? (
           <Text style={s.empty}>No tiers available.</Text>
         ) : tiers.map(tier => {
-          const canAfford = xp >= tier.pointsCost
-          const needed = tier.pointsCost - xp
+          const canAfford = coins >= tier.coinsCost
+          const needed = tier.coinsCost - coins
           return (
             <TouchableOpacity
               key={tier.id}
@@ -200,7 +203,7 @@ export default function VouchersScreen() {
                     s.tierBtnText,
                     { color: canAfford ? 'white' : '#94A3B8' },
                   ]}>
-                    {redeeming === tier.id ? '…' : `⚡ ${tier.pointsCost}`}
+                    {redeeming === tier.id ? '…' : `🪙 ${tier.coinsCost}`}
                   </Text>
                 </View>
               </View>
@@ -245,36 +248,36 @@ export default function VouchersScreen() {
   )
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bgPrimary },
   loading: {
-    flex: 1, backgroundColor: theme.colors.navy,
+    flex: 1, backgroundColor: c.bgHeader,
     alignItems: 'center', justifyContent: 'center',
   },
-  loadingText: { color: theme.colors.gold, marginTop: 12, fontWeight: '600' },
+  loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, backgroundColor: theme.colors.navy,
+    padding: 16, backgroundColor: c.bgHeader,
   },
-  back: { color: theme.colors.gold, fontWeight: '700', fontSize: 15 },
+  back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
   title: { color: 'white', fontWeight: '800', fontSize: 18 },
   pointsPill: {
     backgroundColor: 'rgba(196,154,26,0.2)',
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
   },
-  pointsText: { color: theme.colors.gold, fontWeight: '800', fontSize: 13 },
+  pointsText: { color: c.accentGold, fontWeight: '800', fontSize: 13 },
 
   scroll: { flex: 1 },
 
   howCard: {
-    backgroundColor: theme.colors.navy,
+    backgroundColor: c.bgHeader,
     borderRadius: 16, padding: 16, marginBottom: 20,
-    borderWidth: 1, borderColor: theme.colors.gold,
+    borderWidth: 1, borderColor: c.accentGold,
   },
   howTitle: {
-    color: theme.colors.gold, fontWeight: '800',
+    color: c.accentGold, fontWeight: '800',
     fontSize: 15, marginBottom: 8,
   },
   howLine: {
@@ -282,10 +285,10 @@ const s = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontWeight: '800', color: '#1B2B4B',
+    fontWeight: '800', color: c.textPrimary,
     fontSize: 16, marginBottom: 12,
   },
-  empty: { color: '#94A3B8', fontSize: 14, paddingVertical: 12 },
+  empty: { color: c.textMuted, fontSize: 14, paddingVertical: 12 },
 
   tierCard: {
     borderRadius: 16, borderWidth: 2,
@@ -293,9 +296,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
   },
   tierEmoji: { fontSize: 40 },
-  tierName: { fontWeight: '800', color: '#1B2B4B', fontSize: 16, marginBottom: 2 },
-  tierDesc: { color: '#64748B', fontSize: 13 },
-  tierNeed: { color: '#EF4444', fontSize: 12, fontWeight: '600', marginTop: 2 },
+  tierName: { fontWeight: '800', color: c.textPrimary, fontSize: 16, marginBottom: 2 },
+  tierDesc: { color: c.textSecondary, fontSize: 13 },
+  tierNeed: { color: c.error, fontSize: 12, fontWeight: '600', marginTop: 2 },
   tierValue: { fontWeight: '800', fontSize: 20, marginBottom: 6 },
   tierBtn: {
     borderRadius: 10, borderWidth: 2,
@@ -304,14 +307,14 @@ const s = StyleSheet.create({
   tierBtnText: { fontWeight: '700', fontSize: 12 },
 
   voucherRow: {
-    backgroundColor: 'white', borderRadius: 14,
+    backgroundColor: c.bgCard, borderRadius: 14,
     padding: 14, marginBottom: 8,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: '#E2E8F0',
+    borderWidth: 1, borderColor: c.borderColor,
   },
   voucherEmoji: { fontSize: 28 },
-  voucherName: { fontWeight: '700', color: '#1B2B4B', fontSize: 14 },
-  voucherRef: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+  voucherName: { fontWeight: '700', color: c.textPrimary, fontSize: 14 },
+  voucherRef: { fontSize: 11, color: c.textMuted, marginTop: 2 },
   statusPill: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
 })

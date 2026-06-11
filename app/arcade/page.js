@@ -31,6 +31,11 @@ export default function ArcadePage() {
   const [stars, setStars] = useState([])
   const sessionTimerRef = useRef(null)
   const iframeRef = useRef(null)
+  // Running session minutes + ids kept in refs so the heartbeat interval and
+  // the unmount cleanup always read fresh values (not stale closures).
+  const sessionMinutesRef = useRef(0)
+  const sessionIdRef = useRef(null)
+  const playingGameRef = useRef(null)
 
   // Generate random stars for background
   useEffect(() => {
@@ -49,6 +54,15 @@ export default function ArcadePage() {
     loadArcadeData()
   }, [])
 
+  // Arcade is always dark themed — override the global theme while this page is
+  // mounted so any var(--...) usage resolves to the dark palette, then restore.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme-override', 'arcade')
+    return () => {
+      document.documentElement.removeAttribute('data-theme-override')
+    }
+  }, [])
+
   // Redirect away if the Arcade feature is turned off (direct-URL guard).
   // Wait for the real flag values before deciding so we don't bounce on the
   // hardcoded default.
@@ -58,12 +72,36 @@ export default function ArcadePage() {
     }
   }, [flagsLoaded, flags.arcadeEnabled, router])
 
-  // Clear the session timer if the component unmounts mid-game.
+  // Clear the session timer if the component unmounts mid-game, and save
+  // whatever time was played via sendBeacon (survives tab close / navigate
+  // away, where a normal fetch would be cancelled).
   useEffect(() => {
     return () => {
       if (sessionTimerRef.current) clearInterval(sessionTimerRef.current)
+      const sid = sessionIdRef.current
+      const mins = sessionMinutesRef.current
+      if (sid && mins > 0 && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon(
+          '/api/student/arcade-heartbeat',
+          JSON.stringify({
+            sessionId: sid,
+            studentId: student?.userId,
+            durationMinutes: mins,
+          })
+        )
+      }
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student])
+
+  // Refresh arcade data whenever we land back in the lobby (e.g. after a game),
+  // so minutesToday reflects any time logged elsewhere.
+  useEffect(() => {
+    if (phase === 'lobby' && student?.userId) {
+      loadArcadeData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   // Safety: never get stuck on the intro animation. If the video doesn't fire
   // onEnded (slow load, codec issue, etc.) move to the lobby after 5s max.
@@ -98,8 +136,8 @@ export default function ArcadePage() {
   async function handleEnterArcade() {
     if (!arcadeData) return
 
-    // Check if student has enough XP to enter (minimum 20 points)
-    if ((arcadeData.xp || 0) < 20) {
+    // Check if student has enough coins to enter (minimum 20 coins)
+    if ((arcadeData.coins || 0) < 20) {
       setPhase('locked')
       return
     }
@@ -124,7 +162,7 @@ export default function ArcadePage() {
 
   async function handleUnlockGame(game) {
     if (unlocking) return
-    const check = canPlayGame(game, arcadeData?.xp || 0, arcadeData?.plan)
+    const check = canPlayGame(game, arcadeData?.coins || 0, arcadeData?.plan)
     if (!check.allowed) {
       alert(check.reason)
       return
@@ -143,10 +181,10 @@ export default function ArcadePage() {
       })
       const data = await res.json()
       if (data.success) {
-        Analytics.gameUnlocked(game.id, game.title, game.pointsCost)
+        Analytics.gameUnlocked(game.id, game.title, game.coinsCost)
         setArcadeData(prev => ({
           ...prev,
-          xp: data.newXP ?? prev.xp,
+          coins: data.newCoins ?? prev.coins,
           unlockedGames: [...(prev.unlockedGames || []), game.id],
         }))
         handlePlayGame(game)
@@ -183,16 +221,46 @@ export default function ArcadePage() {
       }
       if (data.success) {
         setSessionId(data.sessionId)
+        sessionIdRef.current = data.sessionId
         setPlayingGame(game)
+        playingGameRef.current = game
         setPhase('playing')
         setSessionMinutes(0)
-        sessionTimerRef.current = setInterval(() => {
-          setSessionMinutes(m => {
-            if (m >= (data.minutesRemaining - 1)) {
-              setShowLimitWarning(true)
+        sessionMinutesRef.current = 0
+
+        // Heartbeat every 60s — persists durationMinutes to the DB and pulls
+        // back the server's authoritative minutesToday so it stays in sync
+        // across devices. Refs avoid stale-closure bugs in the interval.
+        sessionTimerRef.current = setInterval(async () => {
+          const newMinutes = sessionMinutesRef.current + 1
+          sessionMinutesRef.current = newMinutes
+          setSessionMinutes(newMinutes)
+
+          try {
+            const hbRes = await fetch('/api/student/arcade-heartbeat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: sessionIdRef.current,
+                studentId: student.userId,
+                durationMinutes: newMinutes,
+              }),
+            })
+            const hb = await hbRes.json()
+            if (hb.minutesToday !== undefined) {
+              setArcadeData(prev => ({
+                ...prev,
+                minutesToday: hb.minutesToday,
+                minutesRemaining: hb.minutesRemaining,
+              }))
             }
-            return m + 1
-          })
+            if (hb.limitReached) {
+              setShowLimitWarning(true)
+              setTimeout(() => handleExitGame(), 30000)
+            }
+          } catch {
+            // Heartbeat failed — keep playing, time tracked locally for now.
+          }
         }, 60000)
       } else {
         alert(data.error || 'Could not start game')
@@ -204,8 +272,12 @@ export default function ArcadePage() {
 
   function handleExitGame() {
     clearInterval(sessionTimerRef.current)
-    if (sessionId && sessionMinutes > 0) {
-      Analytics.gamePlayed(playingGame?.id, playingGame?.title, sessionMinutes)
+    const finalMinutes = sessionMinutesRef.current
+    if (sessionId) {
+      if (finalMinutes > 0) {
+        Analytics.gamePlayed(playingGame?.id, playingGame?.title, finalMinutes)
+      }
+      // Send the final end + duration, then refresh so minutesToday is current.
       fetch('/api/student/arcade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,12 +286,14 @@ export default function ArcadePage() {
           gameId: playingGame?.id,
           action: 'end',
           sessionId,
-          durationMinutes: sessionMinutes,
+          durationMinutes: finalMinutes,
         }),
-      }).catch(() => {})
+      }).then(() => loadArcadeData()).catch(() => {})
     }
     setPlayingGame(null)
     setSessionId(null)
+    sessionIdRef.current = null
+    playingGameRef.current = null
     setPhase('lobby')
     setShowLimitWarning(false)
   }
@@ -363,10 +437,10 @@ export default function ArcadePage() {
 
           <p style={{ color: 'rgba(255,255,255,0.6)',
             fontSize: 18, marginBottom: 40 }}>
-            Earn Hero Points in Maths · Unlock Epic Games
+            Earn Coins in Maths · Unlock Epic Games
           </p>
 
-          {/* XP Status */}
+          {/* Coin balance — the arcade's spending currency */}
           <div style={{
             display: 'inline-flex', alignItems: 'center',
             gap: 12, background: 'rgba(255,255,255,0.05)',
@@ -374,13 +448,13 @@ export default function ArcadePage() {
             borderRadius: 20, padding: '12px 24px',
             marginBottom: 32,
           }}>
-            <span style={{ fontSize: 24 }}>⚡</span>
+            <span style={{ fontSize: 24 }}>🪙</span>
             <span style={{ color: '#C49A1A', fontWeight: 800,
               fontSize: 20 }}>
-              {arcadeData?.xp || 0}
+              {arcadeData?.coins || 0}
             </span>
             <span style={{ color: 'rgba(255,255,255,0.5)',
-              fontSize: 14 }}>Hero Points</span>
+              fontSize: 14 }}>Coins</span>
           </div>
 
           {/* Today's limit indicator */}
@@ -520,9 +594,9 @@ export default function ArcadePage() {
             fontSize: 16, maxWidth: 400,
             margin: '0 auto 32px' }}>
             You need at least <strong style={{ color: '#C49A1A' }}>
-              20 Hero Points
+              20 coins 🪙
             </strong> to enter the Arcade.
-            Answer Maths questions to earn points!
+            Answer Maths questions to earn coins!
           </p>
           <div style={{
             background: 'rgba(196,154,26,0.1)',
@@ -531,14 +605,14 @@ export default function ArcadePage() {
             display: 'inline-block',
           }}>
             <p style={{ color: '#C49A1A', fontSize: 14,
-              margin: 0 }}>Your Hero Points</p>
+              margin: 0 }}>Your Coins 🪙</p>
             <p style={{ color: 'white', fontSize: 48,
               fontWeight: 900, margin: '8px 0' }}>
-              {arcadeData?.xp || 0}
+              {arcadeData?.coins || 0}
             </p>
             <p style={{ color: 'rgba(255,255,255,0.5)',
               fontSize: 13, margin: 0 }}>
-              Need 20 to unlock
+              Need 20 coins to unlock
             </p>
           </div>
           <br />
@@ -806,10 +880,10 @@ export default function ArcadePage() {
           <div style={{ textAlign: 'center' }}>
             <p style={{ color: '#C49A1A', fontWeight: 800,
               fontSize: 16, margin: 0 }}>
-              ⚡ {arcadeData?.xp || 0}
+              🪙 {arcadeData?.coins || 0}
             </p>
             <p style={{ color: 'rgba(255,255,255,0.4)',
-              fontSize: 10, margin: 0 }}>Hero Points</p>
+              fontSize: 10, margin: 0 }}>Coins</p>
           </div>
           <div style={{ textAlign: 'center' }}>
             <p style={{ color: 'white', fontWeight: 700,
@@ -868,7 +942,7 @@ export default function ArcadePage() {
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             {[
-              { label: 'Hero Points', value: arcadeData?.xp || 0, emoji: '⚡', color: '#C49A1A' },
+              { label: 'Coins', value: arcadeData?.coins || 0, emoji: '🪙', color: '#C49A1A' },
               { label: 'Games Unlocked', value: (arcadeData?.unlockedGames || []).length, emoji: '🔓', color: '#22C55E' },
               { label: 'Games Available', value: ARCADE_GAMES.filter(g => !g.comingSoon && g.embedUrl).length, emoji: '🎮', color: '#60A5FA' },
             ].map((s, i) => (
@@ -1020,7 +1094,7 @@ export default function ArcadePage() {
                     }}>
                       <span style={{ color: '#C49A1A',
                         fontSize: 12, fontWeight: 700 }}>
-                        🔓 {game.pointsCost} pts to unlock
+                        🪙 {game.coinsCost} coins to unlock
                       </span>
                     </div>
                   )}
@@ -1100,7 +1174,7 @@ export default function ArcadePage() {
               {[
                 { label: 'Category', value: selectedGame.category },
                 { label: 'Age', value: selectedGame.ageRating },
-                { label: 'Cost', value: `${selectedGame.pointsCost} pts` },
+                { label: 'Cost', value: `${selectedGame.coinsCost} 🪙` },
               ].map((s, i) => (
                 <div key={i} style={{
                   background: 'rgba(255,255,255,0.06)',
@@ -1189,13 +1263,13 @@ export default function ArcadePage() {
                   Upgrade to Premium →
                 </button>
               </div>
-            ) : (arcadeData?.xp || 0) >= selectedGame.pointsCost ? (
+            ) : (arcadeData?.coins || 0) >= selectedGame.coinsCost ? (
               <div>
                 <p style={{ color: 'rgba(255,255,255,0.6)',
                   textAlign: 'center', fontSize: 14,
                   marginBottom: 12 }}>
                   Spend <strong style={{ color: '#C49A1A' }}>
-                    {selectedGame.pointsCost} Hero Points
+                    {selectedGame.coinsCost} coins 🪙
                   </strong> to unlock this game forever
                 </p>
                 <button
@@ -1212,7 +1286,7 @@ export default function ArcadePage() {
                     fontSize: 16, cursor: 'pointer',
                   }}
                 >
-                  🔓 UNLOCK FOR {selectedGame.pointsCost} POINTS
+                  🔓 UNLOCK FOR {selectedGame.coinsCost} COINS
                 </button>
               </div>
             ) : (
@@ -1220,7 +1294,7 @@ export default function ArcadePage() {
                 <p style={{ color: 'rgba(255,255,255,0.5)',
                   marginBottom: 16 }}>
                   Need <strong style={{ color: '#EF4444' }}>
-                    {selectedGame.pointsCost - (arcadeData?.xp || 0)} more points
+                    {selectedGame.coinsCost - (arcadeData?.coins || 0)} more coins
                   </strong> to unlock
                 </p>
                 <button
@@ -1229,7 +1303,7 @@ export default function ArcadePage() {
                     router.push('/student-dashboard')
                   }}
                   style={styles.goldButton}>
-                  ✦ Earn More Points →
+                  ✦ Earn More Coins →
                 </button>
               </div>
             )}

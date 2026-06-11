@@ -7,13 +7,24 @@ import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Analytics } from '@/lib/analytics'
 
 const BRAND_DARK = '#1B2B4B'
-const BRAND_GOLD = '#C49A1A'
+const BRAND_GOLD = 'var(--accent-gold)'
 const BRAND_BG = '#F0F4F8'
 const BRAND_BORDER = '#E2E8F0'
 const BRAND_SUBTEXT = '#64748B'
 
 const AVATARS = ['🦊', '🐱', '🐶', '🦁', '🐼', '🦄', '🐸', '🦋']
 const GRADES = ['Prep', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6']
+
+// The <Select> binds to a label string ("Year 3") for display, but children
+// in Mongo MUST store an integer grade so the recommender, questions API and
+// SKILL_ID_MAP all line up. Teacher.grade keeps the label form — it's a
+// different domain (which year do they teach) and the teacher UI renders it.
+function gradeLabelToInt(label) {
+  if (!label) return null
+  if (label === 'Prep') return 0
+  const m = String(label).match(/\d+/)
+  return m ? parseInt(m[0], 10) : null
+}
 
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) }
 
@@ -28,7 +39,7 @@ const PATHS = [
 function Card({ children, style }) {
   return (
     <div style={{
-      background: '#FFFFFF',
+      background: 'var(--bg-card)',
       border: `1px solid ${BRAND_BORDER}`,
       borderRadius: 24,
       padding: '32px 28px',
@@ -61,7 +72,7 @@ function Input({ style, ...props }) {
     <input style={{
       width: '100%', padding: '11px 14px', borderRadius: 10,
       border: `1.5px solid ${BRAND_BORDER}`,
-      background: '#FFFFFF', color: BRAND_DARK,
+      background: 'var(--bg-card)', color: BRAND_DARK,
       fontSize: 15, outline: 'none', boxSizing: 'border-box', ...style,
     }} {...props} />
   )
@@ -72,7 +83,7 @@ function Select({ style, children, ...props }) {
     <select style={{
       width: '100%', padding: '11px 14px', borderRadius: 10,
       border: `1.5px solid ${BRAND_BORDER}`,
-      background: '#FFFFFF', color: BRAND_DARK,
+      background: 'var(--bg-card)', color: BRAND_DARK,
       fontSize: 15, outline: 'none', boxSizing: 'border-box', ...style,
     }} {...props}>
       {children}
@@ -156,7 +167,7 @@ function AvatarPicker({ value, onChange }) {
         <button key={a} type="button" onClick={() => onChange(a)} style={{
           fontSize: 28, padding: 10, borderRadius: 14,
           border: value === a ? `4px solid ${BRAND_GOLD}` : `2px solid ${BRAND_BORDER}`,
-          background: '#FFFFFF',
+          background: 'var(--bg-card)',
           cursor: 'pointer', transition: 'all 0.15s',
           lineHeight: 1,
         }}>{a}</button>
@@ -239,7 +250,7 @@ function ParentFlow({ onBack }) {
       const res = await fetch('/api/add-child', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parent_id: parentId, child_name: childName, grade, avatar }),
+        body: JSON.stringify({ parent_id: parentId, child_name: childName, grade: gradeLabelToInt(grade), avatar }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Failed to add child'); return }
@@ -524,7 +535,7 @@ function JoinFlow({ onBack }) {
               style={{
                 width: '100%', padding: '18px 56px 18px 20px', borderRadius: 14,
                 border: `2px solid ${code.length === 6 ? BRAND_GOLD : BRAND_BORDER}`,
-                background: '#FFFFFF', color: BRAND_DARK,
+                background: 'var(--bg-card)', color: BRAND_DARK,
                 fontSize: 32, fontWeight: 800, letterSpacing: 10, outline: 'none',
                 boxSizing: 'border-box', textAlign: 'center', transition: 'border 0.2s',
               }}
@@ -592,7 +603,7 @@ function PathPicker({ onSelect, flags }) {
       <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {visiblePaths.map(p => (
           <button key={p.id} onClick={() => onSelect(p.id)} style={{
-            background: '#FFFFFF',
+            background: 'var(--bg-card)',
             border: `2px solid ${BRAND_BORDER}`,
             borderRadius: 18, padding: '18px 20px',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16,

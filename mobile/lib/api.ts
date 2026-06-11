@@ -83,6 +83,16 @@ export const arcadeAPI = {
       studentId, gameId, action: 'end',
       sessionId, durationMinutes
     }),
+  heartbeat: (
+    sessionId: string,
+    studentId: string,
+    durationMinutes: number
+  ) =>
+    api.post('/api/student/arcade-heartbeat', {
+      sessionId,
+      studentId,
+      durationMinutes,
+    }),
 }
 
 export const parentAPI = {

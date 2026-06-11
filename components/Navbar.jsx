@@ -3,6 +3,22 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
+import ThemeToggle from '@/components/ThemeToggle'
+
+// The compact ThemeToggle is styled for dark headers (white label). The navbar
+// is light, so wrap it in a small navy chip to keep it legible.
+function NavbarThemeToggle() {
+  return (
+    <span style={{
+      display: 'inline-flex',
+      background: 'var(--bg-header)',
+      borderRadius: 20,
+      padding: 2,
+    }}>
+      <ThemeToggle compact />
+    </span>
+  )
+}
 
 export default function Navbar() {
   // null = loading, false = anonymous, object = authed user
@@ -58,8 +74,9 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Right — logout */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        {/* Right — theme + logout */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+          <NavbarThemeToggle />
           <button onClick={handleLogout} style={{
             background: 'none',
             border: '1px solid #E2E8F0',
@@ -110,6 +127,7 @@ export default function Navbar() {
           {flags.teacherDemo && (
             <Link href="/teacher-dashboard" style={linkStyle(pathname === '/teacher-dashboard')}>Teacher Demo</Link>
           )}
+          <NavbarThemeToggle />
           <Link href="/login" style={{ color: '#1B2B4B', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
             Login
           </Link>

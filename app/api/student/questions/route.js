@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { normaliseGrade } from '@/lib/normaliseGrade'
 
 let client
 async function connectDB() {
@@ -34,8 +35,12 @@ export async function GET(request) {
     const { getSkillGraph } = await import('@/lib/recommender')
     const skillDoc = getSkillGraph().find(s => s.id === skillId)
     const subject = skillDoc?.subject || 'Maths'
-    const gradeNum = Number.isFinite(parseInt(gradeParam, 10))
-      ? parseInt(gradeParam, 10)
+    // normaliseGrade accepts numbers, numeric strings ('3'), labels ('Year 3',
+    // 'Prep'), and unknown values — falls back to skillDoc.grade or 3. Without
+    // this, a request like grade='Year 6' becomes NaN → silently downgrades to
+    // grade 3 questions for a Year 6 student.
+    const gradeNum = gradeParam != null && gradeParam !== ''
+      ? normaliseGrade(gradeParam)
       : (skillDoc?.grade ?? 3)
 
     // Questions this student has already answered CORRECTLY for this skill —

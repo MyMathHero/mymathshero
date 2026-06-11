@@ -7,6 +7,7 @@ import AskHero from '@/components/AskHero'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
+import ThemeToggle from '@/components/ThemeToggle'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -100,9 +101,9 @@ function buildStrandsBySubject(strandBreakdown) {
 function LeaderboardRow({ entry }) {
   const rankStyle =
     entry.rank === 1 ? 'bg-amber-100 text-amber-700' :
-    entry.rank === 2 ? 'bg-gray-100 text-gray-600' :
+    entry.rank === 2 ? 'bg-gray-100 text-gray-600 dark:text-slate-300' :
     entry.rank === 3 ? 'bg-orange-50 text-orange-600' :
-    'bg-gray-50 text-gray-400'
+    'bg-gray-50 dark:bg-[#16202e] colorblind:bg-[#F5F5F0] text-gray-400 dark:text-slate-400'
   return (
     <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${entry.isCurrentStudent ? 'bg-electric/5 border border-electric/20' : 'hover:bg-gray-50'}`}>
       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${rankStyle}`}>
@@ -110,11 +111,19 @@ function LeaderboardRow({ entry }) {
       </span>
       <span className="text-lg flex-shrink-0">{entry.avatar || '🦊'}</span>
       <div className="flex-1 min-w-0">
-        <span className={`text-xs font-semibold truncate block ${entry.isCurrentStudent ? 'text-electric' : 'text-navy'}`}>
+        <span
+          className="text-xs font-semibold truncate block"
+          style={{ color: entry.isCurrentStudent ? 'var(--accent-gold)' : 'var(--text-primary)' }}
+        >
           {entry.name}{entry.isCurrentStudent ? ' (You)' : ''}
         </span>
       </div>
-      <span className="text-xs font-bold text-gray-500 flex-shrink-0">{(entry.xp || 0).toLocaleString()} Hero Points</span>
+      <span
+        className="text-xs font-bold flex-shrink-0"
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        {(entry.xp || 0).toLocaleString()} Hero Points
+      </span>
     </div>
   )
 }
@@ -918,8 +927,8 @@ export default function StudentDashboard() {
             message: `Your ${info.name} needs work (score: ${Math.round(weakest.currentScore || 0)}/100). Let's improve it now!`,
             action: 'Practice Now',
             skill: weakest,
-            color: '#FEF3C7',
-            borderColor: '#F59E0B',
+            color: 'var(--wrong-bg)',
+            borderColor: 'var(--wrong)',
           })
         }
       }
@@ -937,8 +946,8 @@ export default function StudentDashboard() {
             action: 'Take Exam!',
             skill: readyForExam,
             isExam: true,
-            color: '#DCFCE7',
-            borderColor: '#22C55E',
+            color: 'var(--correct-bg)',
+            borderColor: 'var(--correct)',
           })
         }
       }
@@ -1009,7 +1018,7 @@ export default function StudentDashboard() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: '#F0F4F8',
+        background: 'var(--bg-primary)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1022,13 +1031,13 @@ export default function StudentDashboard() {
           alt="MyMathsHero"
           style={{ width: 80, animation: 'pulse 1.5s infinite' }}
         />
-        <p style={{ color: '#1B2B4B', fontWeight: 600 }}>Loading your dashboard...</p>
+        <p style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Loading your dashboard...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50" style={{ background: 'var(--bg-primary)' }}>
       <style jsx global>{`
         @keyframes confetti-burst { 0% { transform: translate(-50%,-50%) scale(0) rotate(0deg); opacity: 1; } 100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1) rotate(var(--rot)); opacity: 0; } }
         @keyframes celebrate-bounce { 0%,100% { transform: scale(1); } 30% { transform: scale(1.3); } 60% { transform: scale(0.95); } }
@@ -1044,7 +1053,7 @@ export default function StudentDashboard() {
       {/* A) Sticky top header bar */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 50,
-        background: '#1B2B4B',
+        background: 'var(--bg-header)',
         padding: '12px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -1058,12 +1067,12 @@ export default function StudentDashboard() {
             {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
           </p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <p style={{ color: '#C49A1A', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
+            <p style={{ color: 'var(--accent-gold)', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
             {/* Plan badge — shows the student their current plan */}
             <span style={{
               background: studentPlan === 'premium' ? '#1B2B4B' : '#F0F4F8',
-              color: studentPlan === 'premium' ? '#C49A1A' : '#94A3B8',
-              border: studentPlan === 'premium' ? '1px solid #C49A1A' : '1px solid #E2E8F0',
+              color: studentPlan === 'premium' ? 'var(--accent-gold)' : '#94A3B8',
+              border: studentPlan === 'premium' ? '1px solid #C49A1A' : '1px solid var(--border-color)',
               borderRadius: 10, padding: '3px 10px',
               fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
             }}>
@@ -1078,7 +1087,7 @@ export default function StudentDashboard() {
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'center' }}
             title="Open Avatar Shop"
           >
-            <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 14, margin: 0 }}>
+            <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 14, margin: 0 }}>
               🪙 {coins}
             </p>
           </button>
@@ -1095,19 +1104,23 @@ export default function StudentDashboard() {
           >
             <Sparkles size={18} color="#C49A1A" />
           </button>
+          {/* Theme switcher rendered once in the global Navbar; do not duplicate here. */}
         </div>
       </div>
 
       {/* B) Hero stats bar */}
       <div style={{
-        background: 'linear-gradient(135deg, #1B2B4B 0%, #2D4A7A 100%)',
+        background: 'linear-gradient(135deg, var(--bg-header) 0%, var(--bg-header-secondary) 100%)',
         padding: '16px 20px',
         display: 'flex',
         gap: 12,
         overflowX: 'auto',
       }}>
         {[
-          { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡' },
+          // The two currencies, shown separately and clearly labelled:
+          // Hero Points = leaderboard ranking only; Coins = spending currency.
+          { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡', sub: 'for leaderboard' },
+          { label: 'Coins', value: (coins || 0).toLocaleString(), emoji: '🪙', sub: 'spend in arcade' },
           { label: 'Mastered', value: stats?.mastered ?? 0, emoji: '🏆' },
           { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
           { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
@@ -1124,6 +1137,9 @@ export default function StudentDashboard() {
             <p style={{ fontSize: 20, margin: '0 0 2px' }}>{s.emoji}</p>
             <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>{s.value}</p>
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, margin: 0 }}>{s.label}</p>
+            {s.sub && (
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, margin: '1px 0 0' }}>{s.sub}</p>
+            )}
           </div>
         ))}
       </div>
@@ -1134,8 +1150,8 @@ export default function StudentDashboard() {
           display: 'flex',
           gap: 8,
           padding: '16px 20px 8px',
-          background: 'white',
-          borderBottom: '1px solid #E2E8F0',
+          background: 'var(--bg-secondary)',
+          borderBottom: '1px solid var(--border-color)',
           overflowX: 'auto',
         }}>
           {visibleSubjects.map(sub => (
@@ -1143,8 +1159,8 @@ export default function StudentDashboard() {
               key={sub.id}
               onClick={() => setActiveSubject(sub.id)}
               style={{
-                background: activeSubject === sub.id ? '#1B2B4B' : '#F0F4F8',
-                color: activeSubject === sub.id ? 'white' : '#64748B',
+                background: activeSubject === sub.id ? 'var(--bg-header)' : 'var(--bg-primary)',
+                color: activeSubject === sub.id ? 'var(--text-on-dark)' : 'var(--text-secondary)',
                 border: 'none',
                 borderRadius: 20,
                 padding: '8px 20px',
@@ -1168,10 +1184,10 @@ export default function StudentDashboard() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Left Sidebar */}
           <div className="w-full lg:w-56 flex-shrink-0">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">🎮 Subjects</h3>
+            <h3 className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-3 px-1">🎮 Subjects</h3>
             <div className="space-y-2">
               {visibleSubjects.map(sub => (
-                <button key={sub.id} onClick={() => setActiveSubject(sub.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 ${activeSubject === sub.id ? `bg-gradient-to-r ${sub.gradient} text-white shadow-lg` : 'bg-white border-2 border-gray-100 text-gray-600 hover:border-gray-200'}`}>
+                <button key={sub.id} onClick={() => setActiveSubject(sub.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 ${activeSubject === sub.id ? `bg-gradient-to-r ${sub.gradient} text-white shadow-lg` : 'bg-white border-2 border-gray-100 text-gray-600 dark:text-slate-300 hover:border-gray-200'}`}>
                   <span className="text-xl">{sub.emoji}</span>{sub.name}{activeSubject === sub.id && <ChevronRight size={14} className="ml-auto" />}
                 </button>
               ))}
@@ -1199,7 +1215,7 @@ export default function StudentDashboard() {
             {/* Level card */}
             <div className="mt-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
               <div className="flex items-center gap-2 mb-2"><Rocket size={16} /><span className="font-bold text-sm">Level {level}</span></div>
-              <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden mb-1.5"><div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full shimmer-bg" style={{ width: `${levelProgress}%` }} /></div>
+              <div className="w-full h-3 bg-white/20 dark:bg-white/10 rounded-full overflow-hidden mb-1.5"><div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full shimmer-bg" style={{ width: `${levelProgress}%` }} /></div>
               <p className="text-[10px] text-white/70">{500 - (totalXp % 500)} Hero Points to Level {level + 1}</p>
             </div>
           </div>
@@ -1208,10 +1224,10 @@ export default function StudentDashboard() {
           <div className="flex-1 min-w-0">
             {/* === HERO MISSIONS SECTION === */}
             <div style={{
-              background: 'white',
+              background: 'var(--bg-card)',
               borderRadius: 20,
               padding: 24,
-              border: '1px solid #E2E8F0',
+              border: '1px solid var(--border-color)',
               marginBottom: 24,
             }}>
               {/* Section header */}
@@ -1219,10 +1235,10 @@ export default function StudentDashboard() {
                 alignItems: 'flex-start', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
                 <div>
                   <h2 style={{ fontSize: 20, fontWeight: 800,
-                    color: '#1B2B4B', margin: '0 0 4px' }}>
+                    color: 'var(--text-primary)', margin: '0 0 4px' }}>
                     Hero Missions ✦
                   </h2>
-                  <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>
                     AI-selected skills personalised for you
                   </p>
                 </div>
@@ -1232,9 +1248,9 @@ export default function StudentDashboard() {
                     e.target.value === 'all' ? null : e.target.value
                   )}
                   style={{
-                    border: '1px solid #E2E8F0', borderRadius: 8,
+                    border: '1px solid var(--border-color)', borderRadius: 8,
                     padding: '6px 12px', fontSize: 13,
-                    color: '#1B2B4B', background: 'white',
+                    color: 'var(--text-primary)', background: 'var(--bg-card)',
                     cursor: 'pointer',
                   }}
                 >
@@ -1249,7 +1265,7 @@ export default function StudentDashboard() {
 
               {/* Recommended skills (AI-selected) */}
               <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8',
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: '0.5px',
                   marginBottom: 12 }}>
                   🤖 Recommended for you
@@ -1294,6 +1310,9 @@ export default function StudentDashboard() {
                             <div style={{ display: 'flex',
                               alignItems: 'center', gap: 8,
                               marginBottom: 4, flexWrap: 'wrap' }}>
+                              {/* Card sits on info.lightColor (a light pastel)
+                                  regardless of theme, so pin text to navy for
+                                  guaranteed contrast in every theme. */}
                               <span style={{ fontWeight: 700,
                                 color: '#1B2B4B', fontSize: 15 }}>
                                 {info.name}
@@ -1315,7 +1334,7 @@ export default function StudentDashboard() {
                               <div style={{
                                 height: '100%', borderRadius: 3,
                                 width: `${score}%`,
-                                background: score >= 80 ? '#22C55E'
+                                background: score >= 80 ? 'var(--correct)'
                                   : score >= 50 ? info.color : '#E2E8F0',
                                 transition: 'width 0.5s ease',
                               }} />
@@ -1326,7 +1345,7 @@ export default function StudentDashboard() {
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontSize: 18, fontWeight: 800,
                               color: info.color }}>{score}</div>
-                            <div style={{ fontSize: 10, color: '#94A3B8' }}>
+                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                               /100
                             </div>
                           </div>
@@ -1340,7 +1359,7 @@ export default function StudentDashboard() {
                                   openSkillExam(skill)
                                 }}
                                 style={{
-                                  background: '#1B2B4B', color: '#C49A1A',
+                                  background: 'var(--bg-header)', color: 'var(--accent-gold)',
                                   border: '2px solid #C49A1A',
                                   borderRadius: 10, padding: '6px 12px',
                                   fontSize: 12, fontWeight: 700,
@@ -1357,10 +1376,10 @@ export default function StudentDashboard() {
                                   window.location.href = '/subscribe'
                                 }}
                                 style={{
-                                  background: '#F0F4F8',
+                                  background: 'var(--bg-primary)',
                                   border: '1px dashed #CBD5E1',
                                   borderRadius: 12, padding: '6px 12px',
-                                  color: '#94A3B8', fontWeight: 600,
+                                  color: 'var(--text-muted)', fontWeight: 600,
                                   fontSize: 12, cursor: 'pointer',
                                   display: 'flex', alignItems: 'center', gap: 6,
                                   whiteSpace: 'nowrap', flexShrink: 0,
@@ -1368,7 +1387,7 @@ export default function StudentDashboard() {
                               >
                                 🏆 Mastery Exam
                                 <span style={{
-                                  background: '#E2E8F0', color: '#94A3B8',
+                                  background: '#E2E8F0', color: 'var(--text-muted)',
                                   borderRadius: 8, padding: '2px 8px',
                                   fontSize: 10, fontWeight: 800,
                                 }}>
@@ -1382,7 +1401,7 @@ export default function StudentDashboard() {
                     })}
                   {recommendations.length === 0 && (
                     <div style={{ textAlign: 'center', padding: 24,
-                      color: '#94A3B8', fontSize: 13 }}>
+                      color: 'var(--text-muted)', fontSize: 13 }}>
                       <span style={{ fontSize: 28, display: 'block', marginBottom: 6 }}>🎉</span>
                       You&apos;ve mastered all available skills for now!
                     </div>
@@ -1392,7 +1411,7 @@ export default function StudentDashboard() {
 
               {/* ALL CATEGORIES BROWSER */}
               <div>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8',
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
                   textTransform: 'uppercase', letterSpacing: '0.5px',
                   marginBottom: 14 }}>
                   📚 All Maths Categories
@@ -1419,10 +1438,14 @@ export default function StudentDashboard() {
                         key={key}
                         onClick={() => handleCategoryClick(key)}
                         style={{
+                          // The selected variant uses the category's pastel
+                          // (always light) so pin text dark below; the
+                          // unselected variant uses the theme card bg so
+                          // var(--text-primary) flips correctly with theme.
                           background: selectedCategory === key
-                            ? cat.lightColor : 'white',
+                            ? cat.lightColor : 'var(--bg-card)',
                           border: `2px solid ${selectedCategory === key
-                            ? cat.color : '#E2E8F0'}`,
+                            ? cat.color : 'var(--border-color)'}`,
                           borderRadius: 14, padding: 14,
                           cursor: 'pointer',
                           transition: 'all 0.15s',
@@ -1431,13 +1454,17 @@ export default function StudentDashboard() {
                         <div style={{ fontSize: 28, marginBottom: 6 }}>
                           {cat.emoji}
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 700,
-                          color: '#1B2B4B', marginBottom: 4 }}>
+                        <div style={{
+                          fontSize: 13, fontWeight: 700, marginBottom: 4,
+                          color: selectedCategory === key
+                            ? '#1B2B4B'
+                            : 'var(--text-primary)',
+                        }}>
                           {cat.label}
                         </div>
                         {catSkills.length > 0 ? (
                           <>
-                            <div style={{ height: 4, background: '#F0F4F8',
+                            <div style={{ height: 4, background: 'var(--bg-primary)',
                               borderRadius: 2, overflow: 'hidden',
                               marginBottom: 4 }}>
                               <div style={{
@@ -1445,13 +1472,13 @@ export default function StudentDashboard() {
                                 background: cat.color, borderRadius: 2,
                               }} />
                             </div>
-                            <div style={{ fontSize: 11, color: '#64748B' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                               {masteredCount}/{catSkills.length} mastered
                             </div>
                           </>
                         ) : (
                           <div style={{
-                            fontSize: 11, color: '#C49A1A',
+                            fontSize: 11, color: 'var(--accent-gold)',
                             fontWeight: 700, marginTop: 4,
                           }}>
                             Tap to start →
@@ -1467,8 +1494,8 @@ export default function StudentDashboard() {
             {/* Today's Hero Challenges */}
             {recommendations.length > 0 && (
               <div className="mb-6">
-                <h2 className="text-lg font-bold text-navy mb-1">Today&apos;s Hero Challenges</h2>
-                <p className="text-sm text-gray-500 mb-4">Special activities to keep learning fun</p>
+                <h2 className="text-lg font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-1">Today&apos;s Hero Challenges</h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Special activities to keep learning fun</p>
 
                 {/* A) Daily Maths Puzzle */}
                 <div style={{
@@ -1480,60 +1507,60 @@ export default function StudentDashboard() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 32 }}>🧩</span>
                     <div>
-                      <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Daily Maths Puzzle</p>
+                      <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 16, margin: 0 }}>Daily Maths Puzzle</p>
                       <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, margin: 0 }}>New puzzle every day — can you solve it?</p>
                     </div>
-                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                   </div>
                 </div>
 
                 {/* B) Speed Round */}
                 <div style={{
-                  background: 'white', borderRadius: 16, padding: 20,
-                  border: '2px solid #E2E8F0', marginBottom: 12, cursor: 'pointer',
+                  background: 'var(--bg-card)', borderRadius: 16, padding: 20,
+                  border: '2px solid var(--border-color)', marginBottom: 12, cursor: 'pointer',
                 }} onClick={openSpeedRound}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 32 }}>⚡</span>
                     <div>
-                      <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Speed Round</p>
-                      <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>5 questions — beat your best time!</p>
+                      <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Speed Round</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>5 questions — beat your best time!</p>
                     </div>
-                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                   </div>
                 </div>
 
                 {/* C) Hero's Pick */}
                 <div style={{
-                  background: '#FFFBEB', borderRadius: 16, padding: 20,
+                  background: 'var(--accent-gold-light)', borderRadius: 16, padding: 20,
                   border: '2px solid #C49A1A', marginBottom: 12, cursor: 'pointer',
                 }} onClick={openHeroPick}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 32 }}>🤖</span>
                     <div>
-                      <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero&apos;s Pick</p>
-                      <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>Hero thinks you should practise this today</p>
-                      <p style={{ color: '#C49A1A', fontSize: 12, fontWeight: 700, margin: 0 }}>{recommendations[0]?.name || 'Loading...'}</p>
+                      <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero&apos;s Pick</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>Hero thinks you should practise this today</p>
+                      <p style={{ color: 'var(--accent-gold)', fontSize: 12, fontWeight: 700, margin: 0 }}>{recommendations[0]?.name || 'Loading...'}</p>
                     </div>
-                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                   </div>
                 </div>
 
                 {/* D) Weak Spot Trainer */}
                 {weakestSkill && (
                   <div style={{
-                    background: 'white', borderRadius: 16, padding: 20,
-                    border: '2px solid #E2E8F0', marginBottom: 12, cursor: 'pointer',
+                    background: 'var(--bg-card)', borderRadius: 16, padding: 20,
+                    border: '2px solid var(--border-color)', marginBottom: 12, cursor: 'pointer',
                   }} onClick={openWeakSpot}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ fontSize: 32 }}>🎯</span>
                       <div>
-                        <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 16, margin: 0 }}>Weak Spot Trainer</p>
-                        <p style={{ color: '#64748B', fontSize: 13, margin: 0 }}>Level up your weakest skill</p>
-                        <p style={{ color: '#EF4444', fontSize: 12, fontWeight: 700, margin: 0 }}>
+                        <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Weak Spot Trainer</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>Level up your weakest skill</p>
+                        <p style={{ color: 'var(--error)', fontSize: 12, fontWeight: 700, margin: 0 }}>
                           {weakestSkill.name} — Score: {Math.round(weakestSkill.currentScore)}/100
                         </p>
                       </div>
-                      <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                      <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                     </div>
                   </div>
                 )}
@@ -1551,40 +1578,40 @@ export default function StudentDashboard() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 32 }}>🎟️</span>
                     <div>
-                      <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero Vouchers</p>
+                      <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero Vouchers</p>
                       <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>Redeem points for Hero Arcade Credits</p>
-                      <p style={{ color: '#C49A1A', fontSize: 12, fontWeight: 700, margin: 0 }}>
+                      <p style={{ color: 'var(--accent-gold)', fontSize: 12, fontWeight: 700, margin: 0 }}>
                         ⚡ {(totalXp || 0).toLocaleString()} pts available
                       </p>
                     </div>
-                    <span style={{ marginLeft: 'auto', color: '#C49A1A', fontSize: 20 }}>→</span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Today's Missions */}
-            <div className="bg-white rounded-2xl p-5 border-2 border-dashed border-electric/30 shadow-sm mb-6">
-              <h3 className="font-bold text-navy text-sm mb-3">🎯 Today&apos;s Missions</h3>
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border-2 border-dashed border-electric/30 dark:border-white/15 shadow-sm mb-6">
+              <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-3">🎯 Today&apos;s Missions</h3>
               <div className="flex flex-col sm:flex-row gap-3">
                 {todaysGoals.map((goal, i) => (
-                  <div key={i} className={`flex items-center gap-3 flex-1 px-4 py-3 rounded-xl border-2 ${goal.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div key={i} className={`flex items-center gap-3 flex-1 px-4 py-3 rounded-xl border-2 ${goal.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 dark:bg-[#16202e] colorblind:bg-[#F5F5F0] border-gray-200'}`}>
                     <span className="text-2xl">{goal.emoji}</span>
-                    <div className="flex-1"><span className={`text-xs font-bold ${goal.completed ? 'text-green-700 line-through' : 'text-gray-700'}`}>{goal.text}</span><div className={`text-[10px] font-semibold ${goal.completed ? 'text-green-500' : 'text-gray-400'}`}>{goal.reward}</div></div>
+                    <div className="flex-1"><span className={`text-xs font-bold ${goal.completed ? 'text-green-700 line-through' : 'text-gray-700 dark:text-slate-200'}`}>{goal.text}</span><div className={`text-[10px] font-semibold ${goal.completed ? 'text-green-500' : 'text-gray-400 dark:text-slate-400'}`}>{goal.reward}</div></div>
                     {goal.completed && <span className="text-lg">✅</span>}
                   </div>
                 ))}
               </div>
             </div>
             {/* Leaderboard */}
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-navy text-sm flex items-center gap-2">
+                <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm flex items-center gap-2">
                   <Trophy size={16} className="text-[#C49A1A]" />
                   {leaderboardTabs[activeLeaderboardTab]?.period === 'alltime' ? 'All-Time Hero League' : 'Monthly Hero League'}
                 </h3>
                 {leaderboardTabs[activeLeaderboardTab]?.period !== 'alltime' && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-slate-400">
                     <Clock size={12} />
                     <span>Resets in {leaderboard.daysUntilReset}d</span>
                   </div>
@@ -1607,7 +1634,7 @@ export default function StudentDashboard() {
               <div className="flex gap-1 mb-4 overflow-x-auto">
                 {leaderboardTabs.map((tab, i) => (
                   <button key={i} onClick={() => setActiveLeaderboardTab(i)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 dark:text-slate-400 hover:bg-gray-200'}`}>
                     {tab.label}
                   </button>
                 ))}
@@ -1615,7 +1642,7 @@ export default function StudentDashboard() {
 
               {/* Current student rank pill */}
               {leaderboard.currentStudentRank && (
-                <div className="text-center text-[11px] text-gray-400 mb-3">
+                <div className="text-center text-[11px] text-gray-400 dark:text-slate-400 mb-3">
                   Your rank: <span className="font-bold text-electric">#{leaderboard.currentStudentRank}</span>
                   {leaderboard.totalInCohort ? ` of ${leaderboard.totalInCohort}` : ''}
                 </div>
@@ -1644,13 +1671,13 @@ export default function StudentDashboard() {
                   {/* Gap indicator if current student is out of top 10 */}
                   {leaderboard.currentStudentRow && (
                     <>
-                      <div className="text-center text-[10px] text-gray-300 py-1">• • •</div>
+                      <div className="text-center text-[10px] text-gray-300 dark:text-slate-600 py-1">• • •</div>
                       <LeaderboardRow entry={leaderboard.currentStudentRow} />
                     </>
                   )}
 
                   {leaderboard.leaderboard.length === 0 && (
-                    <p className="text-center text-xs text-gray-400 py-4">No activity this month yet. Start practising!</p>
+                    <p className="text-center text-xs text-gray-400 dark:text-slate-400 py-4">No activity this month yet. Start practising!</p>
                   )}
                 </div>
               )}
@@ -1660,15 +1687,15 @@ export default function StudentDashboard() {
           {/* Right Panel */}
           <div className="w-full lg:w-80 flex-shrink-0 space-y-5">
             {/* Tab switcher */}
-            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            <div className="flex gap-1 bg-gray-100 dark:bg-[#16202e] colorblind:bg-gray-200 rounded-xl p-1">
               {[{id:'progress',label:'📊 Progress'},{id:'strands',label:'📈 Strands'},{id:'badges',label:'🏅 Hero Badges'}].map(t => (
-                <button key={t.id} onClick={() => setRightTab(t.id)} className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${rightTab === t.id ? 'bg-white shadow-sm text-navy' : 'text-gray-500'}`}>{t.label}</button>
+                <button key={t.id} onClick={() => setRightTab(t.id)} className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${rightTab === t.id ? 'bg-white shadow-sm text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]' : 'text-gray-500 dark:text-slate-400'}`}>{t.label}</button>
               ))}
             </div>
 
             {rightTab === 'progress' && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <h3 className="font-bold text-navy text-sm mb-4">My Progress</h3>
+              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+                <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-4">My Progress</h3>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-green-50 rounded-xl p-3 text-center border border-green-200"><div className="text-2xl font-extrabold text-green-600">{stats.mastered}</div><div className="text-[10px] text-green-600 font-bold">Mastered 🏆</div></div>
                   <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-200"><div className="text-2xl font-extrabold text-blue-600">{stats.inProgress}</div><div className="text-[10px] text-blue-600 font-bold">In Progress 📈</div></div>
@@ -1683,12 +1710,12 @@ export default function StudentDashboard() {
                     <div className="text-[10px] text-amber-600 font-bold">Best streak ⚡</div>
                   </div>
                 </div>
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">🗓️ This Week</h4>
+                <h4 className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-2">🗓️ This Week</h4>
                 <div className="flex items-end justify-between gap-1.5 h-20">
                   {weeklyChartData.map((d, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                       <div className={`w-full rounded-lg min-h-[4px] ${d.v >= 10 ? 'bg-gradient-to-t from-green-400 to-emerald-300' : d.v >= 5 ? 'bg-gradient-to-t from-amber-400 to-yellow-300' : d.v > 0 ? 'bg-gradient-to-t from-blue-300 to-blue-200' : 'bg-gray-200'}`} style={{ height: `${(d.v / maxWeeklyV) * 55}px` }} />
-                      <span className="text-[9px] font-bold text-gray-400">{d.d}</span>
+                      <span className="text-[9px] font-bold text-gray-400 dark:text-slate-400">{d.d}</span>
                     </div>
                   ))}
                 </div>
@@ -1697,17 +1724,17 @@ export default function StudentDashboard() {
 
             {/* Feature 5: Strand Breakdown */}
             {rightTab === 'strands' && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <h3 className="font-bold text-navy text-sm mb-1">{currentSubject?.emoji} {currentSubject?.name} Strands</h3>
-                <p className="text-[10px] text-gray-400 mb-4">Detailed skill breakdown</p>
+              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+                <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-1">{currentSubject?.emoji} {currentSubject?.name} Strands</h3>
+                <p className="text-[10px] text-gray-400 dark:text-slate-400 mb-4">Detailed skill breakdown</p>
                 {currentStrands.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-4">No strand data yet — start practising!</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-400 text-center py-4">No strand data yet — start practising!</p>
                 ) : (
                   <div className="space-y-3">
                     {currentStrands.map((strand, i) => (
                       <div key={i}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-700">{strand.name}</span>
+                          <span className="text-xs font-medium text-gray-700 dark:text-slate-200">{strand.name}</span>
                           <span className={`text-[11px] font-bold ${strand.score >= 70 ? 'text-green-600' : strand.score >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{strand.score}</span>
                         </div>
                         <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -1721,10 +1748,10 @@ export default function StudentDashboard() {
             )}
 
             {rightTab === 'badges' && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-navy text-sm">🏅 Hero Badges</h3>
-                  <span className="text-xs text-gray-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
+                  <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">🏅 Hero Badges</h3>
+                  <span className="text-xs text-gray-400 dark:text-slate-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {badges.map((badge) => (
@@ -1732,10 +1759,10 @@ export default function StudentDashboard() {
                       <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl mb-1.5 shadow-md ${badge.earned ? `bg-gradient-to-br ${badge.color} ring-2 ring-white border border-[#C49A1A]` : 'bg-gray-200'}`}>
                         {badge.earned ? badge.emoji : '🔒'}
                       </div>
-                      <span className="text-[10px] font-bold text-navy leading-tight">{badge.name}</span>
+                      <span className="text-[10px] font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] leading-tight">{badge.name}</span>
                       {badge.earned && badge.earnedAt
                         ? <span className="text-[8px] text-emerald-500 mt-0.5">{new Date(badge.earnedAt).toLocaleDateString('en-AU', { day:'numeric', month:'short' })}</span>
-                        : <span className="text-[8px] text-gray-400 mt-0.5 leading-tight">{badge.description}</span>
+                        : <span className="text-[8px] text-gray-400 dark:text-slate-400 mt-0.5 leading-tight">{badge.description}</span>
                       }
                     </div>
                   ))}
@@ -1750,14 +1777,14 @@ export default function StudentDashboard() {
       {/* League tab — focused leaderboard view */}
       {activeTab === 'league' && (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-navy text-base flex items-center gap-2">
+              <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-base flex items-center gap-2">
                 <Trophy size={18} className="text-[#C49A1A]" />
                 {leaderboardTabs[activeLeaderboardTab]?.period === 'alltime' ? 'All-Time Hero League' : 'Monthly Hero League'}
               </h3>
               {leaderboardTabs[activeLeaderboardTab]?.period !== 'alltime' && (
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-slate-400">
                   <Clock size={12} />
                   <span>Resets in {leaderboard.daysUntilReset}d</span>
                 </div>
@@ -1778,14 +1805,14 @@ export default function StudentDashboard() {
             <div className="flex gap-1 mb-4 overflow-x-auto">
               {leaderboardTabs.map((tab, i) => (
                 <button key={i} onClick={() => setActiveLeaderboardTab(i)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 dark:text-slate-400 hover:bg-gray-200'}`}>
                   {tab.label}
                 </button>
               ))}
             </div>
 
             {leaderboard.currentStudentRank && (
-              <div className="text-center text-[11px] text-gray-400 mb-3">
+              <div className="text-center text-[11px] text-gray-400 dark:text-slate-400 mb-3">
                 Your rank: <span className="font-bold text-electric">#{leaderboard.currentStudentRank}</span>
                 {leaderboard.totalInCohort ? ` of ${leaderboard.totalInCohort}` : ''}
               </div>
@@ -1807,12 +1834,12 @@ export default function StudentDashboard() {
                 ))}
                 {leaderboard.currentStudentRow && (
                   <>
-                    <div className="text-center text-[10px] text-gray-300 py-1">• • •</div>
+                    <div className="text-center text-[10px] text-gray-300 dark:text-slate-600 py-1">• • •</div>
                     <LeaderboardRow entry={leaderboard.currentStudentRow} />
                   </>
                 )}
                 {leaderboard.leaderboard.length === 0 && (
-                  <p className="text-center text-xs text-gray-400 py-4">No activity this month yet. Start practising!</p>
+                  <p className="text-center text-xs text-gray-400 dark:text-slate-400 py-4">No activity this month yet. Start practising!</p>
                 )}
               </div>
             )}
@@ -1823,10 +1850,10 @@ export default function StudentDashboard() {
       {/* Badges tab — focused badge grid */}
       {activeTab === 'badges' && (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-navy text-base">🏅 Hero Badges</h3>
-              <span className="text-xs text-gray-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
+              <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-base">🏅 Hero Badges</h3>
+              <span className="text-xs text-gray-400 dark:text-slate-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {badges.map((badge) => (
@@ -1834,10 +1861,10 @@ export default function StudentDashboard() {
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-1.5 shadow-md ${badge.earned ? `bg-gradient-to-br ${badge.color} ring-2 ring-white border border-[#C49A1A]` : 'bg-gray-200'}`}>
                     {badge.earned ? badge.emoji : '🔒'}
                   </div>
-                  <span className="text-[11px] font-bold text-navy leading-tight">{badge.name}</span>
+                  <span className="text-[11px] font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] leading-tight">{badge.name}</span>
                   {badge.earned && badge.earnedAt
                     ? <span className="text-[9px] text-emerald-500 mt-0.5">{new Date(badge.earnedAt).toLocaleDateString('en-AU', { day:'numeric', month:'short' })}</span>
-                    : <span className="text-[9px] text-gray-400 mt-0.5 leading-tight">{badge.description}</span>
+                    : <span className="text-[9px] text-gray-400 dark:text-slate-400 mt-0.5 leading-tight">{badge.description}</span>
                   }
                 </div>
               ))}
@@ -1849,17 +1876,17 @@ export default function StudentDashboard() {
       {/* Profile tab — student info + logout */}
       {activeTab === 'profile' && (
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{
               width: 96, height: 96, borderRadius: '50%',
-              background: '#FFFBEB', border: '3px solid #C49A1A',
+              background: 'var(--accent-gold-light)', border: '3px solid #C49A1A',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 56, margin: '0 auto 16px',
             }}>{student?.avatar || '🦊'}</div>
-            <h2 style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
+            <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
               {student?.name || 'Hero'}
             </h2>
-            <p style={{ color: '#C49A1A', fontWeight: 700, fontSize: 14, margin: 0 }}>
+            <p style={{ color: 'var(--accent-gold)', fontWeight: 700, fontSize: 14, margin: 0 }}>
               Grade {student?.grade ?? '—'} · Level {level} Hero
             </p>
           </div>
@@ -1873,18 +1900,40 @@ export default function StudentDashboard() {
               { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
               { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
             ].map((s, i) => (
-              <div key={i} className="bg-white rounded-xl p-3 border border-gray-100" style={{ textAlign: 'center' }}>
+              <div key={i} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl p-3 border border-gray-100 dark:border-white/10 colorblind:border-gray-300" style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 22, margin: '0 0 2px' }}>{s.emoji}</p>
-                <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 18, margin: 0 }}>{s.value}</p>
-                <p style={{ color: '#64748B', fontSize: 11, margin: 0 }}>{s.label}</p>
+                <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18, margin: 0 }}>{s.value}</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: 0 }}>{s.label}</p>
               </div>
             ))}
+          </div>
+
+          {/* Display Theme selector */}
+          <div style={{
+            background: 'var(--bg-card)',
+            borderRadius: 16, padding: 20,
+            marginBottom: 12,
+            border: '1px solid var(--border-color)',
+          }}>
+            <p style={{
+              fontWeight: 800, color: 'var(--text-primary)',
+              fontSize: 15, margin: '0 0 12px',
+            }}>
+              🎨 Display Theme
+            </p>
+            <p style={{
+              color: 'var(--text-secondary)',
+              fontSize: 13, margin: '0 0 14px',
+            }}>
+              Choose how MyMathsHero looks for you
+            </p>
+            <ThemeToggle compact={false} />
           </div>
 
           <button
             onClick={() => router.push('/avatar-customisation')}
             style={{
-              width: '100%', background: 'white', color: '#1B2B4B',
+              width: '100%', background: 'var(--bg-card)', color: 'var(--text-primary)',
               border: '2px solid #C49A1A', borderRadius: 12,
               padding: '12px 16px', fontWeight: 700, fontSize: 14,
               cursor: 'pointer', marginBottom: 10,
@@ -1900,7 +1949,7 @@ export default function StudentDashboard() {
               window.location.href = '/login'
             }}
             style={{
-              width: '100%', background: '#1B2B4B', color: 'white',
+              width: '100%', background: 'var(--bg-header)', color: 'white',
               border: '2px solid #C49A1A', borderRadius: 12,
               padding: '12px 16px', fontWeight: 700, fontSize: 14,
               cursor: 'pointer',
@@ -1932,10 +1981,10 @@ export default function StudentDashboard() {
               {badgeCelebration[0].emoji}
             </div>
             <div className="text-xs font-bold text-electric uppercase tracking-widest mb-1">New Badge Unlocked!</div>
-            <h2 className="text-xl font-extrabold text-navy mb-1">{badgeCelebration[0].name}</h2>
-            <p className="text-sm text-gray-500 mb-6">{badgeCelebration[0].description}</p>
+            <h2 className="text-xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-1">{badgeCelebration[0].name}</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{badgeCelebration[0].description}</p>
             {badgeCelebration.length > 1 && (
-              <p className="text-xs text-gray-400 mb-4">+{badgeCelebration.length - 1} more badge{badgeCelebration.length > 2 ? 's' : ''}!</p>
+              <p className="text-xs text-gray-400 dark:text-slate-400 mb-4">+{badgeCelebration.length - 1} more badge{badgeCelebration.length > 2 ? 's' : ''}!</p>
             )}
             <button
               onClick={() => setBadgeCelebration([])}
@@ -1952,7 +2001,7 @@ export default function StudentDashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-8 flex flex-col items-center gap-3 shadow-xl">
             <RoboVideo src="/assets/robot/robowalking.MP4" width={120} loop={true} />
-            <p className="text-sm font-medium text-gray-600">Loading question...</p>
+            <p className="text-sm font-medium text-gray-600 dark:text-slate-300">Loading question...</p>
           </div>
         </div>
       )}
@@ -1964,29 +2013,29 @@ export default function StudentDashboard() {
             {showCelebration && <CelebrationOverlay show={showCelebration} />}
             <div className={`h-2 bg-gradient-to-r ${currentSubject?.gradient || 'from-blue-500 to-indigo-600'}`} />
             <div className="p-6 sm:p-8">
-              <button onClick={closePractice} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl z-50"><X size={18} className="text-gray-400" /></button>
+              <button onClick={closePractice} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl z-50"><X size={18} className="text-gray-400 dark:text-slate-400" /></button>
 
               {/* Empty state */}
               {practiceModal.empty ? (
                 <div style={{ textAlign: 'center', padding: '24px 8px' }}>
                   <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
-                  <h3 style={{ color: '#1B2B4B', fontWeight: 800,
+                  <h3 style={{ color: 'var(--text-primary)', fontWeight: 800,
                     fontSize: 20, marginBottom: 8 }}>
                     Hero is preparing questions!
                   </h3>
-                  <p style={{ color: '#64748B', fontSize: 14,
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 14,
                     marginBottom: 8, lineHeight: 1.6 }}>
                     Questions for this skill are being prepared by Hero.
                     Please try another skill for now.
                   </p>
-                  <p style={{ color: '#C49A1A', fontSize: 13,
+                  <p style={{ color: 'var(--accent-gold)', fontSize: 13,
                     fontWeight: 600, marginBottom: 24 }}>
                     Check back in a few minutes!
                   </p>
                   <button
                     onClick={closePractice}
                     style={{
-                      background: '#1B2B4B', color: 'white',
+                      background: 'var(--bg-header)', color: 'white',
                       border: '2px solid #C49A1A',
                       borderRadius: 12, padding: '12px 32px',
                       fontWeight: 700, fontSize: 15,
@@ -2002,22 +2051,22 @@ export default function StudentDashboard() {
                     <RoboVideo src="/assets/robot/happyjumpingrobo.MP4" width={160} loop={false} />
                   </div>
                   <div style={{ fontSize: 40, marginBottom: 8 }}>⚡</div>
-                  <h3 style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
+                  <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, marginBottom: 8 }}>
                     Speed Round Complete!
                   </h3>
-                  <p style={{ color: '#64748B', fontSize: 15, marginBottom: 6, lineHeight: 1.5 }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 6, lineHeight: 1.5 }}>
                     You answered {speedRound.total} questions in {speedRound.elapsedSec} seconds!
                   </p>
-                  <p style={{ color: '#1B2B4B', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                  <p style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
                     {speedRound.correct} of {speedRound.total} correct
                   </p>
-                  <p style={{ color: '#C49A1A', fontSize: 14, fontWeight: 800, marginBottom: 24 }}>
+                  <p style={{ color: 'var(--accent-gold)', fontSize: 14, fontWeight: 800, marginBottom: 24 }}>
                     +5 bonus coins earned! 🪙
                   </p>
                   <button
                     onClick={closePractice}
                     style={{
-                      background: '#1B2B4B', color: 'white',
+                      background: 'var(--bg-header)', color: 'white',
                       border: '2px solid #C49A1A',
                       borderRadius: 12, padding: '12px 32px',
                       fontWeight: 700, fontSize: 15,
@@ -2038,8 +2087,8 @@ export default function StudentDashboard() {
                       <div style={{
                         marginLeft: 'auto',
                         display: 'flex', alignItems: 'center', gap: 8,
-                        background: '#F0F4F8', borderRadius: 8, padding: '4px 12px',
-                        border: '1px solid #E2E8F0',
+                        background: 'var(--bg-primary)', borderRadius: 8, padding: '4px 12px',
+                        border: '1px solid var(--border-color)',
                       }}>
                         <span style={{ fontSize: 18 }}>⏱️</span>
                         <span style={{
@@ -2060,7 +2109,7 @@ export default function StudentDashboard() {
                         >dismiss</button>
                       </div>
                     )}
-                    <h3 className="text-xl font-extrabold text-navy">{practiceModal.question}</h3>
+                    <h3 className="text-xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{practiceModal.question}</h3>
                   </div>
 
                   {!showSteps && (
@@ -2071,19 +2120,56 @@ export default function StudentDashboard() {
                           const isSelected = answerState?.selected === i
                           const isAnswerCorrect = showResult && i === answerState?.correctIndex
                           const isAnswerWrong = showResult && isSelected && !answerState?.correct
-                          let btnClass = 'bg-gray-50 border-gray-200 hover:border-electric hover:bg-electric/5 text-gray-700'
-                          let letterBg = 'bg-gray-200 text-gray-600'
+                          // Use Tailwind only for state transitions (correct / wrong / loading).
+                          // The DEFAULT state is moved to inline CSS vars so it stays readable
+                          // across light, dark and colorblind themes — the original Tailwind
+                          // chain leaked a near-white bg + dark text combo that disappeared
+                          // in some themes.
+                          let btnClass = 'border-2 hover:scale-[1.01] transition-all'
+                          let letterBg = ''
+                          let inlineBtn = {
+                            background: 'var(--bg-card)',
+                            borderColor: 'var(--border-color)',
+                            color: 'var(--text-primary)',
+                          }
+                          let inlineLetter = {
+                            background: 'var(--bg-primary)',
+                            color: 'var(--text-secondary)',
+                          }
                           if (answerState?.loading && isSelected) {
-                            btnClass = 'bg-blue-50 border-blue-300 text-blue-700'; letterBg = 'bg-blue-400 text-white'
+                            btnClass = 'bg-blue-50 border-blue-300'; letterBg = ''
+                            inlineBtn = { background: '#EFF6FF', borderColor: '#93C5FD', color: '#1D4ED8' }
+                            inlineLetter = { background: '#60A5FA', color: 'white' }
                           } else if (showResult) {
-                            if (isAnswerCorrect) { btnClass = 'bg-green-50 border-green-400 text-green-700 font-bold scale-[1.01] shadow-md'; letterBg = 'bg-green-500 text-white' }
-                            else if (isAnswerWrong) { btnClass = 'bg-amber-50 border-amber-300 text-amber-600'; letterBg = 'bg-amber-400 text-white' }
-                            else { btnClass = 'bg-gray-50 border-gray-100 text-gray-300'; letterBg = 'bg-gray-100 text-gray-300' }
+                            if (isAnswerCorrect) {
+                              btnClass = 'font-bold scale-[1.01] shadow-md'
+                              inlineBtn = { background: '#F0FDF4', borderColor: '#4ADE80', color: '#15803D' }
+                              inlineLetter = { background: '#22C55E', color: 'white' }
+                            } else if (isAnswerWrong) {
+                              btnClass = ''
+                              inlineBtn = { background: '#FFFBEB', borderColor: '#FCD34D', color: '#B45309' }
+                              inlineLetter = { background: '#F59E0B', color: 'white' }
+                            } else {
+                              btnClass = ''
+                              inlineBtn = { background: 'var(--bg-card)', borderColor: 'var(--border-light)', color: 'var(--text-muted)', opacity: 0.6 }
+                              inlineLetter = { background: 'var(--bg-primary)', color: 'var(--text-muted)' }
+                            }
                           }
                           return (
-                            <button key={i} onClick={() => handleAnswer(i)} disabled={!!answerState} className={`w-full text-left px-4 py-3.5 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${btnClass}`}>
+                            <button
+                              key={i}
+                              onClick={() => handleAnswer(i)}
+                              disabled={!!answerState}
+                              className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold ${btnClass}`}
+                              style={inlineBtn}
+                            >
                               <span className="flex items-center gap-3">
-                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${letterBg}`}>{answerState?.loading && isSelected ? '⏳' : letters[i]}</span>
+                                <span
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                                  style={inlineLetter}
+                                >
+                                  {answerState?.loading && isSelected ? '⏳' : letters[i]}
+                                </span>
                                 <span className="flex-1">{opt}</span>
                                 {showResult && isAnswerCorrect && <span className="text-lg celebrate-bounce">✅</span>}
                                 {showResult && isAnswerWrong && <span className="text-lg">❌</span>}
@@ -2095,7 +2181,7 @@ export default function StudentDashboard() {
 
                       {questionTimer >= 60 && !answerState && !showAskHero && studentPlan === 'premium' && (
                         <div style={{
-                          background: '#FFFBEB',
+                          background: 'var(--accent-gold-light)',
                           border: '1px solid #C49A1A',
                           borderRadius: 10,
                           padding: '10px 16px',
@@ -2106,7 +2192,7 @@ export default function StudentDashboard() {
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span>🤖</span>
-                            <span style={{ color: '#1B2B4B', fontSize: 14, fontWeight: 600 }}>
+                            <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600 }}>
                               Looks like you might be stuck. Want help?
                             </span>
                           </div>
@@ -2117,7 +2203,7 @@ export default function StudentDashboard() {
                               setAskHeroAttempts(prev => prev + 1)
                             }}
                             style={{
-                              background: '#C49A1A', color: 'white',
+                              background: 'var(--accent-gold)', color: 'white',
                               border: 'none', borderRadius: 8,
                               padding: '6px 14px', fontWeight: 700,
                               fontSize: 13, cursor: 'pointer',
@@ -2137,7 +2223,7 @@ export default function StudentDashboard() {
                             }}
                             style={{
                               display: 'flex', alignItems: 'center',
-                              gap: 8, background: '#1B2B4B', color: 'white',
+                              gap: 8, background: 'var(--bg-header)', color: 'white',
                               border: '2px solid #C49A1A', borderRadius: 12,
                               padding: '10px 20px', fontWeight: 700,
                               fontSize: 15, cursor: 'pointer',
@@ -2146,7 +2232,7 @@ export default function StudentDashboard() {
                             }}
                           >
                             <span>🤖</span>
-                            <span>Ask <span style={{ color: '#C49A1A' }}>Hero</span> ✦✦</span>
+                            <span>Ask <span style={{ color: 'var(--accent-gold)' }}>Hero</span> ✦✦</span>
                           </button>
                         ) : (
                           <button
@@ -2163,7 +2249,7 @@ export default function StudentDashboard() {
                           >
                             🤖 Ask Hero
                             <span style={{
-                              background: '#C49A1A', color: '#1B2B4B',
+                              background: 'var(--accent-gold)', color: 'var(--text-primary)',
                               borderRadius: 10, padding: '2px 8px',
                               fontSize: 11, fontWeight: 900,
                             }}>
@@ -2248,7 +2334,7 @@ export default function StudentDashboard() {
                         {(practiceModal.steps || []).map((step, i) => (
                           <div key={i} className="flex items-start gap-3">
                             <div className="w-7 h-7 rounded-lg bg-[#C49A1A] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{i + 1}</div>
-                            <p className="text-sm text-gray-700 leading-relaxed pt-0.5">{step}</p>
+                            <p className="text-sm text-gray-700 dark:text-slate-200 leading-relaxed pt-0.5">{step}</p>
                           </div>
                         ))}
                       </div>
@@ -2270,23 +2356,23 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full relative pop-in overflow-hidden max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="h-2 bg-gradient-to-r from-yellow-400 to-amber-500" />
             <div className="p-6">
-              <button onClick={() => setShowShop(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl z-50"><X size={18} className="text-gray-400" /></button>
+              <button onClick={() => setShowShop(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl z-50"><X size={18} className="text-gray-400 dark:text-slate-400" /></button>
               <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2"><ShoppingBag size={20} className="text-amber-600" /><h3 className="text-lg font-extrabold text-navy">Avatar Shop</h3></div>
+                <div className="flex items-center gap-2"><ShoppingBag size={20} className="text-amber-600" /><h3 className="text-lg font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Avatar Shop</h3></div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-yellow-100 text-yellow-700 font-bold text-sm"><Coins size={14} />{coins}</div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {shopItems.map((item) => {
                   const owned = shopOwnedItems.includes(item.id)
                   return (
-                    <div key={item.id} className={`rounded-xl p-4 border-2 transition-all text-center ${owned ? 'border-green-300 bg-green-50' : coins >= item.cost ? 'border-gray-200 bg-white hover:border-electric' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                    <div key={item.id} className={`rounded-xl p-4 border-2 transition-all text-center ${owned ? 'border-green-300 bg-green-50' : coins >= item.cost ? 'border-gray-200 bg-white hover:border-electric' : 'border-gray-100 bg-gray-50 dark:bg-[#16202e] colorblind:bg-[#F5F5F0] opacity-60'}`}>
                       <span className={`text-4xl block mb-2 ${!owned && coins < item.cost ? 'grayscale' : ''}`}>{item.emoji}</span>
-                      <p className="text-xs font-bold text-navy mb-0.5">{item.name}</p>
-                      <p className="text-[10px] text-gray-400 mb-2">{item.category}</p>
+                      <p className="text-xs font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-0.5">{item.name}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-slate-400 mb-2">{item.category}</p>
                       {owned ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full"><CheckCircle2 size={10} />Owned</span>
                       ) : (
-                        <button onClick={() => buyItem(item)} disabled={coins < item.cost} className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all ${coins >= item.cost ? 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                        <button onClick={() => buyItem(item)} disabled={coins < item.cost} className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-all ${coins >= item.cost ? 'bg-yellow-400 text-yellow-900 hover:bg-yellow-500' : 'bg-gray-200 text-gray-400 dark:text-slate-400 cursor-not-allowed'}`}>
                           <Coins size={10} className="inline mr-1" />{item.cost} coins
                         </button>
                       )}
@@ -2305,8 +2391,8 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full relative pop-in overflow-hidden text-center p-8" onClick={e => e.stopPropagation()}>
             <CelebrationOverlay show={true} />
             <span className="text-6xl block mb-4 celebrate-bounce">🎉</span>
-            <h3 className="text-2xl font-extrabold text-navy mb-2">You did it!</h3>
-            <p className="text-gray-500 mb-4">You completed 5 Hero Missions! Your teacher will be in touch about your reward 🎁</p>
+            <h3 className="text-2xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">You did it!</h3>
+            <p className="text-gray-500 dark:text-slate-400 mb-4">You completed 5 Hero Missions! Your teacher will be in touch about your reward 🎁</p>
             <button onClick={() => setShowMilestoneModal(false)} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white py-3 px-8 rounded-xl font-bold text-sm shadow-lg">Awesome! 🚀</button>
           </div>
         </div>
@@ -2330,12 +2416,12 @@ export default function StudentDashboard() {
       {student?.isDev && (
         <div style={{
           position: 'fixed', bottom: 16, right: 16,
-          background: '#1B2B4B', color: 'white',
+          background: 'var(--bg-header)', color: 'white',
           borderRadius: 12, padding: 16, zIndex: 1000,
           border: '2px solid #C49A1A', minWidth: 200,
           display: 'flex', flexDirection: 'column', gap: 8,
         }}>
-          <p style={{ color: '#C49A1A', fontWeight: 700, margin: 0 }}>
+          <p style={{ color: 'var(--accent-gold)', fontWeight: 700, margin: 0 }}>
             🔧 Dev Mode
           </p>
           <button onClick={handleResetData} style={devBtnStyle}>Reset My Data</button>
@@ -2355,7 +2441,7 @@ export default function StudentDashboard() {
           padding: 20,
         }}>
           <div style={{
-            background: 'white', borderRadius: 24,
+            background: 'var(--bg-card)', borderRadius: 24,
             padding: 32, maxWidth: 560, width: '100%',
             maxHeight: '90vh', overflowY: 'auto',
             border: '3px solid #C49A1A',
@@ -2363,7 +2449,7 @@ export default function StudentDashboard() {
             {examModal.phase === 'loading' && (
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <div style={{ fontSize: 48 }}>🤖</div>
-                <p style={{ fontWeight: 700, color: '#1B2B4B' }}>
+                <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                   Preparing your exam...
                 </p>
               </div>
@@ -2374,15 +2460,15 @@ export default function StudentDashboard() {
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
                   <div style={{ fontSize: 56, marginBottom: 12 }}>🏆</div>
                   <h2 style={{ fontSize: 24, fontWeight: 800,
-                    color: '#1B2B4B', marginBottom: 8 }}>
+                    color: 'var(--text-primary)', marginBottom: 8 }}>
                     Mastery Exam!
                   </h2>
-                  <p style={{ color: '#64748B', fontSize: 15 }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
                     {getSkillInfo(examModal.skill.id || examModal.skill.skillId)?.name || examModal.skill.name}
                   </p>
                 </div>
 
-                <div style={{ background: '#F0F4F8', borderRadius: 14,
+                <div style={{ background: 'var(--bg-primary)', borderRadius: 14,
                   padding: 20, marginBottom: 24 }}>
                   {[
                     `📝 ${examModal.questions?.length || 10} questions`,
@@ -2391,7 +2477,7 @@ export default function StudentDashboard() {
                     `⚡ Earn 50 Hero Points + 20 coins if you pass!`,
                   ].map((item, i) => (
                     <p key={i} style={{ margin: '6px 0',
-                      fontSize: 14, color: '#1B2B4B',
+                      fontSize: 14, color: 'var(--text-primary)',
                       fontWeight: 600 }}>{item}</p>
                   ))}
                 </div>
@@ -2400,9 +2486,9 @@ export default function StudentDashboard() {
                   <button
                     onClick={() => setExamModal(null)}
                     style={{ flex: 1, padding: 14,
-                      background: 'white', border: '2px solid #E2E8F0',
+                      background: 'var(--bg-card)', border: '2px solid var(--border-color)',
                       borderRadius: 12, fontWeight: 700,
-                      cursor: 'pointer', color: '#64748B' }}
+                      cursor: 'pointer', color: 'var(--text-secondary)' }}
                   >
                     Not Yet
                   </button>
@@ -2412,7 +2498,7 @@ export default function StudentDashboard() {
                       startExamTimer()
                     }}
                     style={{ flex: 2, padding: 14,
-                      background: '#1B2B4B', border: '2px solid #C49A1A',
+                      background: 'var(--bg-header)', border: '2px solid #C49A1A',
                       borderRadius: 12, fontWeight: 800,
                       cursor: 'pointer', color: 'white',
                       fontSize: 16 }}
@@ -2429,12 +2515,12 @@ export default function StudentDashboard() {
                   justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 20 }}>
                   <span style={{ fontWeight: 800, fontSize: 14,
-                    color: '#1B2B4B' }}>
+                    color: 'var(--text-primary)' }}>
                     Question {examModal.currentIndex + 1}/{examModal.questions.length}
                   </span>
                   <span style={{
                     fontWeight: 800, fontSize: 16,
-                    color: examModal.timeLeft < 60 ? '#EF4444' : '#1B2B4B',
+                    color: examModal.timeLeft < 60 ? 'var(--error)' : '#1B2B4B',
                     fontFamily: 'monospace',
                   }}>
                     ⏱️ {Math.floor((examModal.timeLeft || 0) / 60)}:
@@ -2442,11 +2528,11 @@ export default function StudentDashboard() {
                   </span>
                 </div>
 
-                <div style={{ height: 6, background: '#F0F4F8',
+                <div style={{ height: 6, background: 'var(--bg-primary)',
                   borderRadius: 3, overflow: 'hidden', marginBottom: 20 }}>
                   <div style={{
                     height: '100%', borderRadius: 3,
-                    background: '#C49A1A',
+                    background: 'var(--accent-gold)',
                     width: `${(examModal.currentIndex /
                       examModal.questions.length) * 100}%`,
                     transition: 'width 0.3s',
@@ -2455,9 +2541,9 @@ export default function StudentDashboard() {
 
                 <div style={{ background: '#F8FAFC', borderRadius: 16,
                   padding: 20, marginBottom: 20,
-                  border: '1px solid #E2E8F0' }}>
+                  border: '1px solid var(--border-color)' }}>
                   <p style={{ fontSize: 18, fontWeight: 700,
-                    color: '#1B2B4B', lineHeight: 1.5, margin: 0 }}>
+                    color: 'var(--text-primary)', lineHeight: 1.5, margin: 0 }}>
                     {examModal.questions[examModal.currentIndex]?.question}
                   </p>
                 </div>
@@ -2482,15 +2568,15 @@ export default function StudentDashboard() {
                       }}
                       style={{
                         padding: '14px 18px', textAlign: 'left',
-                        background: 'white', border: '2px solid #E2E8F0',
+                        background: 'var(--bg-card)', border: '2px solid var(--border-color)',
                         borderRadius: 12, fontWeight: 600,
                         fontSize: 15, cursor: 'pointer',
-                        color: '#1B2B4B',
+                        color: 'var(--text-primary)',
                         display: 'flex', alignItems: 'center', gap: 12,
                       }}
                     >
                       <span style={{ width: 28, height: 28,
-                        borderRadius: 8, background: '#F0F4F8',
+                        borderRadius: 8, background: 'var(--bg-primary)',
                         display: 'flex', alignItems: 'center',
                         justifyContent: 'center', fontWeight: 800,
                         fontSize: 13, flexShrink: 0 }}>
@@ -2510,22 +2596,22 @@ export default function StudentDashboard() {
                     {examModal.result?.passed ? '🎉' : '💪'}
                   </div>
                   <h2 style={{ fontSize: 28, fontWeight: 800,
-                    color: '#1B2B4B', marginBottom: 8 }}>
+                    color: 'var(--text-primary)', marginBottom: 8 }}>
                     {examModal.result?.passed
                       ? 'Skill Mastered!'
                       : 'Keep Practising!'}
                   </h2>
                   <div style={{ fontSize: 48, fontWeight: 800,
-                    color: examModal.result?.passed ? '#22C55E' : '#C49A1A' }}>
+                    color: examModal.result?.passed ? 'var(--correct)' : 'var(--accent-gold)' }}>
                     {examModal.result?.score}%
                   </div>
-                  <p style={{ color: '#64748B', marginTop: 8 }}>
+                  <p style={{ color: 'var(--text-secondary)', marginTop: 8 }}>
                     {examModal.result?.correct}/{examModal.result?.total} correct
                   </p>
                 </div>
 
                 {examModal.result?.passed && (
-                  <div style={{ background: '#DCFCE7',
+                  <div style={{ background: 'var(--correct-bg)',
                     borderRadius: 14, padding: 16,
                     textAlign: 'center', marginBottom: 20,
                     border: '1px solid #22C55E' }}>
@@ -2537,11 +2623,11 @@ export default function StudentDashboard() {
                 )}
 
                 {!examModal.result?.passed && (
-                  <div style={{ background: '#FFFBEB',
+                  <div style={{ background: 'var(--accent-gold-light)',
                     borderRadius: 14, padding: 16,
                     marginBottom: 20,
                     border: '1px solid #C49A1A' }}>
-                    <p style={{ fontWeight: 700, color: '#1B2B4B',
+                    <p style={{ fontWeight: 700, color: 'var(--text-primary)',
                       fontSize: 14, margin: 0 }}>
                       🤖 Hero says: Keep practising this skill to
                       improve your score. You need 70% to master it.
@@ -2556,7 +2642,7 @@ export default function StudentDashboard() {
                     fetchProgress(authStudentId)
                   }}
                   style={{ width: '100%', padding: 16,
-                    background: '#1B2B4B', color: 'white',
+                    background: 'var(--bg-header)', color: 'white',
                     border: '2px solid #C49A1A', borderRadius: 14,
                     fontWeight: 800, fontSize: 16, cursor: 'pointer' }}
                 >
@@ -2594,13 +2680,13 @@ export default function StudentDashboard() {
             onClick={() => setHeroNudge(null)}
             style={{ position: 'absolute', top: 10, right: 12,
               background: 'none', border: 'none',
-              cursor: 'pointer', fontSize: 16, color: '#94A3B8' }}
+              cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)' }}
           >✕</button>
           <div style={{ display: 'flex', gap: 10,
             alignItems: 'flex-start', marginBottom: 12 }}>
             <span style={{ fontSize: 28 }}>{heroNudge.emoji}</span>
             <div>
-              <p style={{ fontWeight: 800, color: '#1B2B4B',
+              <p style={{ fontWeight: 800, color: 'var(--text-primary)',
                 fontSize: 15, margin: '0 0 4px' }}>
                 {heroNudge.title}
               </p>
@@ -2622,7 +2708,7 @@ export default function StudentDashboard() {
               }}
               style={{
                 width: '100%', padding: '10px 16px',
-                background: '#1B2B4B', color: 'white',
+                background: 'var(--bg-header)', color: 'white',
                 border: `2px solid ${heroNudge.borderColor}`,
                 borderRadius: 10, fontWeight: 700,
                 fontSize: 14, cursor: 'pointer',
@@ -2644,17 +2730,17 @@ export default function StudentDashboard() {
           padding: 20,
         }}>
           <div style={{
-            background: 'white', borderRadius: 24,
+            background: 'var(--bg-card)', borderRadius: 24,
             padding: 32, maxWidth: 420, width: '100%',
             textAlign: 'center',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <p style={{ fontSize: 48, marginBottom: 8 }}>🤖</p>
             <h2 style={{ fontSize: 22, fontWeight: 800,
-              color: '#1B2B4B', marginBottom: 8 }}>
+              color: 'var(--text-primary)', marginBottom: 8 }}>
               How is Hero helping you?
             </h2>
-            <p style={{ color: '#64748B', fontSize: 14,
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14,
               marginBottom: 24 }}>
               Your feedback helps us make MyMathsHero better!
             </p>
@@ -2686,7 +2772,7 @@ export default function StudentDashboard() {
                 border: '1.5px solid #E2E8F0',
                 borderRadius: 12, fontSize: 14,
                 resize: 'none', height: 80,
-                color: '#1B2B4B', marginBottom: 16,
+                color: 'var(--text-primary)', marginBottom: 16,
                 boxSizing: 'border-box',
                 fontFamily: 'inherit',
               }}
@@ -2701,10 +2787,10 @@ export default function StudentDashboard() {
                 }}
                 disabled={feedbackSubmitting}
                 style={{ flex: 1, padding: 14,
-                  background: 'white',
+                  background: 'var(--bg-card)',
                   border: '1.5px solid #E2E8F0',
                   borderRadius: 12, fontWeight: 600,
-                  cursor: 'pointer', color: '#64748B' }}>
+                  cursor: 'pointer', color: 'var(--text-secondary)' }}>
                 Skip
               </button>
               <button
@@ -2727,8 +2813,8 @@ export default function StudentDashboard() {
       <div style={{
         position: 'fixed',
         bottom: 0, left: 0, right: 0,
-        background: 'white',
-        borderTop: '1px solid #E2E8F0',
+        background: 'var(--bg-card)',
+        borderTop: '1px solid var(--border-color)',
         display: 'flex',
         padding: '10px 0 20px',
         zIndex: 50,
@@ -2761,7 +2847,7 @@ export default function StudentDashboard() {
             <span style={{
               fontSize: 10,
               fontWeight: 600,
-              color: activeTab === item.tab ? '#C49A1A' : '#94A3B8',
+              color: activeTab === item.tab ? 'var(--accent-gold)' : '#94A3B8',
             }}>
               {item.label}
             </span>
@@ -2769,7 +2855,7 @@ export default function StudentDashboard() {
               <div style={{
                 width: 4, height: 4,
                 borderRadius: '50%',
-                background: '#C49A1A',
+                background: 'var(--accent-gold)',
               }} />
             )}
           </button>
@@ -2780,7 +2866,7 @@ export default function StudentDashboard() {
 }
 
 const devBtnStyle = {
-  background: '#C49A1A',
+  background: 'var(--accent-gold)',
   color: 'white',
   border: 'none',
   borderRadius: 8,

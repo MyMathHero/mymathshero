@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo} from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, ScrollView, ActivityIndicator, Platform,
@@ -11,9 +11,12 @@ import { showAchievementNotification } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import HeroRobot from '../../components/HeroRobot'
+import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function Practice() {
   const router = useRouter()
+  const { colors } = useTheme()
+  const styles = useMemo(() => makeStyles(colors), [colors])
   const { skillId, skillName, grade, speedRound } = useLocalSearchParams<{
     skillId: string, skillName: string,
     grade: string, speedRound: string
@@ -360,8 +363,8 @@ export default function Practice() {
         </View>
       </View>
 
-      {/* Progress */}
-      <View style={{ backgroundColor: '#1B2B4B' }}>
+      {/* Progress — match the navy header which is theme-aware. */}
+      <View style={{ backgroundColor: colors.bgHeader }}>
         <View style={styles.progressOuter}>
           <View style={[styles.progressInner, {
             width: `${((currentIndex + 1) / questions.length) * 100}%` as any
@@ -405,7 +408,9 @@ export default function Practice() {
         {/* Result */}
         {result && (
           <View style={[styles.resultCard,
-            result.correct ? styles.resultCorrect : styles.resultWrong]}>
+            result.correct
+              ? { backgroundColor: colors.correctBg, borderColor: colors.correct }
+              : { backgroundColor: colors.wrongBg, borderColor: colors.wrong }]}>
             <HeroRobot
               mood={result.correct ? 'celebrating' : 'sad'}
               size={80}
@@ -438,8 +443,8 @@ export default function Practice() {
               style={[
                 styles.option,
                 isSelected && !result && styles.optionSelected,
-                isCorrect && styles.optionCorrect,
-                isWrong && styles.optionWrong,
+                isCorrect && { borderColor: colors.correct, backgroundColor: colors.correctBg },
+                isWrong && { borderColor: colors.wrong, backgroundColor: colors.wrongBg },
               ]}
               onPress={() => handleAnswer(opt)}
               disabled={!!selected || submitting}
@@ -496,15 +501,15 @@ export default function Practice() {
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F4F8' },
-  loading: { flex: 1, backgroundColor: '#1B2B4B',
+const makeStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bgPrimary },
+  loading: { flex: 1, backgroundColor: c.bgHeader,
     alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { color: '#C49A1A', fontWeight: '600', marginTop: 12, textAlign: 'center' },
+  loadingText: { color: c.accentGold, fontWeight: '600', marginTop: 12, textAlign: 'center' },
   topBar: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', padding: 16,
-    backgroundColor: '#1B2B4B' },
-  back: { color: '#C49A1A', fontSize: 15, fontWeight: '700' },
+    backgroundColor: c.bgHeader },
+  back: { color: c.accentGold, fontSize: 15, fontWeight: '700' },
   skillTitle: { color: 'white', fontSize: 14, fontWeight: '700',
     flex: 1, textAlign: 'center', marginHorizontal: 8 },
   timerBox: { backgroundColor: 'rgba(255,255,255,0.12)',
@@ -518,41 +523,41 @@ const styles = StyleSheet.create({
   nudge: { backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14,
     marginBottom: 12, borderWidth: 1.5, borderColor: '#C49A1A',
     flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nudgeText: { color: '#1B2B4B', fontSize: 13, fontWeight: '600', flex: 1 },
+  nudgeText: { color: c.textPrimary, fontSize: 13, fontWeight: '600', flex: 1 },
   nudgeBtn: { backgroundColor: '#C49A1A', borderRadius: 8,
     paddingHorizontal: 14, paddingVertical: 6 },
   nudgeBtnText: { color: 'white', fontWeight: '700', fontSize: 13 },
-  cheatBanner: { backgroundColor: '#FEF3C7', borderRadius: 12,
-    padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#F59E0B',
+  cheatBanner: { backgroundColor: c.wrongBg, borderRadius: 12,
+    padding: 12, marginBottom: 12, borderWidth: 1, borderColor: c.wrong,
     flexDirection: 'row', alignItems: 'center', gap: 12 },
   cheatBannerText: { flex: 1, color: '#92400E', fontSize: 13, fontWeight: '600' },
   cheatBannerDismiss: { color: '#92400E', fontSize: 12,
     textDecorationLine: 'underline' },
-  questionCard: { backgroundColor: 'white', borderRadius: 16, padding: 22,
-    marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0',
+  questionCard: { backgroundColor: c.bgCard, borderRadius: 16, padding: 22,
+    marginBottom: 16, borderWidth: 1, borderColor: c.borderColor,
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
   questionText: { fontSize: 20, fontWeight: '700',
-    color: '#1B2B4B', lineHeight: 28 },
+    color: c.textPrimary, lineHeight: 28 },
   resultCard: { borderRadius: 14, padding: 16, marginBottom: 16,
     alignItems: 'center', borderWidth: 2 },
-  resultCorrect: { backgroundColor: '#DCFCE7', borderColor: '#22C55E' },
-  resultWrong: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
+  resultCorrect: { backgroundColor: c.correctBg, borderColor: c.correct },
+  resultWrong: { backgroundColor: c.wrongBg, borderColor: c.wrong },
   resultEmoji: { fontSize: 36, marginBottom: 6 },
-  resultTitle: { fontSize: 18, fontWeight: '800', color: '#1B2B4B', marginBottom: 4 },
-  resultAnswer: { fontSize: 15, fontWeight: '600', color: '#1B2B4B', marginBottom: 4 },
-  resultXP: { fontSize: 14, fontWeight: '700', color: '#C49A1A' },
-  option: { backgroundColor: 'white', borderRadius: 14, padding: 16,
+  resultTitle: { fontSize: 18, fontWeight: '800', color: c.textPrimary, marginBottom: 4 },
+  resultAnswer: { fontSize: 15, fontWeight: '600', color: c.textPrimary, marginBottom: 4 },
+  resultXP: { fontSize: 14, fontWeight: '700', color: c.accentGold },
+  option: { backgroundColor: c.bgCard, borderRadius: 14, padding: 16,
     marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 2, borderColor: '#E2E8F0' },
+    borderWidth: 2, borderColor: c.borderColor },
   optionSelected: { borderColor: '#C49A1A', backgroundColor: '#FFFBEB' },
-  optionCorrect: { borderColor: '#22C55E', backgroundColor: '#DCFCE7' },
-  optionWrong: { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
-  optionLetter: { fontSize: 16, fontWeight: '800', color: '#1B2B4B', width: 24 },
-  optionText: { fontSize: 16, color: '#1B2B4B', fontWeight: '600', flex: 1 },
-  nextBtn: { backgroundColor: '#1B2B4B', borderRadius: 14, padding: 18,
+  optionCorrect: { borderColor: c.correct, backgroundColor: c.correctBg },
+  optionWrong: { borderColor: c.wrong, backgroundColor: c.wrongBg },
+  optionLetter: { fontSize: 16, fontWeight: '800', color: c.textPrimary, width: 24 },
+  optionText: { fontSize: 16, color: c.textPrimary, fontWeight: '600', flex: 1 },
+  nextBtn: { backgroundColor: c.bgHeader, borderRadius: 14, padding: 18,
     alignItems: 'center', borderWidth: 2, borderColor: '#C49A1A', marginTop: 8 },
   nextBtnText: { color: 'white', fontSize: 17, fontWeight: '800' },
-  resultAnswerStrong: { fontWeight: '800', color: '#1B2B4B' },
+  resultAnswerStrong: { fontWeight: '800', color: c.textPrimary },
   resultXpPill: {
     backgroundColor: '#C49A1A', borderRadius: 20,
     paddingHorizontal: 16, paddingVertical: 6, marginTop: 10,
@@ -562,7 +567,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 16,
-    backgroundColor: '#1B2B4B',
+    backgroundColor: c.bgHeader,
     borderRadius: 28,
     paddingHorizontal: 18,
     paddingVertical: 12,
@@ -579,5 +584,5 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   floatingAskEmoji: { fontSize: 20 },
-  floatingAskText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
+  floatingAskText: { color: c.accentGold, fontWeight: '800', fontSize: 14 },
 })
