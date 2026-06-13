@@ -130,11 +130,13 @@ async function generateMoreQuestions(skillId, grade, subject, db) {
 
 Return ONLY a JSON array. Each question must have:
 - question: the question text
-- options: array of exactly 4 answer choices
-- correctAnswer: the correct answer (must be one of the options)
+- options: array of exactly 4 plain text answer choices. DO NOT prefix with letters ("A)", "B)") — just the literal values.
+- correctAnswer: must EXACTLY match one of the options as a plain text value (no "A)" prefix).
 - explanation: brief explanation of the answer
 - difficulty: number between 0.1 and 0.9
 - hint: a helpful hint without giving the answer away
+
+Example: { "question": "What is 5 × 9?", "options": ["45","40","35","50"], "correctAnswer": "45", ... }
 
 Questions must be curriculum-appropriate, clearly worded, and varied in difficulty.
 Return only the JSON array, no other text.`
@@ -164,6 +166,9 @@ Return only the JSON array, no other text.`
     const generated = JSON.parse(jsonMatch[0])
     if (!Array.isArray(generated) || generated.length === 0) return
 
+    // Strip any "A) " / "A. " / "A " prefix the model may still emit on
+    // either side. Keeps the question bank in a single consistent format.
+    const stripPrefix = (s) => String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
     const toInsert = generated
       .filter(q => q && q.question && Array.isArray(q.options) && q.correctAnswer)
       .map((q, i) => ({
@@ -172,8 +177,8 @@ Return only the JSON array, no other text.`
         grade,
         subject,
         question: q.question,
-        options: q.options,
-        correctAnswer: q.correctAnswer,
+        options: q.options.map(stripPrefix),
+        correctAnswer: stripPrefix(q.correctAnswer),
         explanation: q.explanation || '',
         hint: q.hint || '',
         difficulty: typeof q.difficulty === 'number' ? q.difficulty : 0.5,

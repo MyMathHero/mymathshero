@@ -46,11 +46,16 @@ async function generateForSkill(skill, count) {
     `Generate ${count} multiple choice questions for "${skill.name}", ${skill.subject}, ${gradeLabel} Australian Victorian Curriculum.`,
     `Each question needs:`,
     `- question: clear, age-appropriate question string`,
-    `- correctAnswer: the correct answer string`,
-    `- distractors: array of exactly 3 wrong answers that reflect real student mistakes`,
+    `- correctAnswer: plain text of the correct answer. DO NOT prefix with a letter like "A)" or "A." — return the literal answer value only (e.g. "45", "Pentagon", "0.5").`,
+    `- distractors: array of exactly 3 wrong answers, ALSO as plain text values with NO "A)"/"B)" letter prefixes.`,
     `- difficulty: number between 0.1 and 0.9`,
     `- hint: one encouraging sentence that guides without giving away the answer`,
     `- explanation: one sentence explaining why the correct answer is right`,
+    ``,
+    `EXAMPLE OF CORRECT FORMAT:`,
+    `  { "question": "What is 5 × 9?", "correctAnswer": "45", "distractors": ["40", "35", "50"], ... }`,
+    `EXAMPLE OF WRONG FORMAT (do NOT produce this):`,
+    `  { "question": "What is 5 × 9?", "correctAnswer": "A) 45", "distractors": ["B) 40", ...], ... }`,
     ``,
     `Return ONLY a valid JSON array, no markdown, no code fences, no extra text.`,
   ].join('\n')
@@ -93,8 +98,17 @@ async function generateForSkill(skill, count) {
   return parsed
 }
 
+// Strip any "A) " / "A. " / "A " letter prefix that the model may still emit
+// despite the prompt instructions. Belt-and-braces — keeps the DB clean even
+// if the prompt drifts.
+function stripLetterPrefix(s) {
+  return String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
+}
+
 function buildQuestionDoc(q, skill, index) {
-  const options = [q.correctAnswer, ...(q.distractors || [])].sort(() => Math.random() - 0.5)
+  const cleanCorrect = stripLetterPrefix(q.correctAnswer)
+  const cleanDistractors = (q.distractors || []).map(stripLetterPrefix)
+  const options = [cleanCorrect, ...cleanDistractors].sort(() => Math.random() - 0.5)
   const id = `ai_${skill.id}_${Date.now()}_${index}`
   return {
     id,
@@ -103,7 +117,7 @@ function buildQuestionDoc(q, skill, index) {
     grade: skill.grade,
     question: q.question,
     options,
-    correctAnswer: q.correctAnswer,
+    correctAnswer: cleanCorrect,
     difficulty: typeof q.difficulty === 'number' ? q.difficulty : skill.difficulty,
     hint: q.hint || '',
     explanation: q.explanation || '',

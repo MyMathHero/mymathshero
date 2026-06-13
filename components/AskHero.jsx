@@ -13,67 +13,39 @@ const ROBOT_STATES = {
   complete:  { type: 'video', src: '/assets/robot/happyjumpingrobo.MP4', loop: false },
 }
 
-function formatSkillName(skillId) {
-  if (!skillId) return 'this skill'
-  const withoutPrefix = skillId.replace(/^[a-z]_\d+_/, '')
-  return withoutPrefix
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, l => l.toUpperCase())
-    .replace(/100/g, '')
-    .trim()
-}
-
-function getStepByStepExplanation(question, answer) {
-  if (question.includes('×') || question.includes('x')) {
-    return `Think of it as groups. If you count up carefully you will get ${answer}.`
-  }
-  if (question.includes('+')) {
-    return `Try adding the numbers one at a time to reach ${answer}.`
-  }
-  if (question.includes('-')) {
-    return `Try counting down step by step to reach ${answer}.`
-  }
-  if (question.includes('÷')) {
-    return `Think about how many groups fit into the number to get ${answer}.`
-  }
-  return `The answer is ${answer}. Try to remember this pattern!`
-}
-
 export default function AskHero({
-  question,
+  question,           // current question text, or null/'' for general mode
   skillId,
   skillName,
   studentId,
+  studentName = 'Hero',
+  grade = 3,
   questionId,
   onClose,
-  behaviour = 'confused',
-  attemptNumber = 1,
-  isCorrect = null,
 }) {
+  // General mode = opened from the floating button with no question context.
+  const general = !question
   const [robotState, setRobotState] = useState('waving')
-  const [stage, setStage] = useState('greeting')
+  // chatHistory drives the UI; conversation (role/content) is sent to the API.
   const [chatHistory, setChatHistory] = useState([])
+  const [conversation, setConversation] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-  const [practiceQuestion, setPracticeQuestion] = useState(null)
-  const [practiceAnswer, setPracticeAnswer] = useState(null)
-  const [practiceResult, setPracticeResult] = useState(null)
-  const [practiceAttempts, setPracticeAttempts] = useState(0)
   const chatEndRef = useRef(null)
   const mutedRef = useRef(false)
 
   useEffect(() => { mutedRef.current = isMuted }, [isMuted])
 
+  // Seed the conversation with a welcome message (and read it aloud).
   useEffect(() => {
     const greetTimer = setTimeout(() => {
-      const displayName = skillName || formatSkillName(skillId)
-      const greeting = `Hi! I'm Hero, your personal maths tutor.`
-      addHeroMessage(greeting, 'waving')
-      setTimeout(() => fetchHint(), 1500)
+      const welcome = general
+        ? `👋 Hi ${studentName}! I'm Hero. What Maths question can I help you with today?`
+        : `👋 Hi ${studentName}! I'm Hero. What part of this question would you like help with?`
+      addHeroMessage(welcome, 'waving')
     }, 500)
-
     return () => {
       clearTimeout(greetTimer)
       heroStop()
@@ -83,10 +55,13 @@ export default function AskHero({
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chatHistory])
+  }, [chatHistory, loading])
 
+  // Adds a Hero message to both the visible thread and the API conversation,
+  // and reads it aloud via heroSpeak (OpenAI TTS nova) unless muted.
   function addHeroMessage(message, state = 'talking') {
     setChatHistory(prev => [...prev, { role: 'hero', message }])
+    setConversation(prev => [...prev, { role: 'assistant', content: message }])
     setRobotState(state)
 
     if (!mutedRef.current) {
@@ -103,122 +78,14 @@ export default function AskHero({
     }
   }
 
-  async function fetchHint() {
-    setLoading(true)
-    setRobotState('thinking')
-
-    try {
-      const res = await fetch('/api/student/hint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId,
-          skillId,
-          questionId,
-          question,
-          attemptNumber,
-          behaviour,
-        }),
-      })
-      const data = await res.json()
-
-      const heroMessage = `${data.hint} Try using this to work through the question. You've got this!`
-      addHeroMessage(heroMessage, 'talking')
-      setStage('explaining')
-
-      setTimeout(() => fetchPracticeQuestion(), 3000)
-    } catch {
-      addHeroMessage(
-        "Let me think... Try breaking this problem into smaller steps. What do you know already?",
-        'talking'
-      )
-      setStage('explaining')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function fetchPracticeQuestion() {
-    try {
-      const res = await fetch(
-        `/api/student/questions?skillId=${skillId}&limit=3`
-      )
-      const data = await res.json()
-      const different = data.questions?.find(
-        q => q.questionId !== questionId
-      )
-      if (different) {
-        setPracticeQuestion(different)
-        addHeroMessage(
-          "Great! Now let's try a practice question together. This will help you understand it better!",
-          'waving'
-        )
-        setStage('practice')
-      }
-    } catch {}
-  }
-
-  async function handlePracticeAnswer(option) {
-    if (practiceAnswer) return
-    setPracticeAnswer(option)
-    setPracticeAttempts(prev => prev + 1)
-    setLoading(true)
-    setRobotState('thinking')
-
-    try {
-      const res = await fetch('/api/student/answer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId,
-          skillId,
-          questionId: practiceQuestion.questionId,
-          answer: option,
-          timeTakenMs: 10000,
-          hintUsed: true,
-          difficulty: practiceQuestion.difficulty || 0.5,
-        }),
-      })
-      const data = await res.json()
-      setPracticeResult(data)
-
-      if (data.correct) {
-        addHeroMessage(
-          `Excellent! You got it right! Now go back and try the original question. You understand this now!`,
-          'happy'
-        )
-        setStage('complete')
-      } else if (practiceAttempts < 1) {
-        const explanation = practiceQuestion.explanation ||
-          `Let me break this down. The answer is ${data.correctAnswer}. ${getStepByStepExplanation(practiceQuestion.question, data.correctAnswer)}`
-        addHeroMessage(
-          `Why don't we try this way? The answer is ${data.correctAnswer}. ${explanation} Let me give you one more try!`,
-          'sad'
-        )
-        setTimeout(() => {
-          setPracticeAnswer(null)
-          setPracticeResult(null)
-          setRobotState('idle')
-        }, 2500)
-      } else {
-        addHeroMessage(
-          `The answer is ${data.correctAnswer}. That's okay — even heroes learn from mistakes! Go back and try the real question now. You know more than before!`,
-          'sad'
-        )
-        setTimeout(() => setStage('complete'), 3000)
-      }
-    } catch {
-      setPracticeAnswer(null)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   async function handleChatSend() {
     if (!chatInput.trim() || loading) return
     const userMsg = chatInput.trim()
     setChatInput('')
     setChatHistory(prev => [...prev, { role: 'student', message: userMsg }])
+    // Build the full history sent to the API (gives the model memory).
+    const updatedConversation = [...conversation, { role: 'user', content: userMsg }]
+    setConversation(updatedConversation)
     setLoading(true)
     setRobotState('thinking')
 
@@ -227,17 +94,22 @@ export default function AskHero({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentId, skillId, questionId,
-          question: `Student asked: "${userMsg}". Original question: "${question}"`,
-          attemptNumber: attemptNumber + 1,
-          behaviour: 'confused',
+          messages: updatedConversation,
+          questionText: general ? null : question,
+          questionId: general ? null : questionId,
+          studentName,
+          grade,
+          studentId,
         }),
       })
       const data = await res.json()
-      addHeroMessage(data.hint, 'talking')
+      addHeroMessage(
+        data.reply || "I'm thinking... what have you tried so far? 🤔",
+        'talking'
+      )
     } catch {
       addHeroMessage(
-        "Great question! Think about what you already know and work from there.",
+        "Sorry, I had trouble connecting. Try again! 🤖",
         'talking'
       )
     } finally {
@@ -252,9 +124,7 @@ export default function AskHero({
   }
 
   function replayLastMessage() {
-    const lastHeroMsg = [...chatHistory]
-      .reverse()
-      .find(m => m.role === 'hero')
+    const lastHeroMsg = [...chatHistory].reverse().find(m => m.role === 'hero')
     if (lastHeroMsg && !isMuted) {
       setIsSpeaking(true)
       setRobotState('talking')
@@ -357,7 +227,7 @@ export default function AskHero({
           </div>
         </div>
 
-        {/* Robot + Question */}
+        {/* Robot + Question reference */}
         <div style={{
           background: '#F0F4F8',
           padding: 16,
@@ -403,11 +273,13 @@ export default function AskHero({
           }}>
             <p style={{ color: '#64748B', fontSize: 11,
               margin: '0 0 4px' }}>
-              Current question:
+              {general ? 'General Maths help' : 'Current question:'}
             </p>
             <p style={{ color: '#1B2B4B', fontWeight: 700,
               fontSize: 14, margin: 0 }}>
-              {question}
+              {general
+                ? 'Ask me anything about Maths! 😊'
+                : question}
             </p>
           </div>
         </div>
@@ -417,7 +289,7 @@ export default function AskHero({
           flex: 1, overflowY: 'auto',
           padding: 16, display: 'flex',
           flexDirection: 'column', gap: 10,
-          minHeight: 180, maxHeight: 260,
+          minHeight: 180, maxHeight: 320,
         }}>
           {chatHistory.map((msg, i) => (
             <div key={i} style={{
@@ -462,100 +334,39 @@ export default function AskHero({
           <div ref={chatEndRef} />
         </div>
 
-        {/* Practice question */}
-        {stage === 'practice' && practiceQuestion && !practiceAnswer && (
-          <div style={{
-            padding: 14,
-            borderTop: '1px solid #E2E8F0',
-            background: '#FFFBEB',
-          }}>
-            <p style={{ color: '#C49A1A', fontWeight: 700,
-              fontSize: 12, margin: '0 0 8px' }}>
-              🎯 Practice question — give it a go!
-            </p>
-            <p style={{ color: '#1B2B4B', fontWeight: 700,
-              fontSize: 15, margin: '0 0 10px' }}>
-              {practiceQuestion.question}
-            </p>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr', gap: 8,
-            }}>
-              {practiceQuestion.options?.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => handlePracticeAnswer(opt)}
-                  style={{
-                    padding: '10px 12px', borderRadius: 10,
-                    border: '2px solid #E2E8F0',
-                    background: 'white', color: '#1B2B4B',
-                    fontWeight: 700, cursor: 'pointer', fontSize: 14,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Chat input */}
-        {stage !== 'complete' && (
-          <div style={{
-            padding: 14,
-            borderTop: '1px solid #E2E8F0',
-            display: 'flex', gap: 8,
-          }}>
-            <input
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-              placeholder="Ask Hero anything..."
-              style={{
-                flex: 1, padding: '10px 14px',
-                borderRadius: 10,
-                border: '1.5px solid #E2E8F0',
-                fontSize: 14, color: '#1B2B4B',
-                outline: 'none',
-              }}
-            />
-            <button
-              onClick={handleChatSend}
-              disabled={loading || !chatInput.trim()}
-              style={{
-                background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',
-                color: 'white', border: 'none',
-                borderRadius: 10, padding: '10px 16px',
-                fontWeight: 700, cursor: 'pointer', fontSize: 14,
-              }}
-            >
-              Send
-            </button>
-          </div>
-        )}
-
-        {/* Complete state */}
-        {stage === 'complete' && (
-          <div style={{
-            padding: 16,
-            borderTop: '1px solid #E2E8F0',
-            textAlign: 'center',
-          }}>
-            <button
-              onClick={() => { heroStop(); onClose() }}
-              style={{
-                background: '#1B2B4B', color: 'white',
-                border: '2px solid #C49A1A',
-                borderRadius: 14, padding: '14px 32px',
-                fontWeight: 800, fontSize: 16,
-                cursor: 'pointer', width: '100%',
-              }}
-            >
-              Now try the real question! 💪
-            </button>
-          </div>
-        )}
+        <div style={{
+          padding: 14,
+          borderTop: '1px solid #E2E8F0',
+          display: 'flex', gap: 8,
+        }}>
+          <input
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+            placeholder="Ask Hero anything about Maths..."
+            disabled={loading}
+            style={{
+              flex: 1, padding: '10px 14px',
+              borderRadius: 10,
+              border: '1.5px solid #E2E8F0',
+              fontSize: 14, color: '#1B2B4B',
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleChatSend}
+            disabled={loading || !chatInput.trim()}
+            style={{
+              background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',
+              color: 'white', border: 'none',
+              borderRadius: 10, padding: '10px 16px',
+              fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default', fontSize: 14,
+            }}
+          >
+            Send
+          </button>
+        </div>
       </div>
 
       <style>{`

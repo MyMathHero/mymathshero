@@ -12,54 +12,48 @@ import api from '../lib/api'
 import HeroRobot from './HeroRobot'
 
 // Audio playback uses expo-audio + expo-file-system (SDK 56-correct).
-// expo-av was removed in SDK 56. The previous spec's `btoa(binary)` approach
-// doesn't work in React Native either; we stream the OpenAI proxy response
-// straight into a cache file via WritableStream, then play with createAudioPlayer.
+// expo-av was removed in SDK 56. We stream the OpenAI proxy response straight
+// into a cache file via WritableStream, then play with createAudioPlayer.
 
 interface Props {
   visible: boolean
   onClose: () => void
-  question: string
-  skillId: string
-  questionId: string
+  question?: string | null   // null/'' = general Maths mode (floating button)
+  skillId?: string
+  questionId?: string
   grade?: number
+  studentName?: string
 }
 
+// UI message and API message kept in sync. role 'hero' ⇄ 'assistant'.
 type Message = {
   role: 'hero' | 'student'
   text: string
   isIntro?: boolean
 }
 
-const HERO_INTRO =
-  "Hi! I'm Hero, your AI Maths tutor. I'm here to help you think through this question. " +
-  "I won't give you the answer, but I'll help you figure it out yourself. " +
-  "What part are you stuck on?"
-
-const ENCOURAGEMENT =
-  "You've got this! Now go back to the question and give it another try. I believe in you!"
-
 export default function AskHeroSheet({
-  visible, onClose, question, skillId, questionId, grade = 3,
+  visible, onClose, question, skillId, questionId, grade = 3, studentName = 'Hero',
 }: Props) {
+  const general = !question
+
   const [messages, setMessages] = useState<Message[]>([])
+  // Conversation history sent to the API (gives the model memory).
+  const [conversation, setConversation] =
+    useState<{ role: 'user' | 'assistant'; content: string }[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [robotMood, setRobotMood] =
     useState<'waving' | 'thinking' | 'happy'>('waving')
-  const [showEncouragement, setShowEncouragement] = useState(false)
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
   const playerRef = useRef<AudioPlayer | null>(null)
-  const messageCountRef = useRef(0)
 
+  // Open/close animation + fresh conversation each time the sheet opens.
   useEffect(() => {
     if (visible) {
-      setMessages([])
-      setInput('')
-      setShowEncouragement(false)
-      messageCountRef.current = 0
+      resetConversation()
       Animated.spring(slideAnim, {
         toValue: 0, useNativeDriver: true,
         tension: 65, friction: 11,
@@ -75,10 +69,25 @@ export default function AskHeroSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible])
 
+  // Reset the conversation when the student moves to a new question.
+  useEffect(() => {
+    if (visible) resetConversation()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionId])
+
+  function resetConversation() {
+    setMessages([])
+    setConversation([])
+    setInput('')
+  }
+
   async function playIntroduction() {
     setRobotMood('waving')
-    addHeroMessage(HERO_INTRO, true)
-    await speakWithOpenAI(HERO_INTRO)
+    const intro = general
+      ? `Hi ${studentName}! I'm Hero, your AI Maths tutor. What Maths question can I help you with today?`
+      : `Hi ${studentName}! I'm Hero, your AI Maths tutor. I won't give you the answer, but I'll help you figure it out. What part are you stuck on?`
+    addHeroMessage(intro, true)
+    await speakWithOpenAI(intro)
   }
 
   // Try the OpenAI nova proxy at /api/hero-voice; fall back to expo-speech.
@@ -100,7 +109,6 @@ export default function AskHeroSheet({
         { text: clean },
         { responseType: 'arraybuffer' }
       )
-      // axios surfaces non-2xx as throw, so `res` here is OK.
       const buf: ArrayBuffer = res.data
       if (!buf || (buf as ArrayBuffer).byteLength === 0) {
         throw new Error('Empty audio response')
@@ -108,7 +116,6 @@ export default function AskHeroSheet({
 
       // Write the audio bytes to a cache file via the modern File API.
       const file = new File(Paths.cache, `hero-${Date.now()}.mp3`)
-      // Create returns false silently if the file already exists; ignore.
       try { file.create() } catch {}
       const writer = file.writableStream().getWriter()
       await writer.write(new Uint8Array(buf))
@@ -119,7 +126,6 @@ export default function AskHeroSheet({
       playerRef.current = player
       player.play()
 
-      // Wait for playback to finish.
       await new Promise<void>((resolve) => {
         const sub = player.addListener('playbackStatusUpdate', (status) => {
           if (status?.didJustFinish) {
@@ -131,7 +137,6 @@ export default function AskHeroSheet({
 
       try { player.release() } catch {}
       playerRef.current = null
-      // Best-effort cleanup; if it fails the OS will reclaim cache.
       try { file.delete() } catch {}
       setSpeaking(false)
       return
@@ -163,73 +168,51 @@ export default function AskHeroSheet({
     }
   }
 
-  async function fetchHint(userQuestion?: string) {
+  function addHeroMessage(text: string, isIntro = false) {
+    setMessages(prev => [...prev, { role: 'hero', text, isIntro }])
+    // Mirror into the API conversation as an assistant turn.
+    setConversation(prev => [...prev, { role: 'assistant', content: text }])
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+  }
+
+  async function sendHeroMessage() {
+    if (!input.trim() || loading || speaking) return
+    const userMsg = input.trim()
+    setInput('')
+    setMessages(prev => [...prev, { role: 'student', text: userMsg }])
+    const updatedConversation = [...conversation, { role: 'user' as const, content: userMsg }]
+    setConversation(updatedConversation)
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+
     setLoading(true)
     setRobotMood('thinking')
-    messageCountRef.current += 1
-
     try {
       const studentId = (await SecureStore.getItemAsync('user_id')) || ''
-      const promptContext = userQuestion
-        ? `The student asked: "${userQuestion}". The original question is: "${question}". Give a helpful hint that guides them without giving the answer.`
-        : question
-
       const res = await api.post('/api/student/hint', {
-        studentId,
-        skillId,
-        questionId,
-        question: promptContext,
+        messages: updatedConversation,
+        questionText: general ? null : question,
+        questionId: general ? null : (questionId || null),
+        studentName,
         grade,
-        attemptNumber: messageCountRef.current,
-        behaviour: 'confused',
+        studentId,
       })
-
-      const hint = res.data?.hint
-        || "Let me help you think through this step by step! Try breaking the problem into smaller parts first."
-
+      const reply = res.data?.reply
+        || "I'm thinking... what have you tried so far? 🤔"
       setRobotMood('happy')
-      addHeroMessage(hint)
-      await speakWithOpenAI(hint)
-
-      // After 2+ hints, encourage them to go back to the real question.
-      if (messageCountRef.current >= 2) {
-        setShowEncouragement(true)
-        setTimeout(async () => {
-          addHeroMessage(ENCOURAGEMENT)
-          await speakWithOpenAI(ENCOURAGEMENT)
-        }, 400)
-      }
+      addHeroMessage(reply)
+      await speakWithOpenAI(reply)
     } catch {
-      const fallback = "Great question! Try thinking about what you already know about this topic. Break it into smaller steps."
       setRobotMood('happy')
+      const fallback = 'Connection issue — try again! 🤖'
       addHeroMessage(fallback)
-      await speakWithOpenAI(fallback)
     } finally {
       setLoading(false)
     }
   }
 
-  function addHeroMessage(text: string, isIntro = false) {
-    setMessages(prev => [...prev, { role: 'hero', text, isIntro }])
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
-  }
-
-  async function handleSend() {
-    if (!input.trim() || loading || speaking) return
-    const userMsg = input.trim()
-    setInput('')
-    setMessages(prev => [...prev, { role: 'student', text: userMsg }])
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
-    await fetchHint(userMsg)
-  }
-
   async function handleClose() {
     await stopAllAudio()
     onClose()
-  }
-
-  async function handleGetHint() {
-    await fetchHint()
   }
 
   if (!visible) return null
@@ -273,10 +256,14 @@ export default function AskHeroSheet({
           </TouchableOpacity>
         </View>
 
-        {/* Current question reference */}
+        {/* Current question reference (only in question mode) */}
         <View style={s.questionRef}>
-          <Text style={s.questionRefLabel}>📝 Current question:</Text>
-          <Text style={s.questionRefText} numberOfLines={2}>{question}</Text>
+          <Text style={s.questionRefLabel}>
+            {general ? '🤖 General Maths help' : '📝 Current question:'}
+          </Text>
+          <Text style={s.questionRefText} numberOfLines={2}>
+            {general ? 'Ask me anything about Maths! 😊' : question}
+          </Text>
         </View>
 
         {/* Chat */}
@@ -285,6 +272,7 @@ export default function AskHeroSheet({
           style={s.chat}
           contentContainerStyle={{ padding: 14, gap: 12 }}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map((msg, i) => (
             <View
@@ -315,26 +303,12 @@ export default function AskHeroSheet({
               <View style={[s.bubble, s.heroBubble]}>
                 <View style={s.thinkingRow}>
                   <ActivityIndicator color="#C49A1A" size="small" />
-                  <Text style={s.thinkingText}>Hero is thinking...</Text>
+                  <Text style={s.thinkingText}>Thinking... 🤔</Text>
                 </View>
               </View>
             </View>
           )}
         </ScrollView>
-
-        {/* Quick hint button (only at the start) */}
-        {messages.length <= 1 && !loading && (
-          <TouchableOpacity style={s.hintBtn} onPress={handleGetHint}>
-            <Text style={s.hintBtnText}>💡 Give me a hint!</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Encouragement after 2 hints */}
-        {showEncouragement && (
-          <TouchableOpacity style={s.backBtn} onPress={handleClose}>
-            <Text style={s.backBtnText}>✅ Got it! Back to question →</Text>
-          </TouchableOpacity>
-        )}
 
         {/* Input */}
         <KeyboardAvoidingView
@@ -343,18 +317,18 @@ export default function AskHeroSheet({
           <View style={s.inputRow}>
             <TextInput
               style={s.input}
-              placeholder="Ask Hero anything..."
+              placeholder="Ask Hero anything about Maths..."
               placeholderTextColor="#94A3B8"
               value={input}
               onChangeText={setInput}
-              onSubmitEditing={handleSend}
+              onSubmitEditing={sendHeroMessage}
               editable={!loading && !speaking}
               returnKeyType="send"
               multiline={false}
             />
             <TouchableOpacity
               style={[s.sendBtn, (!input.trim() || loading || speaking) && s.sendBtnOff]}
-              onPress={handleSend}
+              onPress={sendHeroMessage}
               disabled={!input.trim() || loading || speaking}
             >
               <Text style={s.sendBtnText}>→</Text>
@@ -432,7 +406,7 @@ const s = StyleSheet.create({
   questionRefText: {
     fontSize: 14, color: '#1B2B4B', fontWeight: '600',
   },
-  chat: { flex: 1, maxHeight: 260 },
+  chat: { flex: 1, maxHeight: 320 },
   heroBubbleRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
   },
@@ -457,23 +431,6 @@ const s = StyleSheet.create({
   introBubbleText: { color: 'rgba(255,255,255,0.9)' },
   thinkingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   thinkingText: { color: 'rgba(255,255,255,0.7)', fontSize: 14 },
-  hintBtn: {
-    marginHorizontal: 14, marginBottom: 8,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 12,
-    padding: 13,
-    alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#C49A1A',
-  },
-  hintBtnText: { color: '#1B2B4B', fontWeight: '700', fontSize: 15 },
-  backBtn: {
-    marginHorizontal: 14, marginBottom: 8,
-    backgroundColor: '#1B2B4B',
-    borderRadius: 12, padding: 13,
-    alignItems: 'center',
-    borderWidth: 2, borderColor: '#C49A1A',
-  },
-  backBtnText: { color: '#C49A1A', fontWeight: '800', fontSize: 15 },
   inputRow: {
     flexDirection: 'row', gap: 8,
     padding: 12,

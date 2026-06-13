@@ -6,7 +6,8 @@ import {
 import { useRouter, usePathname } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as Haptics from 'expo-haptics'
-import { studentAPI } from '../../lib/api'
+import api, { studentAPI } from '../../lib/api'
+import AskHeroSheet from '../../components/AskHeroSheet'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
@@ -128,7 +129,45 @@ export default function StudentDashboard() {
   const nudgeDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nudgeCountRef = useRef(0)
 
+  // Ask Hero (general mode) bottom sheet, gated by /hero-chat-status.
+  const [showHeroSheet, setShowHeroSheet] = useState(false)
+
   useEffect(() => { loadData() }, [])
+
+  // Floating-button entry point — checks the plan/daily gate, then opens the
+  // general-mode Ask Hero sheet. Fails open so Hero still works if the check
+  // itself errors.
+  async function openHeroFromDashboard() {
+    try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium) } catch {}
+    try {
+      const id = student?.id || (await SecureStore.getItemAsync('user_id')) || ''
+      const res = await api.get(`/api/student/hero-chat-status?studentId=${id}`)
+      const status = res.data
+      if (!status.allowed && status.reason === 'upgrade') {
+        Alert.alert(
+          '💎 Premium Feature',
+          'Ask Hero is available on the Premium plan. Upgrade to unlock unlimited AI tutoring!',
+          [{ text: 'Maybe Later', style: 'cancel' }, { text: 'Upgrade', onPress: () => router.push('/parent/subscribe') }]
+        )
+        return
+      }
+      if (!status.allowed && status.reason === 'daily_limit') {
+        Alert.alert(
+          '🌟 Daily Limit Reached',
+          "You've used all your Hero chats for today! Come back tomorrow 🌟 You've got this!",
+          [{ text: 'OK' }]
+        )
+        return
+      }
+      // Consume one session (best-effort).
+      try {
+        await api.post('/api/student/hero-chat-status', { studentId: id })
+      } catch {}
+      setShowHeroSheet(true)
+    } catch {
+      setShowHeroSheet(true) // fail open
+    }
+  }
 
   async function loadData() {
     try {
@@ -554,6 +593,41 @@ export default function StudentDashboard() {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating Ask Hero button — general-mode AI tutor, above the tab bar */}
+      <TouchableOpacity
+        onPress={openHeroFromDashboard}
+        style={{
+          position: 'absolute',
+          bottom: 90,
+          right: 20,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#1B2B4B',
+          borderWidth: 2,
+          borderColor: '#C49A1A',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          shadowColor: '#C49A1A',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.5,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+        activeOpacity={0.85}
+      >
+        <Text style={{ fontSize: 26 }}>🤖</Text>
+      </TouchableOpacity>
+
+      <AskHeroSheet
+        visible={showHeroSheet}
+        onClose={() => setShowHeroSheet(false)}
+        question={null}
+        grade={parseInt(String(student?.grade || 3), 10)}
+        studentName={student?.name || 'Hero'}
+      />
 
       {/* Bottom tab bar — haptic + gold active state */}
       <View style={s.tabBar}>

@@ -1,10 +1,70 @@
-import { MongoClient } from 'mongodb'
+import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { updateSmartScore } from '@/lib/smartscore'
 import { classifyBehaviour, getBehaviourInsight } from '@/lib/behaviour'
 import { getRecommendations } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { updateStreak } from '@/lib/streak'
+
+// Normalise an answer for comparison:
+//  - trim whitespace
+//  - strip "A) " / "A. " / "A " letter-prefix if present
+//  - lowercase
+// This lets us compare "45" to "A) 45" to "a) 45" to " 45 " correctly.
+function normaliseAnswer(value) {
+  if (value === null || value === undefined) return ''
+  return String(value)
+    .trim()
+    .replace(/^[A-Da-d][).\s]+/, '')
+    .trim()
+    .toLowerCase()
+}
+
+// Robust correctness check that supports every historical question format in
+// the DB. The DB has 1037 plain-text, 29 letter-prefixed options, and 9
+// single-letter correctAnswer rows. This handles all four permutations:
+//   correct "A" + options ["45","40",...]      → resolve options[0]
+//   correct "A" + options ["A) 45",...]        → resolve options[0], normalise
+//   correct "45" + student sends "A) 45"       → normalise both
+//   correct "A) 45" + student sends "45"       → normalise both
+function checkCorrect(studentAnswer, correctAnswer, options) {
+  if (studentAnswer === null || studentAnswer === undefined) return false
+  if (correctAnswer === null || correctAnswer === undefined) return false
+
+  const normStudent = normaliseAnswer(studentAnswer)
+  const normCorrect = normaliseAnswer(correctAnswer)
+  if (normStudent === '' && normCorrect === '') return false
+  if (normStudent === normCorrect) return true
+
+  const rawCorrect = String(correctAnswer).trim()
+  const rawStudent = String(studentAnswer).trim()
+
+  if (/^[A-Da-d]$/.test(rawCorrect) && Array.isArray(options)) {
+    const idx = rawCorrect.toUpperCase().charCodeAt(0) - 65
+    const target = options[idx]
+    if (target !== undefined && normStudent === normaliseAnswer(target)) return true
+  }
+  if (/^[A-Da-d]$/.test(rawStudent) && Array.isArray(options)) {
+    const idx = rawStudent.toUpperCase().charCodeAt(0) - 65
+    const target = options[idx]
+    if (target !== undefined && normaliseAnswer(target) === normCorrect) return true
+  }
+
+  return false
+}
+
+// Look up a question by string id OR by ObjectId. The questions API exposes
+// `questionId` as `rest.id || _id?.toString()`, so the client may send either
+// shape. Without this, ~30% of recent wrong answers are wrong-because-not-
+// -found, not wrong-because-incorrect.
+async function findQuestion(db, questionId) {
+  if (!questionId) return null
+  const or = [{ id: questionId }]
+  if (typeof questionId === 'string' && /^[a-fA-F0-9]{24}$/.test(questionId)) {
+    try { or.push({ _id: new ObjectId(questionId) }) } catch {}
+  }
+  return db.collection('questions').findOne({ $or: or })
+}
 
 let client
 async function connectDB() {
@@ -34,16 +94,46 @@ export async function POST(request) {
 
     const db = await connectDB()
 
-    // 1. Resolve correctAnswer — look up from DB if not provided by client
-    let resolvedCorrectAnswer = correctAnswer
-    if (!resolvedCorrectAnswer) {
-      const question = await db.collection('questions').findOne({ id: questionId })
-      resolvedCorrectAnswer = question?.correctAnswer
+    // 1. ALWAYS look up the question from the DB. The previous code accepted
+    //    a client-supplied correctAnswer as a fallback, which is both a fraud
+    //    vector AND meant a missing lookup silently graded students wrong.
+    const question = await findQuestion(db, questionId)
+    if (!question) {
+      console.error('[answer] question not found', { questionId, studentId, skillId })
+      return NextResponse.json(
+        { error: 'Question not found', questionId },
+        { status: 404 }
+      )
     }
+    const resolvedCorrectAnswer = question.correctAnswer
 
-    // 2. Check if answer is correct
-    const correct = answer?.toString().trim().toLowerCase() ===
-                    resolvedCorrectAnswer?.toString().trim().toLowerCase()
+    // 2. Robust correctness check supporting plain text, letter-prefixed, and
+    //    single-letter correctAnswer formats.
+    const correct = checkCorrect(answer, resolvedCorrectAnswer, question.options)
+
+    // Targeted debug log — fires ONLY on wrong answers where the normalised
+    // forms are within one character of each other, suggesting a near-miss
+    // (typo, formatting drift, etc.). Excludes obvious wrong answers and
+    // success cases so log volume stays tiny.
+    if (!correct) {
+      const ns = normaliseAnswer(answer)
+      const nc = normaliseAnswer(resolvedCorrectAnswer)
+      if (ns && nc && Math.abs(ns.length - nc.length) <= 1 && ns !== nc) {
+        const m = Math.min(ns.length, nc.length)
+        let diff = 0
+        for (let i = 0; i < m; i++) if (ns[i] !== nc[i]) diff++
+        if (diff <= 1) {
+          console.warn('[answer near-miss]', {
+            questionId,
+            normStudent: ns,
+            normCorrect: nc,
+            rawStudent: answer,
+            rawCorrect: resolvedCorrectAnswer,
+            options: question.options,
+          })
+        }
+      }
+    }
 
     // 3. Classify behaviour
     const behaviour = classifyBehaviour({
@@ -81,11 +171,18 @@ export async function POST(request) {
       { upsert: true }
     )
 
-    // 7. Log the session event
+    // 7. Log the session event. We now persist the raw student answer so
+    //    bug-hunts on grading correctness have something to cross-reference.
+    //    Capped to 256 chars to avoid storing pathological inputs.
+    const persistedSelectedAnswer = answer === null || answer === undefined
+      ? null
+      : String(answer).slice(0, 256)
     await db.collection('session_events').insertOne({
       studentId,
       skillId,
       questionId,
+      selectedAnswer: persistedSelectedAnswer,
+      correctAnswer: resolvedCorrectAnswer,
       correct,
       behaviour,
       timeTakenMs,

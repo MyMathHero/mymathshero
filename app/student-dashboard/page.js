@@ -228,6 +228,9 @@ export default function StudentDashboard() {
   // Ask Hero AI tutor panel state
   const [showAskHero, setShowAskHero] = useState(false)
   const [askHeroAttempts, setAskHeroAttempts] = useState(1)
+  // Multi-turn Ask Hero: status gate + general (floating-button) mode.
+  const [heroStatus, setHeroStatus] = useState(null)   // { allowed, remaining, reason }
+  const [heroGeneral, setHeroGeneral] = useState(false) // true = opened from floating button
 
   // Session feedback popup — fires every 5 completed sessions, max once per count
   const [showFeedback, setShowFeedback] = useState(false)
@@ -750,6 +753,40 @@ export default function StudentDashboard() {
 
   function openWeakSpot() {
     if (weakestSkill) openPractice(weakestSkill)
+  }
+
+  // Open Ask Hero (multi-turn). Pass a question for in-practice help, or null
+  // for general Maths mode (floating button). Checks the plan/daily gate first,
+  // then consumes one session before opening the chat.
+  async function openAskHero(general = false) {
+    if (!authStudentId) return
+    let status = null
+    try {
+      const statusRes = await fetch(`/api/student/hero-chat-status?studentId=${authStudentId}`)
+      status = await statusRes.json()
+    } catch {
+      status = null
+    }
+    setHeroStatus(status)
+    setHeroGeneral(general)
+
+    // Gated (not premium, or daily limit reached) — open modal in locked state.
+    if (status && !status.allowed) {
+      setShowAskHero(true)
+      return
+    }
+
+    // Consume one session (best-effort).
+    try {
+      await fetch('/api/student/hero-chat-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: authStudentId }),
+      })
+    } catch {
+      // Non-fatal — still open the chat.
+    }
+    setShowAskHero(true)
   }
 
   const fetchHint = async () => {
@@ -2199,8 +2236,8 @@ export default function StudentDashboard() {
                           <button
                             onClick={() => {
                               Analytics.askHeroOpened(practiceModal?.skillId)
-                              setShowAskHero(true)
                               setAskHeroAttempts(prev => prev + 1)
+                              openAskHero(false)
                             }}
                             style={{
                               background: 'var(--accent-gold)', color: 'white',
@@ -2218,8 +2255,8 @@ export default function StudentDashboard() {
                           <button
                             onClick={() => {
                               Analytics.askHeroOpened(practiceModal?.skillId)
-                              setShowAskHero(true)
                               setAskHeroAttempts(prev => prev + 1)
+                              openAskHero(false)
                             }}
                             style={{
                               display: 'flex', alignItems: 'center',
@@ -2398,19 +2435,88 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Ask Hero AI tutor panel */}
-      {showAskHero && practiceModal && (
+      {/* Ask Hero — gated state (not premium, or daily limit reached) */}
+      {showAskHero && heroStatus && !heroStatus.allowed && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 16,
+        }}>
+          <div style={{
+            background: 'white', borderRadius: 24, width: '100%', maxWidth: 420,
+            border: '3px solid #C49A1A', padding: 32, textAlign: 'center',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
+          }}>
+            <button
+              onClick={() => setShowAskHero(false)}
+              style={{
+                position: 'absolute', top: 24, right: 24, background: 'none',
+                border: 'none', fontSize: 24, cursor: 'pointer', color: '#94A3B8',
+              }}
+            >×</button>
+            {heroStatus.reason === 'upgrade' ? (
+              <>
+                <p style={{ fontSize: 48, margin: 0 }}>💎</p>
+                <h3 style={{ color: '#1B2B4B', fontWeight: 800, marginBottom: 8 }}>Premium Feature</h3>
+                <p style={{ color: '#64748B', fontSize: 14, marginBottom: 24 }}>
+                  Ask Hero is available on the Premium plan 💎 Upgrade to unlock unlimited AI tutoring!
+                </p>
+                <button
+                  onClick={() => { setShowAskHero(false); window.location.href = '/subscribe' }}
+                  style={{
+                    background: '#1B2B4B', color: '#C49A1A', border: '2px solid #C49A1A',
+                    borderRadius: 12, padding: '12px 28px', fontWeight: 800, cursor: 'pointer',
+                  }}
+                >Upgrade to Premium →</button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 48, margin: 0 }}>🌟</p>
+                <h3 style={{ color: '#1B2B4B', fontWeight: 800, marginBottom: 8 }}>Daily Limit Reached</h3>
+                <p style={{ color: '#64748B', fontSize: 14 }}>
+                  You&apos;ve used all your Hero chats for today! Come back tomorrow 🌟 You&apos;ve got this!
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Ask Hero AI tutor panel — multi-turn chat */}
+      {showAskHero && (!heroStatus || heroStatus.allowed) && (heroGeneral || practiceModal) && (
         <AskHero
-          question={practiceModal.question}
-          skillId={practiceModal.skillId || 'm_3_multiply100'}
-          skillName={practiceModal.skillName}
+          question={heroGeneral ? null : practiceModal?.question}
+          skillId={heroGeneral ? null : (practiceModal?.skillId || 'm_3_multiply100')}
+          skillName={heroGeneral ? null : practiceModal?.skillName}
           studentId={authStudentId || 'student_test_001'}
-          questionId={practiceModal.questionId}
+          studentName={student?.name || 'Hero'}
+          grade={student?.grade ?? 3}
+          questionId={heroGeneral ? null : practiceModal?.questionId}
           onClose={() => setShowAskHero(false)}
-          behaviour={answerState ? 'conceptual_gap' : 'confused'}
-          attemptNumber={askHeroAttempts}
         />
       )}
+
+      {/* Floating Ask Hero button — persistent general-mode tutor */}
+      <style>{`
+        @keyframes heroGlow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(196,154,26,0.6), 0 4px 20px rgba(27,43,75,0.4); }
+          50% { box-shadow: 0 0 0 8px rgba(196,154,26,0), 0 4px 20px rgba(27,43,75,0.4); }
+        }
+      `}</style>
+      <button
+        onClick={() => openAskHero(true)}
+        title="Ask Hero"
+        style={{
+          position: 'fixed', bottom: 24, right: 24,
+          width: 60, height: 60, borderRadius: '50%',
+          background: '#1B2B4B', border: '2px solid #C49A1A',
+          cursor: 'pointer', zIndex: 200,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 28, animation: 'heroGlow 2s ease-in-out infinite',
+        }}
+      >
+        🤖
+      </button>
 
       {/* Dev Mode Panel — only visible for isDev students */}
       {student?.isDev && (
