@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { AVATAR_ITEMS } from '@/lib/avatarItems'
+import { isCharacterId } from '@/lib/characterAvatars'
 
 let client
 async function connectDB() {
@@ -47,6 +48,19 @@ export async function POST(request) {
     const student = await db.collection('children').findOne({ id: studentId })
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+    }
+
+    // Character avatars are the single source of truth shown everywhere. They
+    // are all free, so this just writes the chosen character id to `avatar`.
+    if (action === 'setCharacter') {
+      if (!isCharacterId(itemId)) {
+        return NextResponse.json({ error: 'Unknown character' }, { status: 400 })
+      }
+      await db.collection('children').updateOne(
+        { id: studentId },
+        { $set: { avatar: itemId } }
+      )
+      return NextResponse.json({ success: true, avatar: itemId })
     }
 
     const categoryItems = AVATAR_ITEMS[category]

@@ -3,11 +3,14 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, ActivityIndicator, Alert,
 } from 'react-native'
-import { useRouter, usePathname } from 'expo-router'
+import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as Haptics from 'expo-haptics'
 import api, { studentAPI } from '../../lib/api'
 import AskHeroSheet from '../../components/AskHeroSheet'
+import AskHeroIcon from '../../components/AskHeroIcon'
+import FloatingTabBar from '../../components/FloatingTabBar'
+import CharacterAvatar from '../../components/CharacterAvatar'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
@@ -25,6 +28,7 @@ interface NudgeMessage {
   action: string
   skill?: any
   isExam?: boolean
+  icon?: 'askHero'
   color: string
   borderColor: string
 }
@@ -105,6 +109,7 @@ function buildNudges(
     message: `${currentStats?.totalQuestionsThisWeek || 0} questions this week! Every one makes you smarter. 💪`,
     action: "Let's Go!",
     skill: recs[0],
+    icon: 'askHero',
     color: '#F5F3FF',
     borderColor: '#7C3AED',
   })
@@ -115,7 +120,6 @@ export default function StudentDashboard() {
   const { colors } = useTheme()
   const s = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
-  const pathname = usePathname()
   const [student, setStudent] = useState<any>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
@@ -329,7 +333,11 @@ export default function StudentDashboard() {
             { backgroundColor: heroNudge.color, borderColor: heroNudge.borderColor },
           ]}
         >
-          <Text style={s.nudgeEmoji}>{heroNudge.emoji}</Text>
+          {heroNudge.icon === 'askHero' ? (
+            <AskHeroIcon size={26} />
+          ) : (
+            <Text style={s.nudgeEmoji}>{heroNudge.emoji}</Text>
+          )}
           <View style={{ flex: 1 }}>
             <Text style={s.nudgeTitle} numberOfLines={1}>{heroNudge.title}</Text>
             <Text style={s.nudgeMsg} numberOfLines={2}>{heroNudge.message}</Text>
@@ -354,9 +362,11 @@ export default function StudentDashboard() {
           </View>
         </View>
 
-        {/* Greeting + waving robot */}
+        {/* Greeting + chosen hero avatar */}
         <View style={s.greetingRow}>
-          <HeroRobot mood="waving" size={80} containerStyle="circle" />
+          <TouchableOpacity onPress={() => router.push('/student/profile')} activeOpacity={0.85}>
+            <CharacterAvatar id={student?.avatar} size={80} />
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.greetingHi}>Good day, Hero! 👋</Text>
             <Text style={s.greetingName}>{firstName}</Text>
@@ -376,15 +386,19 @@ export default function StudentDashboard() {
         contentContainerStyle={{ padding: 12, gap: 10 }}
       >
         {[
-          { label: 'Mastered',  value: stats?.mastered || 0,                     emoji: '🏆', color: theme.colors.gold },
-          { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,               emoji: '🎯', color: theme.colors.success },
-          { label: 'Questions', value: stats?.totalQuestionsThisWeek || 0,       emoji: '📝', color: '#60A5FA' },
-          { label: 'Sessions',  value: student?.sessions_completed || 0,         emoji: '📚', color: '#A78BFA' },
+          { label: 'Mastered',  value: stats?.mastered || 0,                     emoji: '🏆', color: '#059669' },
+          { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,               emoji: '🎯', color: '#DC2626' },
+          { label: 'Questions', value: stats?.totalQuestionsThisWeek || 0,       emoji: '📝', color: '#2563EB' },
+          { label: 'Sessions',  value: student?.sessions_completed || 0,         emoji: '📚', color: '#7C3AED' },
         ].map((tile, i) => (
           <View key={i} style={s.statTile}>
-            <Text style={s.statTileEmoji}>{tile.emoji}</Text>
-            <Text style={[s.statTileValue, { color: tile.color }]}>{tile.value}</Text>
-            <Text style={s.statTileLabel}>{tile.label}</Text>
+            <View style={[s.statTileChip, { backgroundColor: tile.color }]}>
+              <Text style={s.statTileEmoji}>{tile.emoji}</Text>
+            </View>
+            <View>
+              <Text style={s.statTileValue}>{tile.value}</Text>
+              <Text style={s.statTileLabel}>{tile.label}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -601,24 +615,14 @@ export default function StudentDashboard() {
           position: 'absolute',
           bottom: 90,
           right: 20,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: '#1B2B4B',
-          borderWidth: 2,
-          borderColor: '#C49A1A',
-          alignItems: 'center',
-          justifyContent: 'center',
           zIndex: 100,
-          shadowColor: '#C49A1A',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.5,
-          shadowRadius: 8,
-          elevation: 8,
         }}
         activeOpacity={0.85}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Ask Hero"
       >
-        <Text style={{ fontSize: 26 }}>🤖</Text>
+        <AskHeroIcon size={76} badge />
       </TouchableOpacity>
 
       <AskHeroSheet
@@ -629,38 +633,8 @@ export default function StudentDashboard() {
         studentName={student?.name || 'Hero'}
       />
 
-      {/* Bottom tab bar — haptic + gold active state */}
-      <View style={s.tabBar}>
-        {[
-          { key: 'home',    label: 'Home',    emoji: '🏠', route: '/student/dashboard' },
-          { key: 'league',  label: 'League',  emoji: '🏆', route: '/student/league' },
-          { key: 'arcade',  label: 'Arcade',  emoji: '🕹️', route: '/student/arcade' },
-          { key: 'profile', label: 'Profile', emoji: '👤', route: '/student/profile' },
-        ].map(tab => {
-          const isActive = pathname === tab.route
-            || (tab.key === 'home' && (pathname === '/student/dashboard' || pathname === '/'))
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={s.tab}
-              onPress={async () => {
-                try { await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light) } catch {}
-                if (!isActive) router.push(tab.route as any)
-              }}
-              activeOpacity={0.7}
-            >
-              {isActive && <View style={s.tabIndicator} />}
-              <Text style={s.tabEmoji}>{tab.emoji}</Text>
-              <Text style={[
-                s.tabLabel,
-                isActive && { color: theme.colors.gold, fontWeight: '800' },
-              ]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+      {/* Floating glassy bottom navigation */}
+      <FloatingTabBar />
     </SafeAreaView>
   )
 }
@@ -692,13 +666,15 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   statsStrip: { backgroundColor: c.bgHeaderSecondary, flexGrow: 0 },
   statTile: {
     backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16,
-    alignItems: 'center', minWidth: 80,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  statTileEmoji: { fontSize: 18 },
-  statTileValue: { fontWeight: '800', fontSize: 16, marginTop: 2 },
-  statTileLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 1 },
+  statTileChip: { width: 34, height: 34, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center' },
+  statTileEmoji: { fontSize: 17 },
+  statTileValue: { fontWeight: '800', fontSize: 17, color: 'white' },
+  statTileLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, marginTop: 1 },
 
   // Scroll body
   scroll: { flex: 1 },
@@ -782,19 +758,4 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   nudgeMsg: { fontSize: 12, color: '#334155', lineHeight: 16, marginTop: 2 },
   nudgeClose: { fontSize: 14, color: c.textMuted, paddingHorizontal: 4 },
 
-  // Bottom tab bar
-  tabIndicator: {
-    width: 32, height: 3,
-    backgroundColor: c.accentGold,
-    borderRadius: 2,
-    marginBottom: 4,
-  },
-  tabBar: {
-    flexDirection: 'row', backgroundColor: c.bgCard,
-    borderTopWidth: 1, borderTopColor: c.borderColor,
-    paddingBottom: 20, paddingTop: 10,
-  },
-  tab: { flex: 1, alignItems: 'center', gap: 2 },
-  tabEmoji: { fontSize: 22 },
-  tabLabel: { fontSize: 11, color: c.textMuted, fontWeight: '600' },
 })

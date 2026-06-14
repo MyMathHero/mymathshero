@@ -1,19 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  AVATAR_ITEMS,
-  AVATAR_CATEGORIES,
-  getDefaultAvatar,
-  renderAvatarPreview,
-} from '@/lib/avatarItems'
+import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID, getCharacter } from '@/lib/characterAvatars'
+import CharacterAvatar, { CharacterSVG } from '@/components/CharacterAvatar'
 
 export default function AvatarPage() {
   const router = useRouter()
-  const [avatarConfig, setAvatarConfig] = useState(getDefaultAvatar())
-  const [unlockedItems, setUnlockedItems] = useState([])
-  const [coins, setCoins] = useState(0)
-  const [activeCategory, setActiveCategory] = useState('heroStyle')
+  const [selected, setSelected] = useState(DEFAULT_AVATAR_ID)
+  const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState(null)
   const [studentId, setStudentId] = useState(null)
@@ -29,140 +23,68 @@ export default function AvatarPage() {
         }
         setStudentId(auth.user.userId)
 
-        const avatarRes = await fetch(
-          `/api/student/avatar?studentId=${auth.user.userId}`
-        )
-        const avatarData = await avatarRes.json()
-        if (avatarData.avatar) setAvatarConfig(avatarData.avatar)
-        setUnlockedItems(avatarData.unlockedItems || [])
-        setCoins(avatarData.coins || 0)
+        const avatarRes = await fetch(`/api/student/avatar?studentId=${auth.user.userId}`)
+        const data = await avatarRes.json()
+        // The single source of truth is the student's `avatar` field; the
+        // progress endpoint returns it on the student object.
+        const progRes = await fetch(`/api/student/progress?studentId=${auth.user.userId}`)
+        const prog = await progRes.json()
+        const current = prog?.student?.avatar
+        if (current && getCharacter(current)) setSelected(current)
       } catch {}
       finally { setLoading(false) }
     }
     load()
   }, [router])
 
-  function isOwned(category, itemId) {
-    const item = AVATAR_ITEMS[category]?.find(i => i.id === itemId)
-    if (!item) return false
-    if (item.cost === 0) return true
-    return unlockedItems.includes(`${category}_${itemId}`)
-  }
-
   function showMessage(text, type) {
     setMessage({ text, type })
-    setTimeout(() => setMessage(null), 3000)
+    setTimeout(() => setMessage(null), 2500)
   }
 
-  async function handleItemClick(category, item) {
-    if (!studentId) return
-
-    if (isOwned(category, item.id)) {
-      // Equip it
-      try {
-        const res = await fetch('/api/student/avatar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentId, action: 'equip', category, itemId: item.id,
-          }),
-        })
-        const data = await res.json()
-        if (data.success) {
-          setAvatarConfig(data.avatarConfig)
-          showMessage(`${item.name} equipped! ✅`, 'success')
-        } else {
-          showMessage(data.error || 'Could not equip', 'error')
-        }
-      } catch {
-        showMessage('Connection error. Please try again.', 'error')
-      }
-      return
-    }
-
-    // Purchase it
-    if (coins < item.cost) {
-      showMessage(
-        `Need ${item.cost - coins} more coins! Keep answering questions. 💪`,
-        'error'
-      )
-      return
-    }
+  async function choose(id) {
+    if (!studentId || saving) return
+    const prev = selected
+    setSelected(id)            // optimistic
+    setSaving(true)
     try {
       const res = await fetch('/api/student/avatar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId, action: 'purchase', category, itemId: item.id,
-        }),
+        body: JSON.stringify({ studentId, action: 'setCharacter', itemId: id }),
       })
       const data = await res.json()
       if (data.success) {
-        setCoins(data.newCoins)
-        setUnlockedItems(prev => [...prev, `${category}_${item.id}`])
-        setAvatarConfig(prev => ({ ...prev, [category]: item.id }))
-        // Persist the equip too so the new item is the active one.
-        fetch('/api/student/avatar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentId, action: 'equip', category, itemId: item.id,
-          }),
-        }).catch(() => {})
-        showMessage(`${item.name} unlocked and equipped! 🎉`, 'success')
+        showMessage(`${getCharacter(id)?.name} selected! ✅`, 'success')
       } else {
-        showMessage(data.error || 'Something went wrong', 'error')
+        setSelected(prev)
+        showMessage(data.error || 'Could not save', 'error')
       }
     } catch {
+      setSelected(prev)
       showMessage('Connection error. Please try again.', 'error')
+    } finally {
+      setSaving(false)
     }
-  }
-
-  const bgColors = {
-    classic:    'linear-gradient(135deg, #1B2B4B, #2D4A7A)',
-    space:      'linear-gradient(135deg, #0f0c29, #302b63)',
-    underwater: 'linear-gradient(135deg, #0575E6, #021B79)',
-    galaxy:     'linear-gradient(135deg, #7F00FF, #E100FF)',
   }
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh', background: '#1B2B4B',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <p style={{ color: '#C49A1A', fontSize: 18, fontWeight: 700 }}>
-          Loading your Hero...
-        </p>
+      <div style={{ minHeight: '100vh', background: '#1B2B4B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#C49A1A', fontSize: 18, fontWeight: 700 }}>Loading your Hero...</p>
       </div>
     )
   }
 
+  const current = getCharacter(selected)
+
   return (
-    <div style={{ minHeight: '100vh', background: '#F0F4F8' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary, #F0F4F8)' }}>
       {/* Header */}
-      <div style={{
-        background: '#1B2B4B', padding: '16px 20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <button
-          onClick={() => router.back()}
-          style={{ background: 'none', border: 'none', color: '#C49A1A',
-            fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
-        >
-          ← Back
-        </button>
-        <p style={{ color: 'white', fontWeight: 800, fontSize: 17, margin: 0 }}>
-          My Hero Avatar
-        </p>
-        <div style={{
-          background: 'rgba(196,154,26,0.2)',
-          borderRadius: 20, padding: '4px 12px',
-        }}>
-          <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 14, margin: 0 }}>
-            🪙 {coins}
-          </p>
-        </div>
+      <div style={{ background: '#1B2B4B', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: 'none', color: '#C49A1A', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>← Back</button>
+        <p style={{ color: 'white', fontWeight: 800, fontSize: 17, margin: 0 }}>Choose Your Hero</p>
+        <span style={{ width: 50 }} />
       </div>
 
       {/* Message banner */}
@@ -170,139 +92,62 @@ export default function AvatarPage() {
         <div style={{
           background: message.type === 'success' ? '#DCFCE7' : '#FEE2E2',
           border: `1px solid ${message.type === 'success' ? '#22C55E' : '#EF4444'}`,
-          padding: '12px 20px', textAlign: 'center',
-          fontWeight: 600, fontSize: 14,
+          padding: '12px 20px', textAlign: 'center', fontWeight: 600, fontSize: 14,
           color: message.type === 'success' ? '#166534' : '#991B1B',
         }}>
           {message.text}
         </div>
       )}
 
-      {/* Hero Preview */}
+      {/* Big preview of selected character */}
       <div style={{
-        background: bgColors[avatarConfig.background] || bgColors.classic,
-        padding: '40px 20px',
-        textAlign: 'center', position: 'relative', minHeight: 220,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column',
+        background: current ? `linear-gradient(135deg, ${current.bg[0]}, ${current.bg[1]})` : '#1B2B4B',
+        padding: '32px 20px 36px', textAlign: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
       }}>
         <div style={{
-          fontSize: 80, marginBottom: 12,
-          filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.4))',
+          width: 140, height: 140, borderRadius: '50%', overflow: 'hidden',
+          border: '5px solid #C49A1A', boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
         }}>
-          {renderAvatarPreview(avatarConfig)}
+          {current && <CharacterSVG char={current} size={140} />}
         </div>
-        <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>
-          Your Hero
+        <p style={{ color: 'white', fontWeight: 800, fontSize: 20, margin: '14px 0 2px' }}>{current?.name}</p>
+        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, margin: 0 }}>{current?.tagline}</p>
+      </div>
+
+      {/* Character grid */}
+      <div style={{ padding: 16 }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted, #94A3B8)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '4px 4px 12px' }}>
+          ✨ Pick a character
         </p>
-        <div style={{
-          display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}>
-          {Object.entries(avatarConfig).map(([cat, val]) => {
-            const item = AVATAR_ITEMS[cat]?.find(i => i.id === val)
-            return item ? (
-              <span key={cat} style={{
-                background: 'rgba(255,255,255,0.15)',
-                borderRadius: 20, padding: '2px 10px',
-                fontSize: 12, color: 'white',
-              }}>
-                {item.emoji} {item.name}
-              </span>
-            ) : null
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 12, maxWidth: 560, margin: '0 auto' }}>
+          {CHARACTER_AVATARS.map(char => {
+            const isSel = selected === char.id
+            return (
+              <button
+                key={char.id}
+                onClick={() => choose(char.id)}
+                style={{
+                  background: 'var(--bg-card, #fff)', borderRadius: 16, padding: '12px 8px',
+                  cursor: 'pointer', textAlign: 'center',
+                  border: isSel ? '3px solid #C49A1A' : '2px solid var(--border-color, #E2E8F0)',
+                  boxShadow: isSel ? '0 6px 20px rgba(196,154,26,0.25)' : '0 2px 8px rgba(0,0,0,0.04)',
+                  transition: 'transform 0.15s ease',
+                  transform: isSel ? 'translateY(-2px)' : 'none',
+                  position: 'relative',
+                }}
+              >
+                {isSel && (
+                  <div style={{ position: 'absolute', top: 6, right: 6, background: '#C49A1A', color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 10 }}>ON</div>
+                )}
+                <div style={{ width: 64, height: 64, margin: '0 auto 6px', borderRadius: '50%', overflow: 'hidden' }}>
+                  <CharacterSVG char={char} size={64} />
+                </div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary, #1B2B4B)', margin: 0, lineHeight: 1.2 }}>{char.name}</p>
+              </button>
+            )
           })}
         </div>
-      </div>
-
-      {/* Category tabs */}
-      <div style={{
-        display: 'flex', gap: 8,
-        padding: '16px 20px 8px',
-        overflowX: 'auto',
-        background: 'white',
-        borderBottom: '1px solid #E2E8F0',
-      }}>
-        {AVATAR_CATEGORIES.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            style={{
-              background: activeCategory === cat.id ? '#1B2B4B' : '#F0F4F8',
-              color: activeCategory === cat.id ? 'white' : '#64748B',
-              border: 'none', borderRadius: 20,
-              padding: '8px 16px',
-              fontWeight: 700, fontSize: 13,
-              cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-            }}
-          >
-            {cat.emoji} {cat.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Items grid */}
-      <div style={{
-        padding: 20,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: 12,
-      }}>
-        {(AVATAR_ITEMS[activeCategory] || []).map(item => {
-          const owned = isOwned(activeCategory, item.id)
-          const equipped = avatarConfig[activeCategory] === item.id
-          const canAfford = coins >= item.cost
-
-          return (
-            <div
-              key={item.id}
-              onClick={() => handleItemClick(activeCategory, item)}
-              style={{
-                background: 'white', borderRadius: 16, padding: 16,
-                textAlign: 'center', cursor: 'pointer',
-                border: equipped
-                  ? '2px solid #C49A1A'
-                  : owned
-                  ? '2px solid #22C55E'
-                  : '2px solid #E2E8F0',
-                boxShadow: equipped
-                  ? '0 4px 16px rgba(196,154,26,0.2)'
-                  : '0 2px 8px rgba(0,0,0,0.04)',
-                position: 'relative',
-                opacity: !owned && !canAfford ? 0.7 : 1,
-              }}
-            >
-              {equipped && (
-                <div style={{
-                  position: 'absolute', top: 8, right: 8,
-                  background: '#C49A1A', color: 'white',
-                  fontSize: 10, fontWeight: 800,
-                  padding: '2px 8px', borderRadius: 10,
-                }}>
-                  ON
-                </div>
-              )}
-              <p style={{ fontSize: 40, margin: '0 0 8px' }}>{item.emoji}</p>
-              <p style={{
-                fontSize: 13, fontWeight: 700,
-                color: '#1B2B4B', margin: '0 0 4px',
-              }}>
-                {item.name}
-              </p>
-              {item.cost === 0 ? (
-                <p style={{ fontSize: 12, color: '#22C55E', fontWeight: 700, margin: 0 }}>FREE</p>
-              ) : owned ? (
-                <p style={{ fontSize: 12, color: '#22C55E', fontWeight: 700, margin: 0 }}>✅ Owned</p>
-              ) : (
-                <p style={{
-                  fontSize: 12, fontWeight: 700, margin: 0,
-                  color: canAfford ? '#C49A1A' : '#94A3B8',
-                }}>
-                  🪙 {item.cost} coins
-                </p>
-              )}
-            </div>
-          )
-        })}
       </div>
 
       <div style={{ height: 40 }} />

@@ -34,6 +34,39 @@ function getInsightStyle(type) {
   }
 }
 
+// Small presentational tile used inside the Account Settings panel index.
+// Kept simple — clickable card with icon, title and one-line description.
+function AccountTile({ icon, title, desc, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        background: 'white',
+        border: '1px solid #E2E8F0',
+        borderRadius: 14,
+        padding: 16,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        transition: 'border-color 0.15s, transform 0.1s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#C49A1A' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0' }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: '#EEF2FF', color: '#4F46E5',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 18,
+      }}>{icon}</div>
+      <div style={{ fontWeight: 700, color: '#1B2B4B', fontSize: 14 }}>{title}</div>
+      <div style={{ color: '#64748B', fontSize: 12, lineHeight: 1.45 }}>{desc}</div>
+    </button>
+  )
+}
+
 export default function ParentDashboard() {
   const { flags } = useFeatureFlags()
   const [step, setStep] = useState('loading') // loading, landing, register, addChild, childCreated, dashboard
@@ -52,7 +85,6 @@ export default function ParentDashboard() {
   const [insights, setInsights] = useState([])
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [insightsSource, setInsightsSource] = useState(null)
-  const [showSidebar, setShowSidebar] = useState(false)
   const [reportSending, setReportSending] = useState(false)
   const [reportMsg, setReportMsg] = useState('')
 
@@ -73,6 +105,20 @@ export default function ParentDashboard() {
   const [addChildError, setAddChildError] = useState('')
   const [actionToast, setActionToast] = useState(null)
   const [lastReportSent, setLastReportSent] = useState(null)
+
+  // Account Settings — slide-out panel from the right (Stripe-style).
+  // Panel has two view modes: 'index' (category grid) and a section id when
+  // the parent drills into a category. The dashboard stays mounted behind it.
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false)
+  const [accountView, setAccountView] = useState('index') // 'index' | 'profile' | 'subscription' | 'children' | 'arcade'
+
+  // Inline name/email editing.
+  const [editingName, setEditingName] = useState(false)
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
+  const [savingName, setSavingName] = useState(false)
+  const [savingEmail, setSavingEmail] = useState(false)
 
   // ── Auth check on mount ────────────────────────────────────────────────────
   useEffect(() => {
@@ -193,6 +239,95 @@ export default function ParentDashboard() {
   function showActionToast(message, type = 'success') {
     setActionToast({ message, type })
     setTimeout(() => setActionToast(null), 3000)
+  }
+
+  // Open the Account Settings panel and seed inputs from current parentData.
+  // The panel slides in from the right; the dashboard stays underneath.
+  function openAccount() {
+    setNameInput(parentData?.name || '')
+    setEmailInput(parentData?.email || '')
+    setEditingName(false)
+    setEditingEmail(false)
+    setAccountView('index')
+    setAccountPanelOpen(true)
+  }
+
+  function closeAccount() {
+    setAccountPanelOpen(false)
+    setEditingName(false)
+    setEditingEmail(false)
+  }
+
+  // ESC closes the panel from anywhere. Only listens while it's open.
+  useEffect(() => {
+    if (!accountPanelOpen) return
+    function onKey(e) { if (e.key === 'Escape') closeAccount() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [accountPanelOpen])
+
+  async function saveName() {
+    const cleaned = nameInput.trim()
+    if (!cleaned) {
+      showActionToast('Name cannot be empty', 'error')
+      return
+    }
+    if (cleaned === parentData?.name) {
+      setEditingName(false)
+      return
+    }
+    setSavingName(true)
+    try {
+      const res = await fetch('/api/parent/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cleaned }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success) {
+        setParentData(prev => prev ? ({ ...prev, name: cleaned }) : prev)
+        setEditingName(false)
+        showActionToast('Name updated ✅')
+      } else {
+        showActionToast(data.error || 'Failed to update name', 'error')
+      }
+    } catch {
+      showActionToast('Connection error', 'error')
+    } finally {
+      setSavingName(false)
+    }
+  }
+
+  async function saveEmail() {
+    const cleaned = emailInput.trim().toLowerCase()
+    if (!cleaned.includes('@') || cleaned.length < 5) {
+      showActionToast('Please enter a valid email', 'error')
+      return
+    }
+    if (cleaned === parentData?.email) {
+      setEditingEmail(false)
+      return
+    }
+    setSavingEmail(true)
+    try {
+      const res = await fetch('/api/parent/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleaned }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success) {
+        setParentData(prev => prev ? ({ ...prev, email: cleaned }) : prev)
+        setEditingEmail(false)
+        showActionToast('Email updated ✅')
+      } else {
+        showActionToast(data.error || 'Failed to update email', 'error')
+      }
+    } catch {
+      showActionToast('Connection error', 'error')
+    } finally {
+      setSavingEmail(false)
+    }
   }
 
   // Load subscription status. Spec wanted a hard redirect on accessBlocked;
@@ -644,11 +779,18 @@ export default function ParentDashboard() {
 
   const maxWeekly = Math.max(...weeklyActivity.map(d => d.questions), 1)
 
+  // ── Account Settings (full-screen) ─────────────────────────────────────────
+  // Replaces the old slide-out sidebar. All six sections live here in one
+  // scrollable page so parents have everything in one place. The page
+  // emits the same actionToast notifications the main dashboard uses.
+
   return (
     <div className="min-h-screen bg-[#f4f6f9]">
       <style jsx global>{`
         @keyframes feed-in { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
         @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.5); } }
+        @keyframes acct-panel-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes acct-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
         .feed-in { animation: feed-in 0.4s ease-out forwards; }
         .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
       `}</style>
@@ -931,204 +1073,11 @@ export default function ParentDashboard() {
       </div>
       )}
 
-      {/* Account Settings Sidebar (mirrors teacher's student detail sidebar) */}
-      {showSidebar && (
-        <div className="fixed inset-0 z-[100] flex justify-end" onClick={() => setShowSidebar(false)}>
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-          <div className="relative w-full max-w-[420px] bg-white dark:bg-[#1E2D42] colorblind:bg-white shadow-2xl overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white dark:bg-[#1E2D42] colorblind:bg-white border-b border-gray-100 dark:border-white/10 px-5 py-3 flex items-center justify-between z-10">
-              <h3 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Account Settings</h3>
-              <button onClick={() => setShowSidebar(false)} className="p-1.5 hover:bg-gray-100 rounded-lg"><X size={16} className="text-gray-400 dark:text-slate-400" /></button>
-            </div>
-            <div style={{ padding: 20 }}>
-              {/* PROFILE */}
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
-                  My Account
-                </h3>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Full Name</label>
-                  <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{parentData?.name || '—'}</p>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Email</label>
-                  <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>{parentData?.email || '—'}</p>
-                </div>
-                <button
-                  onClick={() => setShowChangePassword(true)}
-                  style={{ width: '100%', padding: '10px 16px',
-                    background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-                    borderRadius: 10, fontWeight: 600, fontSize: 14,
-                    color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left' }}
-                >🔑 Change Password</button>
-              </div>
-
-              {/* SUBSCRIPTION */}
-              <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
-                  Subscription
-                </h3>
-                <div style={{
-                  background: subStatus?.accessBlocked ? 'var(--error-bg)' : 'var(--correct-bg)',
-                  borderRadius: 12, padding: 14, marginBottom: 12,
-                }}>
-                  <p style={{ fontWeight: 800, margin: '0 0 2px', color: 'var(--text-primary)', fontSize: 14 }}>
-                    {subStatus?.plan === 'premium' ? '⭐ Premium Plan'
-                      : subStatus?.plan === 'standard' ? '📚 Standard Plan'
-                      : subStatus?.subscribed ? '✅ Active Plan'
-                      : '🔓 No Active Plan'}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 12,
-                    color: subStatus?.accessBlocked ? '#991B1B' : '#166534' }}>
-                    {subStatus?.subscriptionStatus === 'trialing' && subStatus?.trialEndsAt
-                      ? `🎉 Free trial — ends ${new Date(subStatus.trialEndsAt).toLocaleDateString('en-AU')}`
-                      : subStatus?.accessBlocked
-                      ? '❌ Access paused — payment required'
-                      : subStatus?.currentPeriodEnd
-                      ? `✅ Renews ${new Date(subStatus.currentPeriodEnd).toLocaleDateString('en-AU')}`
-                      : subStatus?.subscribed ? '✅ Active' : 'No subscription'}
-                  </p>
-                  {subStatus?.foundingFamily && (
-                    <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--accent-gold)', fontWeight: 700 }}>
-                      🏅 Founding Family Member
-                    </p>
-                  )}
-                  {subStatus?.siblingAddonActive && (
-                    <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-primary)', fontWeight: 700 }}>
-                      👫 Sibling add-on active
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={openBillingPortal}
-                  disabled={portalLoading}
-                  style={{ width: '100%', padding: '10px 16px',
-                    background: 'var(--bg-header)', color: 'white',
-                    border: '2px solid #C49A1A', borderRadius: 10,
-                    fontWeight: 700, fontSize: 13,
-                    cursor: portalLoading ? 'not-allowed' : 'pointer',
-                    marginBottom: 8 }}
-                >{portalLoading ? 'Loading…' : '💳 Manage Billing & Cancel'}</button>
-                {subStatus?.accessBlocked && (
-                  <a href="/pricing"
-                    style={{ display: 'block', width: '100%',
-                      padding: '10px 16px', background: 'var(--accent-gold)',
-                      color: 'white', borderRadius: 10,
-                      fontWeight: 700, fontSize: 13,
-                      textDecoration: 'none', textAlign: 'center',
-                      boxSizing: 'border-box' }}>
-                    🚀 Resubscribe Now
-                  </a>
-                )}
-              </div>
-
-              {/* CHILDREN */}
-              <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                <h3 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px' }}>
-                  My Children
-                </h3>
-                {(children || []).map((child, i) => (
-                  <div key={child.id || i} style={{
-                    background: '#F8FAFC', borderRadius: 12,
-                    padding: 14, marginBottom: 8,
-                    border: '1px solid var(--border-color)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between',
-                      alignItems: 'center', gap: 8 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>
-                          {child.avatar || '🧒'} {child.name}
-                        </p>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '2px 0 0' }}>
-                          {child.grade === 0 || child.grade === '0' ? 'Prep' : `Year ${child.grade}`} · {child.xp || 0} Hero Points
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleResetChildPin(child)}
-                        style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-                          borderRadius: 8, padding: '6px 12px', fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)',
-                          whiteSpace: 'nowrap' }}
-                      >🔢 Reset PIN</button>
-                    </div>
-                  </div>
-                ))}
-                {(!children || children.length === 0) && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 8px' }}>No children yet.</p>
-                )}
-
-                {(() => {
-                  const existingCount = children?.length || 0
-                  const needsSiblingPayment = existingCount >= 1 && !subStatus?.siblingAddonActive
-                  return (
-                    <button
-                      onClick={handleAddChildClick}
-                      style={{ width: '100%', padding: '10px 16px',
-                        background: 'var(--bg-primary)', border: '2px dashed #CBD5E1',
-                        borderRadius: 10, fontWeight: 700, fontSize: 13,
-                        color: 'var(--text-secondary)', cursor: 'pointer' }}
-                    >
-                      {needsSiblingPayment
-                        ? '+ Add Another Child — $10/month'
-                        : '+ Add a Child'}
-                    </button>
-                  )
-                })()}
-              </div>
-
-              {/* ARCADE — keep the existing component */}
-              {flags.arcadeEnabled && parentData?.id && children.length > 0 && (
-                <div style={{ marginBottom: 24, paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                  <ArcadeSettings parentId={parentData.id} children={children} />
-                </div>
-              )}
-
-              {/* THEME SECTION */}
-              <div style={{
-                paddingTop: 20,
-                borderTop: '1px solid var(--border-light)',
-                marginBottom: 16,
-              }}>
-                <p style={{
-                  fontWeight: 800, fontSize: 13,
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1, margin: '0 0 10px',
-                }}>
-                  Display
-                </p>
-                <ThemeToggle compact={false} />
-                <p style={{
-                  color: 'var(--text-muted)',
-                  fontSize: 11, marginTop: 8,
-                }}>
-                  👁️ Colour-Safe mode helps colourblind students
-                </p>
-              </div>
-
-              {/* DANGER ZONE */}
-              <div style={{ paddingTop: 20, borderTop: '1px solid #F0F4F8' }}>
-                <button
-                  onClick={handleLogout}
-                  style={{ width: '100%', padding: '10px 16px',
-                    background: 'rgba(239,68,68,0.08)',
-                    border: '1px solid rgba(239,68,68,0.2)',
-                    borderRadius: 10, fontWeight: 700, fontSize: 14,
-                    color: 'var(--error)', cursor: 'pointer' }}
-                >🚪 Log Out</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Settings launcher (floating, like teacher's affordances) */}
       {step === 'dashboard' && !loading && (
         <button
-          onClick={() => setShowSidebar(true)}
+          onClick={openAccount}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#1B2B4B] text-white px-4 py-2.5 rounded-full shadow-lg hover:bg-[#C49A1A] transition-colors text-xs font-semibold"
         >
           <User size={14} /> Account
@@ -1174,6 +1123,392 @@ export default function ParentDashboard() {
         }}>
           {actionToast.message}
         </div>
+      )}
+
+      {/* ── ACCOUNT SETTINGS PANEL ─────────────────────────────────────────
+          Right-side slide-out (Stripe-style). Backdrop closes on click.
+          Tapping a category swaps the panel view inline (no page nav).      */}
+      {accountPanelOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={closeAccount}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(15,23,42,0.45)',
+              zIndex: 400,
+              animation: 'acct-backdrop-in 0.18s ease-out',
+            }}
+          />
+          {/* Panel */}
+          <aside
+            role="dialog"
+            aria-label="Account settings"
+            style={{
+              position: 'fixed',
+              top: 0, right: 0, bottom: 0,
+              width: '100%', maxWidth: 520,
+              background: 'white',
+              boxShadow: '-20px 0 60px rgba(15,23,42,0.18)',
+              zIndex: 401,
+              display: 'flex', flexDirection: 'column',
+              animation: 'acct-panel-in 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Panel header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '18px 20px',
+              borderBottom: '1px solid #F0F4F8',
+            }}>
+              {accountView !== 'index' && (
+                <button
+                  onClick={() => setAccountView('index')}
+                  aria-label="Back to categories"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 20, color: '#1B2B4B', padding: 4,
+                  }}
+                >←</button>
+              )}
+              <h2 style={{
+                margin: 0, fontSize: 17, fontWeight: 800, color: '#1B2B4B',
+                flex: 1,
+              }}>
+                {accountView === 'index'        ? 'Account settings'
+                  : accountView === 'profile'      ? 'Personal details'
+                  : accountView === 'subscription' ? 'Subscription'
+                  : accountView === 'children'     ? 'Children'
+                  : accountView === 'arcade'       ? 'Arcade controls'
+                  : 'Account settings'}
+              </h2>
+              <button
+                onClick={closeAccount}
+                aria-label="Close"
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 22, color: '#94A3B8', padding: 4, lineHeight: 1,
+                }}
+              >×</button>
+            </div>
+
+            {/* Panel body — scrolls independently of the dashboard */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+              {accountView === 'index' && (
+                <>
+                  <p style={{
+                    fontSize: 11, fontWeight: 800, color: '#94A3B8',
+                    textTransform: 'uppercase', letterSpacing: 1,
+                    margin: '0 0 12px',
+                  }}>
+                    Personal
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                    gap: 12, marginBottom: 24,
+                  }}>
+                    <AccountTile
+                      icon="👤"
+                      title="Personal details"
+                      desc="Contact information, password, and your active sessions."
+                      onClick={() => setAccountView('profile')}
+                    />
+                  </div>
+
+                  <p style={{
+                    fontSize: 11, fontWeight: 800, color: '#94A3B8',
+                    textTransform: 'uppercase', letterSpacing: 1,
+                    margin: '0 0 12px',
+                  }}>
+                    Account
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                    gap: 12, marginBottom: 24,
+                  }}>
+                    <AccountTile
+                      icon="💳"
+                      title="Subscription"
+                      desc="Plan, billing portal, founding-family status."
+                      onClick={() => setAccountView('subscription')}
+                    />
+                    <AccountTile
+                      icon="🧒"
+                      title="Children"
+                      desc={`${children?.length || 0} on this account · Add or reset PIN.`}
+                      onClick={() => setAccountView('children')}
+                    />
+                    {flags.arcadeEnabled && (children?.length || 0) > 0 && (
+                      <AccountTile
+                        icon="🕹️"
+                        title="Arcade controls"
+                        desc="Per-child limits and time windows."
+                        onClick={() => setAccountView('arcade')}
+                      />
+                    )}
+                  </div>
+
+                  {/* Sign out lives on the index for one-tap access. */}
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%', padding: '14px 16px',
+                      background: 'rgba(239,68,68,0.06)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      color: '#EF4444', cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >🚪 &nbsp; Log out</button>
+                </>
+              )}
+
+              {accountView === 'profile' && (
+                <>
+                  {/* Name */}
+                  {!editingName ? (
+                    <div style={{
+                      padding: '16px 0', display: 'flex',
+                      justifyContent: 'space-between', alignItems: 'center',
+                      borderBottom: '1px solid #F0F4F8',
+                    }}>
+                      <div>
+                        <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 2px' }}>Name</p>
+                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{parentData?.name || '—'}</p>
+                      </div>
+                      <button
+                        onClick={() => { setNameInput(parentData?.name || ''); setEditingName(true) }}
+                        style={{ color: '#C49A1A', fontWeight: 700, fontSize: 14,
+                          background: 'none', border: 'none', cursor: 'pointer' }}
+                      >Edit</button>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '16px 0', borderBottom: '1px solid #F0F4F8' }}>
+                      <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 8px' }}>Name</p>
+                      <input
+                        value={nameInput}
+                        onChange={e => setNameInput(e.target.value)}
+                        autoFocus
+                        style={{ width: '100%', padding: '10px 14px',
+                          border: '1.5px solid #E2E8F0', borderRadius: 10,
+                          fontSize: 15, color: '#1B2B4B', outline: 'none',
+                          marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setEditingName(false)} disabled={savingName}
+                          style={{ flex: 1, padding: 10, background: 'white',
+                            border: '1px solid #E2E8F0', borderRadius: 10,
+                            fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                          Cancel
+                        </button>
+                        <button onClick={saveName} disabled={savingName}
+                          style={{ flex: 2, padding: 10, background: '#1B2B4B',
+                            border: '2px solid #C49A1A', borderRadius: 10,
+                            fontWeight: 700, cursor: savingName ? 'not-allowed' : 'pointer', color: 'white' }}>
+                          {savingName ? 'Saving…' : 'Save Name'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {!editingEmail ? (
+                    <div style={{
+                      padding: '16px 0', display: 'flex',
+                      justifyContent: 'space-between', alignItems: 'center',
+                      borderBottom: '1px solid #F0F4F8',
+                    }}>
+                      <div>
+                        <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 2px' }}>Email</p>
+                        <p style={{ fontWeight: 600, color: '#1B2B4B', margin: 0, fontSize: 14 }}>
+                          {parentData?.email || '—'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => { setEmailInput(parentData?.email || ''); setEditingEmail(true) }}
+                        style={{ color: '#C49A1A', fontWeight: 700, fontSize: 14,
+                          background: 'none', border: 'none', cursor: 'pointer' }}
+                      >Edit</button>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '16px 0', borderBottom: '1px solid #F0F4F8' }}>
+                      <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 8px' }}>Email</p>
+                      <input
+                        type="email"
+                        value={emailInput}
+                        onChange={e => setEmailInput(e.target.value)}
+                        autoFocus
+                        autoComplete="email"
+                        style={{ width: '100%', padding: '10px 14px',
+                          border: '1.5px solid #E2E8F0', borderRadius: 10,
+                          fontSize: 15, color: '#1B2B4B', outline: 'none',
+                          marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => setEditingEmail(false)} disabled={savingEmail}
+                          style={{ flex: 1, padding: 10, background: 'white',
+                            border: '1px solid #E2E8F0', borderRadius: 10,
+                            fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                          Cancel
+                        </button>
+                        <button onClick={saveEmail} disabled={savingEmail}
+                          style={{ flex: 2, padding: 10, background: '#1B2B4B',
+                            border: '2px solid #C49A1A', borderRadius: 10,
+                            fontWeight: 700, cursor: savingEmail ? 'not-allowed' : 'pointer', color: 'white' }}>
+                          {savingEmail ? 'Saving…' : 'Save Email'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Password */}
+                  <button
+                    onClick={() => setShowChangePassword(true)}
+                    style={{
+                      width: '100%', marginTop: 16, padding: '14px 16px',
+                      background: '#F8FAFC', border: '1px solid #E2E8F0',
+                      borderRadius: 12, fontWeight: 700, fontSize: 14,
+                      color: '#1B2B4B', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🔑</span>
+                    <span style={{ flex: 1, textAlign: 'left' }}>Change password</span>
+                    <span style={{ color: '#94A3B8' }}>›</span>
+                  </button>
+                </>
+              )}
+
+              {accountView === 'subscription' && (
+                <>
+                  <div style={{
+                    background: subStatus?.accessBlocked ? '#FEE2E2' : '#DCFCE7',
+                    borderRadius: 12, padding: 16, marginBottom: 16,
+                  }}>
+                    <p style={{ fontWeight: 800, margin: '0 0 4px', color: '#1B2B4B', fontSize: 15 }}>
+                      {subStatus?.plan === 'premium' ? '⭐ Premium Plan'
+                        : subStatus?.plan === 'standard' ? '📚 Standard Plan'
+                        : subStatus?.subscribed ? '✅ Active Plan'
+                        : '🔓 No Active Plan'}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 13,
+                      color: subStatus?.accessBlocked ? '#991B1B' : '#166534' }}>
+                      {subStatus?.subscriptionStatus === 'trialing' && subStatus?.trialEndsAt
+                        ? `🎉 Free trial — ends ${new Date(subStatus.trialEndsAt).toLocaleDateString('en-AU')}`
+                        : subStatus?.accessBlocked
+                        ? '❌ Access paused — payment required'
+                        : subStatus?.currentPeriodEnd
+                        ? `✅ Renews ${new Date(subStatus.currentPeriodEnd).toLocaleDateString('en-AU')}`
+                        : subStatus?.subscribed ? '✅ Active' : 'No subscription'}
+                    </p>
+                    {subStatus?.foundingFamily && (
+                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#C49A1A', fontWeight: 700 }}>
+                        🏅 Founding Family Member
+                      </p>
+                    )}
+                    {subStatus?.siblingAddonActive && (
+                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#1B2B4B', fontWeight: 700 }}>
+                        👫 Sibling add-on active
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={openBillingPortal}
+                    disabled={portalLoading}
+                    style={{
+                      width: '100%', padding: '12px 16px',
+                      background: '#1B2B4B', color: 'white',
+                      border: '2px solid #C49A1A', borderRadius: 12,
+                      fontWeight: 700, fontSize: 14,
+                      cursor: portalLoading ? 'not-allowed' : 'pointer',
+                      marginBottom: 10,
+                    }}
+                  >{portalLoading ? 'Loading…' : '💳 Manage Billing & Cancel'}</button>
+                  {subStatus?.accessBlocked && (
+                    <a href="/pricing"
+                      style={{
+                        display: 'block', width: '100%',
+                        padding: '12px 16px', background: '#C49A1A',
+                        color: 'white', borderRadius: 12,
+                        fontWeight: 700, fontSize: 14,
+                        textDecoration: 'none', textAlign: 'center',
+                        boxSizing: 'border-box',
+                      }}>
+                      🚀 Resubscribe Now
+                    </a>
+                  )}
+                </>
+              )}
+
+              {accountView === 'children' && (
+                <>
+                  {(children || []).map((child, i) => (
+                    <div key={child.id || i} style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 0',
+                      borderBottom: '1px solid #F0F4F8',
+                    }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        background: '#F0F4F8',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20,
+                      }}>{child.avatar || '🧒'}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{child.name}</p>
+                        <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+                          {child.grade === 0 || child.grade === '0' ? 'Prep' : `Year ${child.grade}`} · {child.xp || 0} Hero Points
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleResetChildPin(child)}
+                        style={{
+                          background: '#F0F4F8', border: '1px solid #E2E8F0',
+                          borderRadius: 8, padding: '6px 12px', fontSize: 12,
+                          fontWeight: 600, cursor: 'pointer', color: '#1B2B4B',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >🔢 Reset PIN</button>
+                    </div>
+                  ))}
+                  {(!children || children.length === 0) && (
+                    <p style={{ color: '#94A3B8', fontSize: 13, margin: '0 0 12px' }}>No children yet.</p>
+                  )}
+                  {(() => {
+                    const existingCount = children?.length || 0
+                    const needsSiblingPayment = existingCount >= 1 && !subStatus?.siblingAddonActive
+                    return (
+                      <button
+                        onClick={handleAddChildClick}
+                        style={{
+                          width: '100%', marginTop: 14, padding: '12px 16px',
+                          background: 'white', border: '2px dashed #CBD5E1',
+                          borderRadius: 12, fontWeight: 700, fontSize: 14,
+                          color: '#64748B', cursor: 'pointer',
+                        }}
+                      >
+                        {needsSiblingPayment
+                          ? '+ Add Another Child — $10/month'
+                          : '+ Add Another Child'}
+                      </button>
+                    )
+                  })()}
+                </>
+              )}
+
+              {accountView === 'arcade' && (
+                flags.arcadeEnabled && parentData?.id && (children?.length || 0) > 0
+                  ? <ArcadeSettings parentId={parentData.id} children={children} />
+                  : <p style={{ color: '#94A3B8', fontSize: 13 }}>
+                      Arcade controls become available once at least one child is added and the Arcade feature is enabled.
+                    </p>
+              )}
+            </div>
+          </aside>
+        </>
       )}
 
       {/* CHANGE PASSWORD MODAL */}

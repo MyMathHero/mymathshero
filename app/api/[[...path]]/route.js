@@ -284,7 +284,7 @@ async function handleRoute(request, { params }) {
         username,
         pin,
         grade: gradeInt,
-        avatar: avatar || '🦊',
+        avatar: avatar || 'hero', // default character avatar (see lib/characterAvatars)
         coins: 100,
         xp: 0,
         level: 1,
@@ -340,7 +340,7 @@ async function handleRoute(request, { params }) {
         username,
         pin,
         grade: grade != null && grade !== '' ? normaliseGrade(grade) : normaliseGrade(cls.grade),
-        avatar: avatar || '🦊',
+        avatar: avatar || 'hero', // default character avatar (see lib/characterAvatars)
         classId: cls.id,
         coins: 100,
         xp: 0,

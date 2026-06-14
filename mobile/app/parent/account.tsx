@@ -19,6 +19,13 @@ export default function ParentAccountScreen() {
   const [subStatus, setSubStatus] = useState<any>(null)
   const [parentId, setParentId] = useState('')
 
+  // Inline name + email editing (matches the web Account Settings page).
+  const [editingName, setEditingName] = useState(false)
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
+
   // Change password
   const [showChangePw, setShowChangePw] = useState(false)
   const [currentPw, setCurrentPw] = useState('')
@@ -42,20 +49,80 @@ export default function ParentAccountScreen() {
       const pId = (await SecureStore.getItemAsync('user_id')) || ''
       setParentId(pId)
 
-      const [parentRes, childrenRes, subRes] =
+      const [profileRes, childrenRes, subRes] =
         await Promise.all([
-          api.get(`/api/auth/me`),
+          // /me only carries name from the JWT; this gated route returns the
+          // canonical name + email from the parents collection so the Profile
+          // section can show real values and the inline edit can do a diff.
+          api.get(`/api/parent/update-profile`),
           api.get(`/api/parent/children?parentId=${pId}`),
           api.get(`/api/payments/status?parentId=${pId}`),
         ])
 
-      setParentData(parentRes.data?.user || {})
+      const profile = profileRes.data?.profile || {}
+      setParentData(profile)
+      setNameInput(profile?.name || '')
+      setEmailInput(profile?.email || '')
       setChildren(childrenRes.data?.children || [])
       setSubStatus(subRes.data || {})
     } catch (err) {
       console.log('Load error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function saveName() {
+    const cleaned = nameInput.trim()
+    if (!cleaned) {
+      Alert.alert('Error', 'Name cannot be empty')
+      return
+    }
+    if (cleaned === parentData?.name) {
+      setEditingName(false)
+      return
+    }
+    setSavingProfile(true)
+    try {
+      const res = await api.post('/api/parent/update-profile', { name: cleaned })
+      if (res.data?.success) {
+        setParentData((prev: any) => ({ ...(prev || {}), name: cleaned }))
+        setEditingName(false)
+        Alert.alert('✅ Updated', 'Your name has been updated.')
+      } else {
+        Alert.alert('Error', res.data?.error || 'Failed to update name')
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.error || 'Connection error')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  async function saveEmail() {
+    const cleaned = emailInput.trim().toLowerCase()
+    if (!cleaned.includes('@') || cleaned.length < 5) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.')
+      return
+    }
+    if (cleaned === parentData?.email) {
+      setEditingEmail(false)
+      return
+    }
+    setSavingProfile(true)
+    try {
+      const res = await api.post('/api/parent/update-profile', { email: cleaned })
+      if (res.data?.success) {
+        setParentData((prev: any) => ({ ...(prev || {}), email: cleaned }))
+        setEditingEmail(false)
+        Alert.alert('✅ Updated', 'Your email has been updated.')
+      } else {
+        Alert.alert('Error', res.data?.error || 'That email is already in use.')
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.error || 'Connection error')
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -249,19 +316,118 @@ export default function ParentAccountScreen() {
         <View style={s.section}>
           <Text style={s.sectionTitle}>PROFILE</Text>
           <View style={s.card}>
-            <View style={s.row}>
-              <Text style={s.label}>Name</Text>
-              <Text style={s.value}>
-                {parentData?.name || '—'}
-              </Text>
-            </View>
-            <View style={[s.row, { borderTopWidth: 1,
-              borderTopColor: '#F0F4F8' }]}>
-              <Text style={s.label}>Email</Text>
-              <Text style={[s.value, { fontSize: 13 }]}>
-                {parentData?.email || '—'}
-              </Text>
-            </View>
+            {/* Name row — tap Edit to inline-edit, save POSTs /update-profile */}
+            {!editingName ? (
+              <View style={[s.row, { flexDirection: 'row',
+                alignItems: 'center', justifyContent: 'space-between' }]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.label}>Name</Text>
+                  <Text style={s.value}>{parentData?.name || '—'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => {
+                  setNameInput(parentData?.name || '')
+                  setEditingName(true)
+                }}>
+                  <Text style={{ color: colors.accentGold, fontWeight: '700', fontSize: 14 }}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={s.row}>
+                <Text style={s.label}>Name</Text>
+                <TextInput
+                  value={nameInput}
+                  onChangeText={setNameInput}
+                  autoFocus
+                  editable={!savingProfile}
+                  style={{
+                    borderWidth: 1.5, borderColor: colors.borderColor,
+                    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                    fontSize: 15, color: colors.textPrimary, marginTop: 6,
+                  }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setEditingName(false)}
+                    disabled={savingProfile}
+                    style={{ flex: 1, padding: 10, borderRadius: 10,
+                      backgroundColor: colors.bgCard, borderWidth: 1,
+                      borderColor: colors.borderColor, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={saveName}
+                    disabled={savingProfile}
+                    style={{ flex: 2, padding: 10, borderRadius: 10,
+                      backgroundColor: colors.bgHeader, borderWidth: 2,
+                      borderColor: colors.accentGold, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: '700' }}>
+                      {savingProfile ? 'Saving…' : 'Save Name'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Email row — same pattern */}
+            {!editingEmail ? (
+              <View style={[s.row, { borderTopWidth: 1,
+                borderTopColor: colors.borderLight,
+                flexDirection: 'row', alignItems: 'center',
+                justifyContent: 'space-between' }]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.label}>Email</Text>
+                  <Text style={[s.value, { fontSize: 13 }]}>{parentData?.email || '—'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => {
+                  setEmailInput(parentData?.email || '')
+                  setEditingEmail(true)
+                }}>
+                  <Text style={{ color: colors.accentGold, fontWeight: '700', fontSize: 14 }}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+                <Text style={s.label}>Email</Text>
+                <TextInput
+                  value={emailInput}
+                  onChangeText={setEmailInput}
+                  autoFocus
+                  editable={!savingProfile}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  style={{
+                    borderWidth: 1.5, borderColor: colors.borderColor,
+                    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,
+                    fontSize: 15, color: colors.textPrimary, marginTop: 6,
+                  }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => setEditingEmail(false)}
+                    disabled={savingProfile}
+                    style={{ flex: 1, padding: 10, borderRadius: 10,
+                      backgroundColor: colors.bgCard, borderWidth: 1,
+                      borderColor: colors.borderColor, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={saveEmail}
+                    disabled={savingProfile}
+                    style={{ flex: 2, padding: 10, borderRadius: 10,
+                      backgroundColor: colors.bgHeader, borderWidth: 2,
+                      borderColor: colors.accentGold, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: '700' }}>
+                      {savingProfile ? 'Saving…' : 'Save Email'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
             <TouchableOpacity
               style={s.actionRow}
               onPress={() => setShowChangePw(!showChangePw)}

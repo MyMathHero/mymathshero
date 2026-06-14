@@ -25,6 +25,10 @@
   --border-color: #E2E8F0;
   --border-light: #F0F4F8;
 
+  /* Floating glassy bottom nav */
+  --nav-glass-bg: rgba(255,255,255,0.65);
+  --nav-glass-border: rgba(255,255,255,0.6);
+
   --correct: #22C55E;
   --correct-bg: #DCFCE7;
   --wrong: #F59E0B;
@@ -58,6 +62,10 @@
   --border-color: rgba(255,255,255,0.1);
   --border-light: rgba(255,255,255,0.05);
 
+  /* Floating glassy bottom nav — dark frosted */
+  --nav-glass-bg: rgba(30,45,66,0.7);
+  --nav-glass-border: rgba(255,255,255,0.12);
+
   --correct: #34D399;
   --correct-bg: rgba(52,211,153,0.15);
   --wrong: #FBBF24;
@@ -90,6 +98,10 @@
 
   --border-color: #CCCCCC;
   --border-light: #EEEEEE;
+
+  /* Floating glassy bottom nav */
+  --nav-glass-bg: rgba(255,255,255,0.7);
+  --nav-glass-border: rgba(255,255,255,0.6);
 
   /* Blue = correct, Orange = wrong (not red/green) */
   --correct: #0066CC;

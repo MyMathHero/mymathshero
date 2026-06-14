@@ -108,6 +108,7 @@ export async function GET(request) {
       target: 5,
       completed: sessionsCompleted,
       achieved: sessionsCompleted >= 5,
+      claimed: student.giftMilestoneClaimed === true,
       remaining: Math.max(0, 5 - sessionsCompleted),
     }
 

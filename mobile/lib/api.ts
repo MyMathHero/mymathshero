@@ -56,6 +56,8 @@ export const studentAPI = {
     api.post('/api/student/diagnostic', data),
   changePin: (studentId: string, newPin: string) =>
     api.post('/api/student/change-pin', { studentId, newPin }),
+  setCharacter: (studentId: string, itemId: string) =>
+    api.post('/api/student/avatar', { studentId, action: 'setCharacter', itemId }),
 }
 
 // Voucher API does NOT take a studentId — the server reads it from the

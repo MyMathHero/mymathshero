@@ -4,11 +4,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import AskHero from '@/components/AskHero'
+import AskHeroIcon from '@/components/AskHeroIcon'
+import AskHeroLauncher from '@/components/AskHeroLauncher'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
 import ThemeToggle from '@/components/ThemeToggle'
-import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, ChevronRight, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
+import CharacterAvatar from '@/components/CharacterAvatar'
+import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
 
@@ -109,7 +112,7 @@ function LeaderboardRow({ entry }) {
       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${rankStyle}`}>
         {entry.rank <= 3 ? ['🥇','🥈','🥉'][entry.rank - 1] : entry.rank}
       </span>
-      <span className="text-lg flex-shrink-0">{entry.avatar || '🦊'}</span>
+      <CharacterAvatar id={entry.avatar} size={28} />
       <div className="flex-1 min-w-0">
         <span
           className="text-xs font-semibold truncate block"
@@ -231,6 +234,7 @@ export default function StudentDashboard() {
   // Multi-turn Ask Hero: status gate + general (floating-button) mode.
   const [heroStatus, setHeroStatus] = useState(null)   // { allowed, remaining, reason }
   const [heroGeneral, setHeroGeneral] = useState(false) // true = opened from floating button
+  const [devPanelMinimized, setDevPanelMinimized] = useState(true)
 
   // Session feedback popup — fires every 5 completed sessions, max once per count
   const [showFeedback, setShowFeedback] = useState(false)
@@ -521,6 +525,24 @@ export default function StudentDashboard() {
     if (!authStudentId) return
     await fetch(`/api/admin/trigger-quest?studentId=${authStudentId}`, { method: 'POST' })
     await fetchProgress(authStudentId)
+  }
+
+  // Claim the Hero Quest reward: persist the claimed flag so the card stops
+  // showing, optimistically update local state, then show the celebration.
+  const handleClaimMilestone = async () => {
+    setGiftMilestone(prev => ({ ...prev, claimed: true }))
+    setShowMilestoneModal(true)
+    if (!authStudentId) return
+    try {
+      await fetch('/api/student/claim-milestone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: authStudentId }),
+      })
+    } catch {
+      // If the network call fails, the optimistic flag still hides it this
+      // session; the next successful progress fetch reconciles the truth.
+    }
   }
 
   // ── Open practice — fetch questions from API ───────────────────────────────
@@ -1020,6 +1042,7 @@ export default function StudentDashboard() {
       message: `You've answered ${currentStats?.totalQuestions || 0} questions total! Every question makes you smarter. Keep going! 💪`,
       action: "Let's Go!",
       skill: recs?.[0],
+      icon: 'askHero',
       color: '#F5F3FF',
       borderColor: '#7C3AED',
     })
@@ -1145,38 +1168,52 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* B) Hero stats bar */}
+      {/* B) Hero stats bar — modern stat cards with coloured icon chips */}
       <div style={{
         background: 'linear-gradient(135deg, var(--bg-header) 0%, var(--bg-header-secondary) 100%)',
-        padding: '16px 20px',
+        padding: '18px 20px 22px',
         display: 'flex',
         gap: 12,
         overflowX: 'auto',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
       }}>
         {[
           // The two currencies, shown separately and clearly labelled:
           // Hero Points = leaderboard ranking only; Coins = spending currency.
-          { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡', sub: 'for leaderboard' },
-          { label: 'Coins', value: (coins || 0).toLocaleString(), emoji: '🪙', sub: 'spend in arcade' },
-          { label: 'Mastered', value: stats?.mastered ?? 0, emoji: '🏆' },
-          { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
-          { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
+          { label: 'Hero Points', value: (totalXp || 0).toLocaleString(), emoji: '⚡', sub: 'for leaderboard', grad: ['#FBBF24', '#F59E0B'] },
+          { label: 'Coins', value: (coins || 0).toLocaleString(), emoji: '🪙', sub: 'spend in arcade', grad: ['#FCD34D', '#D97706'] },
+          { label: 'Mastered', value: stats?.mastered ?? 0, emoji: '🏆', grad: ['#34D399', '#059669'] },
+          { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯', grad: ['#F87171', '#DC2626'] },
+          { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚', grad: ['#60A5FA', '#2563EB'] },
         ].map((s, i) => (
           <div key={i} style={{
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: 12,
-            padding: '10px 16px',
-            minWidth: 90,
-            textAlign: 'center',
-            border: '1px solid rgba(196,154,26,0.3)',
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(6px)',
+            borderRadius: 16,
+            padding: '12px 16px',
+            minWidth: 150,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
             flexShrink: 0,
           }}>
-            <p style={{ fontSize: 20, margin: '0 0 2px' }}>{s.emoji}</p>
-            <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>{s.value}</p>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, margin: 0 }}>{s.label}</p>
-            {s.sub && (
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, margin: '1px 0 0' }}>{s.sub}</p>
-            )}
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20,
+              background: `linear-gradient(135deg, ${s.grad[0]}, ${s.grad[1]})`,
+              boxShadow: `0 4px 12px ${s.grad[1]}55`,
+            }}>{s.emoji}</div>
+            <div style={{ textAlign: 'left', lineHeight: 1.15 }}>
+              <p style={{ color: 'white', fontWeight: 800, fontSize: 19, margin: 0 }}>{s.value}</p>
+              <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: 11, fontWeight: 600, margin: 0 }}>{s.label}</p>
+              {s.sub && (
+                <p style={{ color: 'rgba(255,255,255,0.42)', fontSize: 9, margin: '1px 0 0' }}>{s.sub}</p>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -1217,48 +1254,10 @@ export default function StudentDashboard() {
       )}
 
       {activeTab === 'home' && (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ paddingBottom: 96 }}>
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left Sidebar */}
-          <div className="w-full lg:w-56 flex-shrink-0">
-            <h3 className="text-xs font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider mb-3 px-1">🎮 Subjects</h3>
-            <div className="space-y-2">
-              {visibleSubjects.map(sub => (
-                <button key={sub.id} onClick={() => setActiveSubject(sub.id)} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300 ${activeSubject === sub.id ? `bg-gradient-to-r ${sub.gradient} text-white shadow-lg` : 'bg-white border-2 border-gray-100 text-gray-600 dark:text-slate-300 hover:border-gray-200'}`}>
-                  <span className="text-xl">{sub.emoji}</span>{sub.name}{activeSubject === sub.id && <ChevronRight size={14} className="ml-auto" />}
-                </button>
-              ))}
-            </div>
-            {/* Feature 7: Milestone Card */}
-            <div className="mt-4 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 border-2 border-amber-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-2"><Gift size={18} className="text-[#C49A1A]" /><span className="font-bold text-[#1B2B4B] text-sm">Hero Quest!</span></div>
-              <p className="text-xs text-[#1B2B4B] mb-3">Complete 5 Hero Missions to earn a surprise! 🎁</p>
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="flex-1 h-3 bg-amber-200 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all" style={{ width: `${(giftMilestone.completed / giftMilestone.target) * 100}%` }} /></div>
-                <span className="text-xs font-bold text-amber-700">{giftMilestone.completed}/{giftMilestone.target}</span>
-              </div>
-              {giftMilestone.achieved ? (
-                <>
-                  <div className="flex justify-center mt-2">
-                    <RoboVideo src="/assets/robot/flyrunrobo.MP4" width={180} loop={false} />
-                  </div>
-                  <p className="text-center text-xs font-bold text-amber-700 mt-1">You did it!</p>
-                  <button onClick={() => setShowMilestoneModal(true)} className="w-full mt-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white py-2 rounded-xl text-xs font-bold">🎉 Claim Reward!</button>
-                </>
-              ) : (
-                <p className="text-[10px] text-amber-600 mt-1">{giftMilestone.target - giftMilestone.completed} more sessions to go!</p>
-              )}
-            </div>
-            {/* Level card */}
-            <div className="mt-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
-              <div className="flex items-center gap-2 mb-2"><Rocket size={16} /><span className="font-bold text-sm">Level {level}</span></div>
-              <div className="w-full h-3 bg-white/20 dark:bg-white/10 rounded-full overflow-hidden mb-1.5"><div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full shimmer-bg" style={{ width: `${levelProgress}%` }} /></div>
-              <p className="text-[10px] text-white/70">{500 - (totalXp % 500)} Hero Points to Level {level + 1}</p>
-            </div>
-          </div>
-
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ paddingBottom: 96, maxWidth: 1080 }}>
+        <div className="flex flex-col lg:flex-row gap-8 justify-center">
           {/* Main Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 max-w-2xl">
             {/* === HERO MISSIONS SECTION === */}
             <div style={{
               background: 'var(--bg-card)',
@@ -1640,89 +1639,41 @@ export default function StudentDashboard() {
                 ))}
               </div>
             </div>
-            {/* Leaderboard */}
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm flex items-center gap-2">
-                  <Trophy size={16} className="text-[#C49A1A]" />
-                  {leaderboardTabs[activeLeaderboardTab]?.period === 'alltime' ? 'All-Time Hero League' : 'Monthly Hero League'}
-                </h3>
-                {leaderboardTabs[activeLeaderboardTab]?.period !== 'alltime' && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-slate-400">
-                    <Clock size={12} />
-                    <span>Resets in {leaderboard.daysUntilReset}d</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Last month's champion */}
-              {leaderboard.lastChampion && (
-                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
-                  <span className="text-base">{leaderboard.lastChampion.avatar}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-bold text-amber-700">Last Month's Champion 🏆</span>
-                    <p className="text-xs text-amber-800 font-semibold truncate">{leaderboard.lastChampion.name}</p>
-                  </div>
-                  <span className="text-[10px] text-amber-600 font-bold">{leaderboard.lastChampion.xp.toLocaleString()} Hero Points</span>
-                </div>
-              )}
-
-              {/* Tab switcher */}
-              <div className="flex gap-1 mb-4 overflow-x-auto">
-                {leaderboardTabs.map((tab, i) => (
-                  <button key={i} onClick={() => setActiveLeaderboardTab(i)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${activeLeaderboardTab === i ? 'bg-electric text-white' : 'bg-gray-100 text-gray-500 dark:text-slate-400 hover:bg-gray-200'}`}>
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Current student rank pill */}
-              {leaderboard.currentStudentRank && (
-                <div className="text-center text-[11px] text-gray-400 dark:text-slate-400 mb-3">
-                  Your rank: <span className="font-bold text-electric">#{leaderboard.currentStudentRank}</span>
-                  {leaderboard.totalInCohort ? ` of ${leaderboard.totalInCohort}` : ''}
-                </div>
-              )}
-
-              {/* Rows */}
-              {leaderboardLoading ? (
-                <div className="flex justify-center py-6">
-                  <div className="w-6 h-6 border-2 border-electric border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {leaderboard.currentStudentRank && leaderboard.currentStudentRank <= 3 && (
-                    <div className="flex justify-center mb-2">
-                      <img
-                        src="/assets/robot/HeroEnjoying.png"
-                        alt="Hero celebrating"
-                        style={{ width: 100, mixBlendMode: 'multiply' }}
-                      />
-                    </div>
-                  )}
-                  {leaderboard.leaderboard.map((entry, i) => (
-                    <LeaderboardRow key={i} entry={entry} />
-                  ))}
-
-                  {/* Gap indicator if current student is out of top 10 */}
-                  {leaderboard.currentStudentRow && (
-                    <>
-                      <div className="text-center text-[10px] text-gray-300 dark:text-slate-600 py-1">• • •</div>
-                      <LeaderboardRow entry={leaderboard.currentStudentRow} />
-                    </>
-                  )}
-
-                  {leaderboard.leaderboard.length === 0 && (
-                    <p className="text-center text-xs text-gray-400 dark:text-slate-400 py-4">No activity this month yet. Start practising!</p>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* Monthly Hero League removed from Home — it lives in the League tab. */}
           </div>
 
           {/* Right Panel */}
           <div className="w-full lg:w-80 flex-shrink-0 space-y-5">
+            {/* Hero Quest — hidden once the reward has been claimed. */}
+            {!giftMilestone.claimed && (
+            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl p-4 border-2 border-amber-200 shadow-sm">
+              <div className="flex items-center gap-2 mb-2"><Gift size={18} className="text-[#C49A1A]" /><span className="font-bold text-[#1B2B4B] text-sm">Hero Quest!</span></div>
+              <p className="text-xs text-[#1B2B4B] mb-3">Complete 5 Hero Missions to earn a surprise! 🎁</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="flex-1 h-3 bg-amber-200 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all" style={{ width: `${(giftMilestone.completed / giftMilestone.target) * 100}%` }} /></div>
+                <span className="text-xs font-bold text-amber-700">{giftMilestone.completed}/{giftMilestone.target}</span>
+              </div>
+              {giftMilestone.achieved ? (
+                <>
+                  <div className="flex justify-center mt-2">
+                    <RoboVideo src="/assets/robot/flyrunrobo.MP4" width={180} loop={false} />
+                  </div>
+                  <p className="text-center text-xs font-bold text-amber-700 mt-1">You did it!</p>
+                  <button onClick={handleClaimMilestone} className="w-full mt-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white py-2 rounded-xl text-xs font-bold">🎉 Claim Reward!</button>
+                </>
+              ) : (
+                <p className="text-[10px] text-amber-600 mt-1">{giftMilestone.target - giftMilestone.completed} more sessions to go!</p>
+              )}
+            </div>
+            )}
+
+            {/* Level card */}
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-4 text-white shadow-lg">
+              <div className="flex items-center gap-2 mb-2"><Rocket size={16} /><span className="font-bold text-sm">Level {level}</span></div>
+              <div className="w-full h-3 bg-white/20 dark:bg-white/10 rounded-full overflow-hidden mb-1.5"><div className="h-full bg-gradient-to-r from-yellow-300 to-orange-400 rounded-full shimmer-bg" style={{ width: `${levelProgress}%` }} /></div>
+              <p className="text-[10px] text-white/70">{500 - (totalXp % 500)} Hero Points to Level {level + 1}</p>
+            </div>
+
             {/* Tab switcher */}
             <div className="flex gap-1 bg-gray-100 dark:bg-[#16202e] colorblind:bg-gray-200 rounded-xl p-1">
               {[{id:'progress',label:'📊 Progress'},{id:'strands',label:'📈 Strands'},{id:'badges',label:'🏅 Hero Badges'}].map(t => (
@@ -1830,7 +1781,7 @@ export default function StudentDashboard() {
 
             {leaderboard.lastChampion && (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3">
-                <span className="text-base">{leaderboard.lastChampion.avatar}</span>
+                <CharacterAvatar id={leaderboard.lastChampion.avatar} size={28} />
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] font-bold text-amber-700">Last Month&apos;s Champion 🏆</span>
                   <p className="text-xs text-amber-800 font-semibold truncate">{leaderboard.lastChampion.name}</p>
@@ -1914,12 +1865,9 @@ export default function StudentDashboard() {
       {activeTab === 'profile' && (
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
           <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{
-              width: 96, height: 96, borderRadius: '50%',
-              background: 'var(--accent-gold-light)', border: '3px solid #C49A1A',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 56, margin: '0 auto 16px',
-            }}>{student?.avatar || '🦊'}</div>
+            <div style={{ margin: '0 auto 16px', width: 96 }}>
+              <CharacterAvatar id={student?.avatar} size={96} />
+            </div>
             <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
               {student?.name || 'Hero'}
             </h2>
@@ -2228,7 +2176,7 @@ export default function StudentDashboard() {
                           marginBottom: 12,
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>🤖</span>
+                            <AskHeroIcon size={20} />
                             <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600 }}>
                               Looks like you might be stuck. Want help?
                             </span>
@@ -2268,7 +2216,7 @@ export default function StudentDashboard() {
                               marginBottom: 12,
                             }}
                           >
-                            <span>🤖</span>
+                            <AskHeroIcon size={18} />
                             <span>Ask <span style={{ color: 'var(--accent-gold)' }}>Hero</span> ✦✦</span>
                           </button>
                         ) : (
@@ -2284,7 +2232,10 @@ export default function StudentDashboard() {
                               marginBottom: 12,
                             }}
                           >
-                            🤖 Ask Hero
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <AskHeroIcon size={18} />
+                              <span>Ask Hero</span>
+                            </span>
                             <span style={{
                               background: 'var(--accent-gold)', color: 'var(--text-primary)',
                               borderRadius: 10, padding: '2px 8px',
@@ -2497,44 +2448,90 @@ export default function StudentDashboard() {
       )}
 
       {/* Floating Ask Hero button — persistent general-mode tutor */}
-      <style>{`
-        @keyframes heroGlow {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(196,154,26,0.6), 0 4px 20px rgba(27,43,75,0.4); }
-          50% { box-shadow: 0 0 0 8px rgba(196,154,26,0), 0 4px 20px rgba(27,43,75,0.4); }
-        }
-      `}</style>
       <button
         onClick={() => openAskHero(true)}
         title="Ask Hero"
+        aria-label="Ask Hero"
         style={{
-          position: 'fixed', bottom: 24, right: 24,
-          width: 60, height: 60, borderRadius: '50%',
-          background: '#1B2B4B', border: '2px solid #C49A1A',
-          cursor: 'pointer', zIndex: 200,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 28, animation: 'heroGlow 2s ease-in-out infinite',
+          position: 'fixed', bottom: 120, right: 18,
+          background: 'transparent', border: 'none',
+          padding: 0, cursor: 'pointer', zIndex: 200,
         }}
       >
-        🤖
+        <AskHeroLauncher size={92} />
       </button>
 
       {/* Dev Mode Panel — only visible for isDev students */}
       {student?.isDev && (
-        <div style={{
-          position: 'fixed', bottom: 16, right: 16,
-          background: 'var(--bg-header)', color: 'white',
-          borderRadius: 12, padding: 16, zIndex: 1000,
-          border: '2px solid #C49A1A', minWidth: 200,
-          display: 'flex', flexDirection: 'column', gap: 8,
-        }}>
-          <p style={{ color: 'var(--accent-gold)', fontWeight: 700, margin: 0 }}>
-            🔧 Dev Mode
-          </p>
-          <button onClick={handleResetData} style={devBtnStyle}>Reset My Data</button>
-          <button onClick={handleSimulate10} style={devBtnStyle}>Simulate 10 Questions</button>
-          <button onClick={handleAwardAllBadges} style={devBtnStyle}>Award All Badges</button>
-          <button onClick={handleTriggerGift} style={devBtnStyle}>Trigger Hero Quest</button>
-        </div>
+        devPanelMinimized ? (
+          <button
+          onClick={() => setDevPanelMinimized(false)}
+          aria-label="Expand dev mode tools"
+          style={{
+              position: 'fixed',
+              top: 16,
+              left: 16,
+              background: 'var(--bg-header)',
+              color: 'var(--accent-gold)',
+              border: '2px solid #C49A1A',
+              borderRadius: 999,
+              padding: '10px 14px',
+              zIndex: 1000,
+              cursor: 'pointer',
+              fontWeight: 800,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+            }}
+          >
+            🔧 Dev
+          </button>
+        ) : (
+          <div style={{
+            position: 'fixed',
+            top: 16,
+            left: 16,
+            background: 'var(--bg-header)',
+            color: 'white',
+            borderRadius: 12,
+            padding: 16,
+            zIndex: 1000,
+            border: '2px solid #C49A1A',
+            minWidth: 200,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}>
+              <p style={{ color: 'var(--accent-gold)', fontWeight: 700, margin: 0 }}>
+                🔧 Dev Mode
+              </p>
+              <button
+                onClick={() => setDevPanelMinimized(true)}
+                aria-label="Minimize dev mode tools"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent-gold)',
+                  cursor: 'pointer',
+                  fontSize: 22,
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                −
+              </button>
+            </div>
+            <button onClick={handleResetData} style={devBtnStyle}>Reset My Data</button>
+            <button onClick={handleSimulate10} style={devBtnStyle}>Simulate 10 Questions</button>
+            <button onClick={handleAwardAllBadges} style={devBtnStyle}>Award All Badges</button>
+            <button onClick={handleTriggerGift} style={devBtnStyle}>Trigger Hero Quest</button>
+          </div>
+        )
       )}
 
       {/* SKILL MASTERY EXAM MODAL */}
@@ -2790,7 +2787,11 @@ export default function StudentDashboard() {
           >✕</button>
           <div style={{ display: 'flex', gap: 10,
             alignItems: 'flex-start', marginBottom: 12 }}>
-            <span style={{ fontSize: 28 }}>{heroNudge.emoji}</span>
+            {heroNudge.icon === 'askHero' ? (
+              <AskHeroIcon size={28} />
+            ) : (
+              <span style={{ fontSize: 28 }}>{heroNudge.emoji}</span>
+            )}
             <div>
               <p style={{ fontWeight: 800, color: 'var(--text-primary)',
                 fontSize: 15, margin: '0 0 4px' }}>
@@ -2915,16 +2916,23 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* F) Bottom navigation bar */}
+      {/* F) Bottom navigation bar — floating glassy pill */}
       <div style={{
         position: 'fixed',
-        bottom: 0, left: 0, right: 0,
-        background: 'var(--bg-card)',
-        borderTop: '1px solid var(--border-color)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'min(560px, calc(100% - 32px))',
+        background: 'var(--nav-glass-bg, rgba(255,255,255,0.65))',
+        backdropFilter: 'blur(18px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+        border: '1px solid var(--nav-glass-border, rgba(255,255,255,0.5))',
+        borderRadius: 28,
         display: 'flex',
-        padding: '10px 0 20px',
+        padding: 8,
+        gap: 4,
         zIndex: 50,
-        boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        boxShadow: '0 12px 40px rgba(15,22,32,0.18), inset 0 1px 0 rgba(255,255,255,0.4)',
       }}>
         {[
           { emoji: '🏠', label: 'Home', tab: 'home' },
@@ -2933,39 +2941,45 @@ export default function StudentDashboard() {
           ...(flags.arcadeEnabled ? [{ emoji: '🕹️', label: 'Arcade', href: '/arcade' }] : []),
           { emoji: '🎖️', label: 'Badges', tab: 'badges' },
           { emoji: '👤', label: 'Profile', tab: 'profile' },
-        ].map((item, i) => (
-          <button
-            key={i}
-            onClick={() => item.href ? router.push(item.href) : setActiveTab(item.tab)}
-            style={{
-              flex: 1,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              padding: '4px 0',
-            }}
-          >
-            <span style={{ fontSize: 22 }}>{item.emoji}</span>
-            <span style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: activeTab === item.tab ? 'var(--accent-gold)' : '#94A3B8',
-            }}>
-              {item.label}
-            </span>
-            {activeTab === item.tab && (
-              <div style={{
-                width: 4, height: 4,
-                borderRadius: '50%',
-                background: 'var(--accent-gold)',
-              }} />
-            )}
-          </button>
-        ))}
+        ].map((item, i) => {
+          const isActive = activeTab === item.tab
+          return (
+            <button
+              key={i}
+              onClick={() => item.href ? router.push(item.href) : setActiveTab(item.tab)}
+              style={{
+                flex: 1,
+                background: isActive
+                  ? 'linear-gradient(180deg, rgba(196,154,26,0.22), rgba(196,154,26,0.12))'
+                  : 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                padding: '8px 0',
+                borderRadius: 20,
+                transition: 'background 0.2s ease, transform 0.15s ease',
+                transform: isActive ? 'translateY(-1px)' : 'none',
+              }}
+            >
+              <span style={{
+                fontSize: 22,
+                filter: isActive ? 'none' : 'grayscale(0.15)',
+                transition: 'transform 0.15s ease',
+                transform: isActive ? 'scale(1.12)' : 'scale(1)',
+              }}>{item.emoji}</span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: isActive ? 800 : 600,
+                color: isActive ? 'var(--accent-gold)' : '#94A3B8',
+              }}>
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

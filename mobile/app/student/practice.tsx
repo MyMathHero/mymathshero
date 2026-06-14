@@ -10,6 +10,7 @@ import api, { studentAPI } from '../../lib/api'
 import { showAchievementNotification } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AskHeroSheet from '../../components/AskHeroSheet'
+import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 
@@ -376,8 +377,9 @@ export default function Practice() {
         {/* Nudge — opens in-app Ask Hero bottom sheet */}
         {showNudge && !result && (
           <View style={styles.nudge}>
+            <AskHeroIcon size={26} />
             <Text style={styles.nudgeText}>
-              🤖 Stuck? Ask Hero for help!
+              Stuck? Ask Hero for help!
             </Text>
             <TouchableOpacity
               onPress={handleAskHeroTap}
@@ -482,7 +484,7 @@ export default function Practice() {
           style={styles.floatingAsk}
           activeOpacity={0.85}
         >
-          <Text style={styles.floatingAskEmoji}>🤖</Text>
+          <AskHeroIcon size={28} />
           <Text style={styles.floatingAskText}>
             Ask Hero{studentPlan !== 'premium' ? ' ⭐' : ''}
           </Text>

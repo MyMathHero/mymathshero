@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import RoboVideo from './RoboVideo'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
+import AskHeroIcon from './AskHeroIcon'
 
 const ROBOT_STATES = {
   idle:      { type: 'img', src: '/assets/robot/hero-robot.png' },
@@ -174,12 +175,7 @@ export default function AskHero({
           justifyContent: 'space-between',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: '50%',
-              background: '#C49A1A',
-              display: 'flex', alignItems: 'center',
-              justifyContent: 'center', fontSize: 20,
-            }}>🤖</div>
+            <AskHeroIcon size={40} />
             <div>
               <p style={{ color: 'white', fontWeight: 800,
                 fontSize: 16, margin: 0 }}>
@@ -298,8 +294,7 @@ export default function AskHero({
                 ? 'flex-start' : 'flex-end',
             }}>
               {msg.role === 'hero' && (
-                <span style={{ fontSize: 18, marginRight: 6,
-                  alignSelf: 'flex-end' }}>🤖</span>
+                <AskHeroIcon size={18} style={{ marginRight: 6, alignSelf: 'flex-end' }} />
               )}
               <div style={{
                 maxWidth: '78%',
@@ -320,7 +315,7 @@ export default function AskHero({
           {loading && (
             <div style={{ display: 'flex',
               justifyContent: 'flex-start', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>🤖</span>
+              <AskHeroIcon size={18} />
               <div style={{
                 padding: '10px 14px',
                 borderRadius: '4px 16px 16px 16px',

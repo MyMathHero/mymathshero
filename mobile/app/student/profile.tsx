@@ -7,9 +7,10 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { studentAPI } from '../../lib/api'
-import HeroRobot from '../../components/HeroRobot'
 import ThemeToggle from '../../components/ThemeToggle'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
+import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
+import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
 
 export default function Profile() {
   const router = useRouter()
@@ -25,7 +26,28 @@ export default function Profile() {
   const [confirmPin, setConfirmPin] = useState('')
   const [pinSaving, setPinSaving] = useState(false)
 
+  // Avatar picker state
+  const [showAvatarModal, setShowAvatarModal] = useState(false)
+  const [avatarSaving, setAvatarSaving] = useState(false)
+
   useEffect(() => { loadProfile() }, [])
+
+  async function chooseAvatar(id: string) {
+    if (avatarSaving) return
+    const prev = student?.avatar
+    setStudent((s: any) => ({ ...s, avatar: id }))  // optimistic
+    setAvatarSaving(true)
+    try {
+      const sid = (await SecureStore.getItemAsync('user_id')) || ''
+      await studentAPI.setCharacter(sid, id)
+      setShowAvatarModal(false)
+    } catch {
+      setStudent((s: any) => ({ ...s, avatar: prev }))
+      Alert.alert('Oops', 'Could not save your hero. Please try again.')
+    } finally {
+      setAvatarSaving(false)
+    }
+  }
 
   async function loadProfile() {
     try {
@@ -113,9 +135,16 @@ export default function Profile() {
       <ScrollView style={{ flex: 1 }}>
         {/* Hero Identity Card */}
         <View style={p.heroCard}>
-          <View style={{ marginBottom: 12 }}>
-            <HeroRobot mood="happy" size={80} containerStyle="circle" />
-          </View>
+          <TouchableOpacity
+            style={{ marginBottom: 10 }}
+            onPress={() => setShowAvatarModal(true)}
+            activeOpacity={0.85}
+          >
+            <CharacterAvatar id={student?.avatar} size={96} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowAvatarModal(true)} activeOpacity={0.7}>
+            <Text style={p.changeHero}>✨ Change Hero</Text>
+          </TouchableOpacity>
           <Text style={p.heroName}>{student?.name || 'Hero'}</Text>
           <Text style={p.heroGrade}>
             Year {student?.grade ?? '—'} Maths Hero
@@ -129,21 +158,25 @@ export default function Profile() {
           <Text style={p.xpLabel}>{xp} Hero Points</Text>
         </View>
 
-        {/* Stats Grid (loaded from real API) */}
+        {/* Stats Grid (loaded from real API) — modern cards with icon chips */}
         {!loading && student && (
           <View style={p.statsGrid}>
             {[
-              { label: 'Streak',    value: `${student?.streak || 0} days`, emoji: '🔥' },
-              { label: 'Coins',     value: student?.coins || 0,            emoji: '🪙' },
-              { label: 'Mastered',  value: stats?.mastered || 0,           emoji: '🏆' },
-              { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,     emoji: '🎯' },
-              { label: 'This Week', value: stats?.totalQuestionsThisWeek || 0, emoji: '📝' },
-              { label: 'Sessions',  value: student?.sessions_completed || 0,  emoji: '📚' },
+              { label: 'Streak',    value: `${student?.streak || 0} days`, emoji: '🔥', grad: ['#FB923C', '#EA580C'] },
+              { label: 'Coins',     value: student?.coins || 0,            emoji: '🪙', grad: ['#FCD34D', '#D97706'] },
+              { label: 'Mastered',  value: stats?.mastered || 0,           emoji: '🏆', grad: ['#34D399', '#059669'] },
+              { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,     emoji: '🎯', grad: ['#F87171', '#DC2626'] },
+              { label: 'This Week', value: stats?.totalQuestionsThisWeek || 0, emoji: '📝', grad: ['#A78BFA', '#7C3AED'] },
+              { label: 'Sessions',  value: student?.sessions_completed || 0,  emoji: '📚', grad: ['#60A5FA', '#2563EB'] },
             ].map((s, i) => (
               <View key={i} style={p.statCard}>
-                <Text style={p.statEmoji}>{s.emoji}</Text>
-                <Text style={p.statValue}>{s.value}</Text>
-                <Text style={p.statLabel}>{s.label}</Text>
+                <View style={[p.statChip, { backgroundColor: s.grad[1] }]}>
+                  <Text style={p.statEmoji}>{s.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={p.statValue}>{s.value}</Text>
+                  <Text style={p.statLabel}>{s.label}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -271,6 +304,39 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
+
+      {/* Avatar picker modal */}
+      <Modal visible={showAvatarModal} transparent animationType="slide" onRequestClose={() => setShowAvatarModal(false)}>
+        <View style={p.modalOverlay}>
+          <View style={p.avatarSheet}>
+            <View style={p.avatarSheetHeader}>
+              <Text style={p.modalTitle}>Choose Your Hero</Text>
+              <TouchableOpacity onPress={() => setShowAvatarModal(false)} hitSlop={10}>
+                <Text style={{ color: colors.textMuted, fontSize: 20, fontWeight: '700' }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={p.avatarGrid}>
+              {CHARACTER_AVATARS.map(char => {
+                const isSel = (student?.avatar || DEFAULT_AVATAR_ID) === char.id
+                return (
+                  <TouchableOpacity
+                    key={char.id}
+                    style={[p.avatarOption, isSel && p.avatarOptionSel]}
+                    onPress={() => chooseAvatar(char.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', marginBottom: 6 }}>
+                      <CharacterSVG char={char} size={64} />
+                    </View>
+                    <Text style={p.avatarName} numberOfLines={1}>{char.name}</Text>
+                    {isSel && <View style={p.avatarOnBadge}><Text style={p.avatarOnText}>ON</Text></View>}
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -293,14 +359,34 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   xpBarFill: { height: '100%', backgroundColor: '#C49A1A', borderRadius: 4 },
   xpLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
 
+  changeHero: { color: c.accentGold, fontSize: 13, fontWeight: '700', marginBottom: 10 },
+
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10,
     paddingHorizontal: 16, marginBottom: 16 },
-  statCard: { backgroundColor: c.bgCard, borderRadius: 14,
-    padding: 14, alignItems: 'center', width: '31%',
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  statEmoji: { fontSize: 22, marginBottom: 4 },
-  statValue: { fontSize: 17, fontWeight: '800', color: c.textPrimary },
-  statLabel: { fontSize: 10, color: c.textMuted, marginTop: 2, textAlign: 'center' },
+  statCard: { backgroundColor: c.bgCard, borderRadius: 16,
+    padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, width: '47%',
+    borderWidth: 1, borderColor: c.borderColor,
+    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+  statChip: { width: 38, height: 38, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center' },
+  statEmoji: { fontSize: 19 },
+  statValue: { fontSize: 18, fontWeight: '800', color: c.textPrimary },
+  statLabel: { fontSize: 11, color: c.textMuted, marginTop: 1 },
+
+  avatarSheet: { backgroundColor: c.bgCard, borderTopLeftRadius: 24,
+    borderTopRightRadius: 24, paddingTop: 16, paddingBottom: 32, maxHeight: '78%' },
+  avatarSheetHeader: { flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
+  avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12,
+    paddingHorizontal: 16, justifyContent: 'center' },
+  avatarOption: { backgroundColor: c.bgPrimary, borderRadius: 16,
+    padding: 10, alignItems: 'center', width: '29%',
+    borderWidth: 2, borderColor: c.borderColor },
+  avatarOptionSel: { borderColor: '#C49A1A' },
+  avatarName: { fontSize: 10, fontWeight: '700', color: c.textPrimary, textAlign: 'center' },
+  avatarOnBadge: { position: 'absolute', top: 4, right: 4,
+    backgroundColor: '#C49A1A', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
+  avatarOnText: { color: 'white', fontSize: 8, fontWeight: '800' },
 
   section: { backgroundColor: c.bgCard, borderRadius: 16,
     padding: 18, marginHorizontal: 16, marginBottom: 12,
