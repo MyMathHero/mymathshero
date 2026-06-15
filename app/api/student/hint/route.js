@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 import { getPlanFeatures } from '@/lib/planGating'
+import { normaliseManipulative } from '@/lib/manipulatives'
 
 let client
 async function connectDB() {
@@ -36,8 +37,21 @@ function todayAEST() {
   return new Date().toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney' })
 }
 
+// Optional, additive capability appended to every system prompt. It lets Hero
+// surface a hands-on visual tool when (and only when) a child is genuinely
+// stuck. It does NOT change the tutoring rules above — Hero still never gives
+// the answer. The tag is parsed out and stripped from the visible reply.
+const MANIPULATIVE_INSTRUCTION = `
+
+VISUAL TOOLS (optional):
+If the student is still stuck AFTER you have explained in words, you MAY end your reply with ONE tag to show them an interactive visual tool to play with:
+- [[manipulative:pizza]] — for fractions (a pizza they can slice and colour)
+- [[manipulative:numberline]] — for adding/subtracting (a kangaroo hopping along a number line)
+- [[manipulative:tenframe]] — for counting and small numbers (a grid they fill with counters)
+Only add a tag when a visual would genuinely help — not every message. Put it on its own line at the very end. Never mention the tag itself in your words; just keep tutoring naturally.`
+
 function buildSystemPrompt(studentName, grade, questionText) {
-  return questionText
+  return (questionText
     ? `You are Hero, a friendly and encouraging AI Maths tutor for Australian primary school students.
 You are talking to ${studentName} who is in Grade ${grade}.
 
@@ -63,6 +77,18 @@ STRICT RULES:
 - Keep responses short (2-4 sentences), warm, and age-appropriate
 - Use emojis occasionally
 - If a student says "I don't know", encourage them to guess and explain their thinking`
+  ) + MANIPULATIVE_INSTRUCTION
+}
+
+// Pulls a [[manipulative:xxx]] tag out of an AI reply. Returns the cleaned
+// reply text (tag removed) and the resolved tool key, or null if no valid tag.
+function extractManipulative(reply) {
+  if (!reply) return { text: reply, manipulative: null }
+  const match = reply.match(/\[\[\s*manipulative\s*:\s*([a-z0-9 _-]+?)\s*\]\]/i)
+  if (!match) return { text: reply, manipulative: null }
+  const tool = normaliseManipulative(match[1])
+  const text = reply.replace(match[0], '').trim()
+  return { text, manipulative: tool }
 }
 
 async function callOpenRouter(systemPrompt, conversation, fallback) {
@@ -180,13 +206,16 @@ export async function POST(request) {
         grade ?? student.grade ?? 3,
         questionText || null
       )
-      const reply = await callOpenRouter(
+      const rawReply = await callOpenRouter(
         systemPrompt,
         // Only pass clean role/content pairs to the model.
         messages.map(m => ({ role: m.role, content: m.content })),
         "I'm thinking... can you tell me more about what you're trying to work out? 🤔"
       )
-      return NextResponse.json({ reply })
+      // Parse any [[manipulative:...]] tag Hero added, strip it from the text,
+      // and return the resolved tool so the client can render it inline.
+      const { text: reply, manipulative } = extractManipulative(rawReply)
+      return NextResponse.json({ reply, manipulative })
     }
 
     // ── Legacy single-shot path (existing components) ────────────────────────

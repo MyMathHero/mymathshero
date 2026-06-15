@@ -10,6 +10,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
 import api from '../lib/api'
 import HeroRobot from './HeroRobot'
+import Manipulative from './manipulatives/Manipulative'
 
 // Audio playback uses expo-audio + expo-file-system (SDK 56-correct).
 // expo-av was removed in SDK 56. We stream the OpenAI proxy response straight
@@ -30,6 +31,7 @@ type Message = {
   role: 'hero' | 'student'
   text: string
   isIntro?: boolean
+  manipulative?: string | null
 }
 
 export default function AskHeroSheet({
@@ -168,8 +170,8 @@ export default function AskHeroSheet({
     }
   }
 
-  function addHeroMessage(text: string, isIntro = false) {
-    setMessages(prev => [...prev, { role: 'hero', text, isIntro }])
+  function addHeroMessage(text: string, isIntro = false, manipulative: string | null = null) {
+    setMessages(prev => [...prev, { role: 'hero', text, isIntro, manipulative }])
     // Mirror into the API conversation as an assistant turn.
     setConversation(prev => [...prev, { role: 'assistant', content: text }])
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
@@ -199,7 +201,8 @@ export default function AskHeroSheet({
       const reply = res.data?.reply
         || "I'm thinking... what have you tried so far? 🤔"
       setRobotMood('happy')
-      addHeroMessage(reply)
+      // res.data.manipulative is a tool key when Hero chose to surface a visual.
+      addHeroMessage(reply, false, res.data?.manipulative || null)
       await speakWithOpenAI(reply)
     } catch {
       setRobotMood('happy')
@@ -275,25 +278,28 @@ export default function AskHeroSheet({
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.map((msg, i) => (
-            <View
-              key={i}
-              style={msg.role === 'hero' ? s.heroBubbleRow : s.studentBubbleRow}
-            >
-              {msg.role === 'hero' && (
-                <Text style={{ fontSize: 16 }}>🤖</Text>
-              )}
-              <View style={[
-                s.bubble,
-                msg.role === 'hero' ? s.heroBubble : s.studentBubble,
-                msg.isIntro && s.introBubble,
-              ]}>
-                <Text style={[
-                  s.bubbleText,
-                  msg.isIntro && s.introBubbleText,
+            <View key={i}>
+              <View style={msg.role === 'hero' ? s.heroBubbleRow : s.studentBubbleRow}>
+                {msg.role === 'hero' && (
+                  <Text style={{ fontSize: 16 }}>🤖</Text>
+                )}
+                <View style={[
+                  s.bubble,
+                  msg.role === 'hero' ? s.heroBubble : s.studentBubble,
+                  msg.isIntro && s.introBubble,
                 ]}>
-                  {msg.text}
-                </Text>
+                  <Text style={[
+                    s.bubbleText,
+                    msg.isIntro && s.introBubbleText,
+                  ]}>
+                    {msg.text}
+                  </Text>
+                </View>
               </View>
+              {/* Inline visual tool Hero chose to surface (if any). */}
+              {msg.role === 'hero' && msg.manipulative && (
+                <Manipulative tool={msg.manipulative} />
+              )}
             </View>
           ))}
 

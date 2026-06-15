@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import RoboVideo from './RoboVideo'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
 import AskHeroIcon from './AskHeroIcon'
+import Manipulative from './manipulatives/Manipulative'
 
 const ROBOT_STATES = {
   idle:      { type: 'img', src: '/assets/robot/hero-robot.png' },
@@ -60,8 +61,8 @@ export default function AskHero({
 
   // Adds a Hero message to both the visible thread and the API conversation,
   // and reads it aloud via heroSpeak (OpenAI TTS nova) unless muted.
-  function addHeroMessage(message, state = 'talking') {
-    setChatHistory(prev => [...prev, { role: 'hero', message }])
+  function addHeroMessage(message, state = 'talking', manipulative = null) {
+    setChatHistory(prev => [...prev, { role: 'hero', message, manipulative }])
     setConversation(prev => [...prev, { role: 'assistant', content: message }])
     setRobotState(state)
 
@@ -106,7 +107,9 @@ export default function AskHero({
       const data = await res.json()
       addHeroMessage(
         data.reply || "I'm thinking... what have you tried so far? 🤔",
-        'talking'
+        // Cheer when Hero surfaces a visual tool to play with.
+        data.manipulative ? 'happy' : 'talking',
+        data.manipulative || null
       )
     } catch {
       addHeroMessage(
@@ -288,27 +291,33 @@ export default function AskHero({
           minHeight: 180, maxHeight: 320,
         }}>
           {chatHistory.map((msg, i) => (
-            <div key={i} style={{
-              display: 'flex',
-              justifyContent: msg.role === 'hero'
-                ? 'flex-start' : 'flex-end',
-            }}>
-              {msg.role === 'hero' && (
-                <AskHeroIcon size={18} style={{ marginRight: 6, alignSelf: 'flex-end' }} />
-              )}
+            <div key={i}>
               <div style={{
-                maxWidth: '78%',
-                padding: '10px 14px',
-                borderRadius: msg.role === 'hero'
-                  ? '4px 16px 16px 16px'
-                  : '16px 4px 16px 16px',
-                background: msg.role === 'hero'
-                  ? '#1B2B4B' : '#C49A1A',
-                color: 'white',
-                fontSize: 14, lineHeight: 1.5,
+                display: 'flex',
+                justifyContent: msg.role === 'hero'
+                  ? 'flex-start' : 'flex-end',
               }}>
-                {msg.message}
+                {msg.role === 'hero' && (
+                  <AskHeroIcon size={18} style={{ marginRight: 6, alignSelf: 'flex-end' }} />
+                )}
+                <div style={{
+                  maxWidth: '78%',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'hero'
+                    ? '4px 16px 16px 16px'
+                    : '16px 4px 16px 16px',
+                  background: msg.role === 'hero'
+                    ? '#1B2B4B' : '#C49A1A',
+                  color: 'white',
+                  fontSize: 14, lineHeight: 1.5,
+                }}>
+                  {msg.message}
+                </div>
               </div>
+              {/* Inline visual tool Hero chose to surface (if any). */}
+              {msg.role === 'hero' && msg.manipulative && (
+                <Manipulative tool={msg.manipulative} />
+              )}
             </div>
           ))}
 
