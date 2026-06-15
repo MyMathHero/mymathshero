@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import CharacterAvatar from '@/components/CharacterAvatar'
+import { isCharacterId } from '@/lib/characterAvatars'
 import { Users, TrendingDown, Activity, Brain, AlertTriangle, CheckCircle2, ChevronRight, X, Star, Flame, Trophy, Target, BookOpen, BarChart3, TrendingUp, Clock, Zap, ArrowUpRight, ArrowDownRight, Minus, Radio, Filter, Download, Plus, Copy, Check, GraduationCap } from 'lucide-react'
 
 // teacherId now comes from /api/auth/me. Demo fallback kept for unauthenticated previews.
@@ -556,9 +558,13 @@ export default function TeacherDashboard() {
             <div className="p-5">
               {/* Student Info */}
               <div className="flex items-center gap-3 mb-5">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${selectedStudent.avg < 50 && selectedStudent.avg > 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {selectedStudent.avatar || selectedStudent.initials}
-                </div>
+                {isCharacterId(selectedStudent.avatar) ? (
+                  <CharacterAvatar id={selectedStudent.avatar} size={48} />
+                ) : (
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${selectedStudent.avg < 50 && selectedStudent.avg > 0 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {selectedStudent.avatar || selectedStudent.initials}
+                  </div>
+                )}
                 <div className="flex-1">
                   <h4 className="font-bold text-navy">{selectedStudent.name}</h4>
                   <p className="text-xs text-gray-500">Grade {selectedStudent.grade}</p>

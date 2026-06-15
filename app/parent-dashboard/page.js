@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import ArcadeSettings from '@/components/ArcadeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
+import CharacterAvatar from '@/components/CharacterAvatar'
+import { isCharacterId } from '@/lib/characterAvatars'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
 
@@ -719,7 +721,11 @@ export default function ParentDashboard() {
           <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md mx-auto text-center">
               <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
-                <div className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4 text-5xl">{childData.avatar}</div>
+                <div className="mx-auto mb-4" style={{ width: 80 }}>
+                  {isCharacterId(childData.avatar)
+                    ? <CharacterAvatar id={childData.avatar} size={80} />
+                    : <div className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center text-5xl">{childData.avatar}</div>}
+                </div>
                 <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{childData.name} is Ready!</h2>
                 <p className="text-gray-500 dark:text-slate-300 text-sm mb-6">{childData.grade} account created successfully</p>
                 <div className="bg-navy rounded-xl p-5 text-left mb-6">
@@ -810,7 +816,9 @@ export default function ParentDashboard() {
                   onChange={e => setChildData(children.find(c => c.id === e.target.value))}
                   className="text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 dark:text-slate-300 bg-white dark:bg-[#1E2D42] colorblind:bg-white focus:outline-none focus:ring-1 focus:ring-electric"
                 >
-                  {children.map(c => <option key={c.id} value={c.id}>{c.avatar} {c.name}</option>)}
+                  {/* <option> can't render a component, so for character-id
+                      avatars we just show the name (no raw "ninja" text). */}
+                  {children.map(c => <option key={c.id} value={c.id}>{isCharacterId(c.avatar) ? '' : (c.avatar ? c.avatar + ' ' : '')}{c.name}</option>)}
                 </select>
               )}
               <a href="/student-dashboard" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 dark:text-slate-300 text-xs font-medium hover:bg-gray-50 dark:bg-[#16202e] transition-colors">
@@ -854,7 +862,9 @@ export default function ParentDashboard() {
                     : 'bg-gray-50 dark:bg-[#16202e] text-gray-700 dark:text-slate-200 border-gray-200 hover:border-[#C49A1A]/60'
                 }`}
               >
-                <span className="text-xl">{c.avatar || '🦊'}</span>
+                {isCharacterId(c.avatar)
+                  ? <CharacterAvatar id={c.avatar} size={28} />
+                  : <span className="text-xl">{c.avatar || '🦊'}</span>}
                 <div className="leading-tight">
                   <span className="font-semibold text-xs block">{c.name}</span>
                   <span className={`text-[10px] ${childData?.id === c.id ? 'text-white/80' : 'text-gray-400 dark:text-slate-400'}`}>Grade {c.grade}</span>
@@ -1451,12 +1461,16 @@ export default function ParentDashboard() {
                       padding: '12px 0',
                       borderBottom: '1px solid #F0F4F8',
                     }}>
-                      <div style={{
-                        width: 40, height: 40, borderRadius: '50%',
-                        background: '#F0F4F8',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 20,
-                      }}>{child.avatar || '🧒'}</div>
+                      {isCharacterId(child.avatar) ? (
+                        <CharacterAvatar id={child.avatar} size={40} />
+                      ) : (
+                        <div style={{
+                          width: 40, height: 40, borderRadius: '50%',
+                          background: '#F0F4F8',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 20,
+                        }}>{child.avatar || '🧒'}</div>
+                      )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{child.name}</p>
                         <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>

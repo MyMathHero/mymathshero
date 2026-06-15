@@ -4,8 +4,14 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { LogBox } from 'react-native'
+import * as SplashScreen from 'expo-splash-screen'
 import SplashAnimation from '../components/SplashAnimation'
 import { ThemeProvider } from '../lib/themeContext'
+
+// Keep the native splash (solid navy + logo) up until our video splash is
+// actually ready to play. This removes the blank "empty circle" gap that used
+// to show between the native splash hiding and the animation starting.
+SplashScreen.preventAutoHideAsync().catch(() => {})
 
 // Suppress known non-critical warnings that can spam the console in prod.
 LogBox.ignoreLogs([

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import {
-  View, Text, StyleSheet, Animated,
-  Easing, Platform,
+  View, Text, StyleSheet, Animated, Platform,
 } from 'react-native'
 import { useVideoPlayer, VideoView } from 'expo-video'
+import { useEventListener } from 'expo'
+import * as SplashScreen from 'expo-splash-screen'
 
 interface Props {
   onFinish: () => void
@@ -14,7 +15,9 @@ export default function SplashAnimation({ onFinish }: Props) {
   const logoOpacity = useRef(new Animated.Value(0)).current
   const logoScale = useRef(new Animated.Value(0.7)).current
   const taglineOpacity = useRef(new Animated.Value(0)).current
-  const robotOpacity = useRef(new Animated.Value(0)).current
+  // Robot starts visible (opacity 1) — the native splash stays up until the
+  // video is ready, so there is never an empty circle on screen.
+  const robotOpacity = useRef(new Animated.Value(1)).current
   const dot1 = useRef(new Animated.Value(0)).current
   const dot2 = useRef(new Animated.Value(0)).current
   const dot3 = useRef(new Animated.Value(0)).current
@@ -28,15 +31,25 @@ export default function SplashAnimation({ onFinish }: Props) {
     }
   )
 
+  // Only hide the native splash once the video can actually render a frame.
+  // Until then the user keeps seeing the native navy splash, not a blank circle.
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status === 'readyToPlay') {
+      SplashScreen.hideAsync().catch(() => {})
+    }
+  })
+
+  useEffect(() => {
+    // Safety net: never let the native splash get stuck if the video stalls.
+    const fallback = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {})
+    }, 2500)
+    return () => clearTimeout(fallback)
+  }, [])
+
   useEffect(() => {
     Animated.sequence([
-      // Robot fades in
-      Animated.timing(robotOpacity, {
-        toValue: 1, duration: 700,
-        useNativeDriver: true,
-        easing: Easing.out(Easing.cubic),
-      }),
-      // Logo + scale spring
+      // Logo + scale spring (robot is already visible)
       Animated.parallel([
         Animated.timing(logoOpacity, {
           toValue: 1, duration: 600,

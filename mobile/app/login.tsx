@@ -6,12 +6,27 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
+import { LinearGradient } from 'expo-linear-gradient'
+import { BlurView } from 'expo-blur'
+import Svg, { Path, Circle } from 'react-native-svg'
 import { authAPI } from '../lib/api'
 import { theme } from '../lib/theme'
 import { useTheme, ThemeColors } from '../lib/themeContext'
 import HeroRobot from '../components/HeroRobot'
 
 type Role = 'student' | 'parent' | null
+
+// Decorative floating maths symbols, positioned around the hero (matches the
+// reference design). Coordinates are percentages of the hero area.
+const MATH_SYMBOLS: Array<{ s: string; top: string; left?: string; right?: string; size: number; color: string }> = [
+  { s: '∫', top: '8%',  left: '20%',  size: 56, color: '#C49A1A' },
+  { s: '÷', top: '6%',  left: '46%',  size: 28, color: 'rgba(255,255,255,0.5)' },
+  { s: '√', top: '10%', right: '24%', size: 48, color: '#38BDF8' },
+  { s: '=', top: '20%', left: '12%',  size: 26, color: 'rgba(255,255,255,0.35)' },
+  { s: '÷', top: '22%', right: '14%', size: 30, color: '#C49A1A' },
+  { s: '×', top: '42%', left: '10%',  size: 28, color: 'rgba(255,255,255,0.3)' },
+  { s: '%', top: '40%', right: '12%', size: 24, color: '#38BDF8' },
+]
 
 export default function Login() {
   const router = useRouter()
@@ -79,13 +94,13 @@ export default function Login() {
     }
   }
 
-  const roles = [
-    { id: 'student' as Role, emoji: '🎓', label: "I'm a Student" },
-    { id: 'parent' as Role, emoji: '👨‍👩‍👧', label: "I'm a Parent" },
-  ]
-
   return (
     <View style={s.root}>
+      <LinearGradient
+        colors={['#0F1F3D', '#16294A', '#1B2B4B']}
+        style={StyleSheet.absoluteFill}
+      />
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -96,167 +111,193 @@ export default function Login() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero section */}
+          {/* Hero section with floating maths symbols */}
           <View style={s.hero}>
-            <HeroRobot mood="waving" size={120} containerStyle="circle" />
+            {MATH_SYMBOLS.map((m, i) => (
+              <Text
+                key={i}
+                style={[
+                  s.mathSymbol,
+                  {
+                    top: m.top as any,
+                    left: m.left as any,
+                    right: m.right as any,
+                    fontSize: m.size,
+                    color: m.color,
+                  },
+                ]}
+              >
+                {m.s}
+              </Text>
+            ))}
+
+            <View style={s.robotHalo}>
+              <HeroRobot mood="waving" size={150} containerStyle="circle" />
+            </View>
+
             <Text style={s.heroLogo}>
               MyMaths<Text style={{ color: theme.colors.gold }}>Hero</Text>
             </Text>
             <Text style={s.heroTagline}>Australia&apos;s AI Maths Tutor</Text>
           </View>
 
-          {/* Form card */}
-          <View style={s.card}>
+          {/* Frosted glass card */}
+          <BlurView intensity={30} tint="light" style={s.card}>
             <Text style={s.label}>Who are you?</Text>
+
             <View style={s.roleRow}>
-              {roles.map(r => (
-                <TouchableOpacity
-                  key={r.id}
-                  style={[s.roleCard, role === r.id && s.roleCardActive]}
-                  onPress={() => setRole(r.id)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={s.roleEmoji}>{r.emoji}</Text>
-                  <Text style={[s.roleLabel, role === r.id && s.roleLabelActive]}>
-                    {r.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={[s.roleCard, role === 'student' && s.roleCardActive]}
+                onPress={() => setRole('student')}
+                activeOpacity={0.85}
+              >
+                <GradCapIcon active={role === 'student'} />
+                <Text style={[s.roleLabel, role === 'student' && s.roleLabelActive]}>I&apos;m a Student</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.roleCard, role === 'parent' && s.roleCardActive]}
+                onPress={() => setRole('parent')}
+                activeOpacity={0.85}
+              >
+                <ParentsIcon active={role === 'parent'} />
+                <Text style={[s.roleLabel, role === 'parent' && s.roleLabelActive]}>I&apos;m a Parent</Text>
+              </TouchableOpacity>
             </View>
 
             {role === 'student' && (
               <View style={s.form}>
-                <TextInput
-                  style={s.input}
-                  placeholder="Username"
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholderTextColor={theme.colors.textMuted}
-                />
-                <TextInput
-                  style={s.input}
-                  placeholder="4-digit PIN"
-                  value={pin}
-                  onChangeText={setPin}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  secureTextEntry
-                  placeholderTextColor={theme.colors.textMuted}
-                />
+                <TextInput style={s.input} placeholder="Username" value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} placeholderTextColor={theme.colors.textMuted} />
+                <TextInput style={s.input} placeholder="4-digit PIN" value={pin} onChangeText={setPin} keyboardType="number-pad" maxLength={4} secureTextEntry placeholderTextColor={theme.colors.textMuted} />
               </View>
             )}
 
             {role === 'parent' && (
               <View style={s.form}>
-                <TextInput
-                  style={s.input}
-                  placeholder="Email address"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  placeholderTextColor={theme.colors.textMuted}
-                />
-                <TextInput
-                  style={s.input}
-                  placeholder="Password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  placeholderTextColor={theme.colors.textMuted}
-                />
+                <TextInput style={s.input} placeholder="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholderTextColor={theme.colors.textMuted} />
+                <TextInput style={s.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={theme.colors.textMuted} />
               </View>
             )}
 
             {role && (
-              <TouchableOpacity
-                style={[s.btn, loading && s.btnDisabled]}
-                onPress={handleLogin}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                <Text style={s.btnText}>
-                  {loading ? 'Logging in...' : 'Log In →'}
-                </Text>
+              <TouchableOpacity style={[s.btn, loading && s.btnDisabled]} onPress={handleLogin} disabled={loading} activeOpacity={0.85}>
+                <Text style={s.btnText}>{loading ? 'Logging in...' : 'Log In →'}</Text>
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={s.signupRow}
-              onPress={() => router.push('/register')}
-            >
+            <TouchableOpacity style={s.signupRow} onPress={() => router.push('/register')}>
               <Text style={s.signupText}>
-                Don&apos;t have an account?{' '}
-                <Text style={s.signupLink}>Get started →</Text>
+                Don&apos;t have an account? <Text style={s.signupLink}>Get started →</Text>
               </Text>
             </TouchableOpacity>
-          </View>
+          </BlurView>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   )
 }
 
+function GradCapIcon({ active }: { active: boolean }) {
+  const col = active ? '#C49A1A' : '#1B2B4B'
+  return (
+    <Svg width={40} height={40} viewBox="0 0 24 24">
+      <Path d="M12 3L1 8l11 5 9-4.09V14h2V8L12 3z" fill={col} />
+      <Path d="M5 11.5v3c0 1.5 3.13 3 7 3s7-1.5 7-3v-3l-7 3.2-7-3.2z" fill={col} />
+    </Svg>
+  )
+}
+
+function ParentsIcon({ active }: { active: boolean }) {
+  const col = active ? '#C49A1A' : '#1B2B4B'
+  return (
+    <Svg width={40} height={40} viewBox="0 0 24 24">
+      <Circle cx="8" cy="8" r="3.2" fill={col} />
+      <Circle cx="16" cy="8" r="3.2" fill={col} />
+      <Path d="M2.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5v.5h-11V19z" fill={col} />
+      <Path d="M13 19c0-2 1-3.6 2.5-4.4 0.5-.2 1-.3 1.5-.3 3 0 4.5 2 4.5 4.7v.5H13V19z" fill={col} />
+    </Svg>
+  )
+}
+
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.bgHeader },
+  root: { flex: 1, backgroundColor: '#0F1F3D' },
   hero: {
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 32,
+    paddingTop: 90,
+    paddingBottom: 40,
+    position: 'relative',
+  },
+  mathSymbol: {
+    position: 'absolute',
+    fontWeight: '700',
+    opacity: 0.9,
+  },
+  robotHalo: {
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 18,
   },
   heroLogo: {
     color: 'white', fontWeight: '800',
-    fontSize: 32, marginTop: 8,
+    fontSize: 40, letterSpacing: -0.5,
   },
   heroTagline: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14, marginTop: 4,
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 15, marginTop: 6,
   },
   card: {
-    backgroundColor: c.bgPrimary,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    // BlurView needs a translucent base tint so the frost reads on the gradient.
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
     padding: 28,
-    paddingTop: 32,
-    minHeight: 360,
+    paddingTop: 30,
+    minHeight: 380,
+    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   label: {
-    fontSize: 15, fontWeight: '700',
-    color: c.textSecondary,
-    marginBottom: 14,
+    fontSize: 20, fontWeight: '800',
+    color: '#1B2B4B',
+    marginBottom: 18,
   },
   roleRow: {
-    flexDirection: 'row', gap: 12,
+    flexDirection: 'row', gap: 14,
     marginBottom: 24,
   },
   roleCard: {
-    flex: 1, paddingVertical: 18,
-    borderRadius: 14, borderWidth: 2,
-    borderColor: c.borderColor,
-    backgroundColor: c.bgCard,
-    alignItems: 'center',
+    flex: 1, paddingVertical: 22,
+    borderRadius: 18, borderWidth: 1.5,
+    borderColor: 'rgba(56,189,248,0.5)',
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    alignItems: 'center', gap: 10,
+    // soft glow like the reference
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
   },
   roleCardActive: {
     borderColor: c.accentGold,
-    backgroundColor: c.accentGoldLight,
+    backgroundColor: 'rgba(196,154,26,0.18)',
+    shadowColor: c.accentGold,
   },
-  roleEmoji: { fontSize: 32, marginBottom: 6 },
   roleLabel: {
-    fontSize: 13, color: c.textSecondary, fontWeight: '600',
+    fontSize: 16, color: '#1B2B4B', fontWeight: '700',
   },
-  roleLabelActive: { color: c.textPrimary, fontWeight: '800' },
+  roleLabelActive: { color: '#1B2B4B', fontWeight: '800' },
   form: { gap: 12, marginBottom: 16 },
   input: {
-    backgroundColor: c.bgCard,
-    borderWidth: 1.5, borderColor: c.borderColor,
-    borderRadius: 12, padding: 16,
-    fontSize: 16, color: c.textPrimary,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 14, padding: 16,
+    fontSize: 16, color: '#1B2B4B',
   },
   btn: {
-    backgroundColor: c.bgHeader,
+    backgroundColor: '#1B2B4B',
     borderRadius: 14, padding: 18,
     alignItems: 'center',
     borderWidth: 2, borderColor: c.accentGold,
@@ -265,6 +306,6 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   btnText: { color: 'white', fontSize: 17, fontWeight: '800' },
   signupRow: { marginTop: 4, alignItems: 'center' },
-  signupText: { fontSize: 14, color: c.textSecondary },
-  signupLink: { color: c.accentGold, fontWeight: '700' },
+  signupText: { fontSize: 15, color: '#334155' },
+  signupLink: { color: c.accentGold, fontWeight: '800' },
 })

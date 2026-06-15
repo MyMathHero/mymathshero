@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import api from '../../lib/api'
+import CharacterAvatar from '../../components/CharacterAvatar'
+import { isCharacterId } from '../../lib/characterAvatars'
 
 export default function ParentAccountScreen() {
   const { colors } = useTheme()
@@ -585,11 +587,15 @@ export default function ParentAccountScreen() {
             {children.map((child, i) => (
               <View key={i} style={[s.row,
                 i > 0 && { borderTopWidth: 1,
-                  borderTopColor: '#F0F4F8' }]}>
+                  borderTopColor: '#F0F4F8' },
+                { flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+                {isCharacterId(child.avatar) && (
+                  <CharacterAvatar id={child.avatar} size={36} />
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '700',
                     color: '#1B2B4B', fontSize: 15 }}>
-                    {child.avatar || '🧒'} {child.name}
+                    {isCharacterId(child.avatar) ? '' : (child.avatar || '🧒') + ' '}{child.name}
                   </Text>
                   <Text style={{ color: '#64748B',
                     fontSize: 12 }}>

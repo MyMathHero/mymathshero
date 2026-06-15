@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { parentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import CharacterAvatar from '../../components/CharacterAvatar'
+import { isCharacterId } from '../../lib/characterAvatars'
 
 export default function ParentDashboard() {
   const { colors } = useTheme()
@@ -166,9 +168,13 @@ export default function ParentDashboard() {
         {/* Child card */}
         {activeChild && (
           <View style={styles.activeChildCard}>
-            <View style={styles.activeChildAvatar}>
-              <Text style={{ fontSize: 24 }}>{activeChild.avatar || '🧒'}</Text>
-            </View>
+            {isCharacterId(activeChild.avatar) ? (
+              <CharacterAvatar id={activeChild.avatar} size={48} />
+            ) : (
+              <View style={styles.activeChildAvatar}>
+                <Text style={{ fontSize: 24 }}>{activeChild.avatar || '🧒'}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.activeChildName}>{activeChild.name}</Text>
               <Text style={styles.activeChildMeta}>
@@ -196,7 +202,9 @@ export default function ParentDashboard() {
                 style={[styles.childChip, activeChild?.id === c.id && styles.childChipActive]}
                 onPress={() => setActiveChild(c)}
               >
-                <Text style={styles.childEmoji}>{c.avatar || '🦊'}</Text>
+                {isCharacterId(c.avatar)
+                  ? <CharacterAvatar id={c.avatar} size={28} />
+                  : <Text style={styles.childEmoji}>{c.avatar || '🦊'}</Text>}
                 <View>
                   <Text style={[styles.childName, activeChild?.id === c.id && { color: 'white' }]}>{c.name}</Text>
                   <Text style={[styles.childGrade, activeChild?.id === c.id && { color: 'rgba(255,255,255,0.8)' }]}>Grade {c.grade}</Text>

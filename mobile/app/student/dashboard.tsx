@@ -12,7 +12,7 @@ import AskHeroIcon from '../../components/AskHeroIcon'
 import FloatingTabBar from '../../components/FloatingTabBar'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import { scheduleStreakReminder } from '../../lib/notifications'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
 import ThemeToggle from '../../components/ThemeToggle'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
@@ -120,6 +120,7 @@ export default function StudentDashboard() {
   const { colors } = useTheme()
   const s = useMemo(() => makeStyles(colors), [colors])
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const [student, setStudent] = useState<any>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
@@ -608,13 +609,15 @@ export default function StudentDashboard() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Floating Ask Hero button — general-mode AI tutor, above the tab bar */}
+      {/* Floating Ask Hero button — sits just above the floating tab bar.
+          The tab bar bottom is insets.bottom + 12 and it is ~68px tall, so we
+          clear it with insets.bottom + 92. Smaller on mobile per design. */}
       <TouchableOpacity
         onPress={openHeroFromDashboard}
         style={{
           position: 'absolute',
-          bottom: 90,
-          right: 20,
+          bottom: insets.bottom + 92,
+          right: 18,
           zIndex: 100,
         }}
         activeOpacity={0.85}
@@ -622,7 +625,7 @@ export default function StudentDashboard() {
         accessibilityRole="button"
         accessibilityLabel="Ask Hero"
       >
-        <AskHeroIcon size={76} badge />
+        <AskHeroIcon size={56} badge />
       </TouchableOpacity>
 
       <AskHeroSheet
