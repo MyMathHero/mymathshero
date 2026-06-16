@@ -2,6 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { ARCADE_GAMES, canPlayGame } from '@/lib/arcadeGames'
 import { getAESTMidnightUTC } from '@/lib/arcadeTime'
+import { resolveEffectivePlan } from '@/lib/freeTrial'
 
 let client
 async function connectDB() {
@@ -64,7 +65,7 @@ export async function GET(request) {
     return NextResponse.json({
       coins: student.coins || 0,   // spending currency — gates the arcade
       xp: student.xp || 0,         // leaderboard only; kept for display
-      plan: parent?.plan || 'free',
+      plan: resolveEffectivePlan(parent),
       minutesToday,
       minutesRemaining,
       timeLimitReached,
@@ -104,7 +105,7 @@ export async function POST(request) {
       : null
 
     if (action === 'unlock') {
-      const check = canPlayGame(game, student.coins || 0, parent?.plan)
+      const check = canPlayGame(game, student.coins || 0, resolveEffectivePlan(parent))
       if (!check.allowed) return NextResponse.json(
         { error: check.reason }, { status: 403 }
       )

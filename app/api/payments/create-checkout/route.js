@@ -3,6 +3,12 @@ import Stripe from 'stripe'
 import { MongoClient } from 'mongodb'
 import { STRIPE_CONFIG } from '@/lib/stripeConfig'
 
+// Whether the launch "first month free" promo is on (admin feature flag).
+async function freeFirstMonthEnabled(db) {
+  const doc = await db.collection('feature_flags').findOne({ _id: 'main' })
+  return doc?.freeFirstMonth === true
+}
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -171,9 +177,33 @@ export async function POST(request) {
       },
     }
 
-    // Admin-activated free month promo
-    if (applyFreeMonth) {
+    // "First month free" trial that converts to paid.
+    // A card IS collected at checkout, the first 30 days are free, the parent can
+    // cancel anytime in the trial (via the billing portal) and never be charged,
+    // and if they do nothing the subscription auto-charges on day 31.
+    //
+    // Eligibility: the caller can force it with applyFreeMonth, OR the launch
+    // promo flag is on AND this parent has never used the free month before
+    // (one trial per parent — prevents repeat free months by re-subscribing).
+    const promoOn = await freeFirstMonthEnabled(db)
+    const everHadTrial = !!parent?.freeTrialUsed || !!parent?.freeTrialUntil
+    const useFreeMonth = applyFreeMonth || (promoOn && !everHadTrial && !isSiblingAddOn)
+
+    if (useFreeMonth) {
       sessionParams.subscription_data.trial_period_days = 30
+      // Force card collection up front so the trial can convert to paid.
+      sessionParams.payment_method_collection = 'always'
+      // If the card can't be charged when the trial ends, cancel rather than
+      // leaving them in an unpaid limbo.
+      sessionParams.subscription_data.trial_settings = {
+        end_behavior: { missing_payment_method: 'cancel' },
+      }
+      // Mark so we don't grant the trial twice and so the webhook knows.
+      sessionParams.subscription_data.metadata.freeFirstMonth = 'true'
+      await db.collection('parents').updateOne(
+        { id: parentId },
+        { $set: { freeTrialUsed: true } }
+      )
     }
 
     const session = await stripe.checkout.sessions.create(

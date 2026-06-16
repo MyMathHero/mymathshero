@@ -2,6 +2,16 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
+import { buildFreeTrialGrant } from '@/lib/freeTrial'
+
+// Tester access: when the `testerFreeAccess` flag is on, every new parent signup
+// is granted a free month of Premium with NO card and NO auto-charge (used for
+// the 20-student test cohort). The public launch promo (`freeFirstMonth`) is a
+// SEPARATE Stripe-trial flow handled at checkout, not here.
+async function testerFreeAccessEnabled(db) {
+  const doc = await db.collection('feature_flags').findOne({ _id: 'main' })
+  return doc?.testerFreeAccess === true
+}
 
 let client
 async function connectDB() {
@@ -42,6 +52,10 @@ export async function POST(request) {
       const hashedPassword = await bcrypt.hash(password, 10)
       const parentId = uuidv4()
 
+      // Grant testers a no-card free month at signup when enabled.
+      const grantFreeMonth = await testerFreeAccessEnabled(db)
+      const trialFields = grantFreeMonth ? buildFreeTrialGrant() : {}
+
       await db.collection('parents').insertOne({
         id: parentId,
         name: name.trim(),
@@ -50,11 +64,19 @@ export async function POST(request) {
         phone: body.phone?.trim() || '',
         children: [],
         created_at: new Date(),
+        ...trialFields,
       })
 
       return NextResponse.json({
         success: true,
-        data: { id: parentId, name: name.trim(), email: normalizedEmail, role: 'parent' },
+        data: {
+          id: parentId,
+          name: name.trim(),
+          email: normalizedEmail,
+          role: 'parent',
+          plan: grantFreeMonth ? 'premium' : 'free',
+          freeTrialUntil: trialFields.freeTrialUntil || null,
+        },
       }, { status: 201 })
     }
 

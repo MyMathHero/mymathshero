@@ -216,14 +216,18 @@ export async function POST(request) {
 
         await db.collection('parents').updateOne(
           { stripeCustomerId: customerId },
-          { $set: {
-            plan,
-            subscribed: true,
-            subscriptionStatus: 'active',
-            subscriptionId,
-            lastPaymentAt: new Date(),
-            accessBlocked: false,
-          }}
+          {
+            $set: {
+              plan,
+              subscribed: true,
+              subscriptionStatus: 'active',
+              subscriptionId,
+              lastPaymentAt: new Date(),
+              accessBlocked: false,
+            },
+            // A real paid subscription supersedes any app-granted free month.
+            $unset: { freeTrialUntil: '' },
+          }
         )
 
         // Update all children

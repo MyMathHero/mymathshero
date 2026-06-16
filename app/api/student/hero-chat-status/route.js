@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 import { getPlanFeatures } from '@/lib/planGating'
+import { resolveEffectivePlan } from '@/lib/freeTrial'
 
 let client
 async function connectDB() {
@@ -44,7 +45,8 @@ export async function GET(request) {
     const parent = student.parentId
       ? await db.collection('parents').findOne({ id: student.parentId })
       : null
-    const plan = parent?.plan || student?.plan || 'free'
+    // resolveEffectivePlan downgrades an expired free-month grant back to 'free'.
+    const plan = parent ? resolveEffectivePlan(parent) : (student?.plan || 'free')
 
     if (!getPlanFeatures(plan).askHero) {
       return NextResponse.json({ allowed: false, remaining: 0, reason: 'upgrade' })

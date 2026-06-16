@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 import { getPlanFeatures } from '@/lib/planGating'
 import { normaliseManipulative } from '@/lib/manipulatives'
+import { resolveEffectivePlan } from '@/lib/freeTrial'
 
 let client
 async function connectDB() {
@@ -161,7 +162,9 @@ export async function POST(request) {
     const parent = student.parentId
       ? await db.collection('parents').findOne({ id: student.parentId })
       : null
-    const plan = parent?.plan || student?.plan || 'free'
+    // resolveEffectivePlan honours an app-granted free month and downgrades it
+    // back to 'free' once the month has elapsed.
+    const plan = parent ? resolveEffectivePlan(parent) : (student?.plan || 'free')
     if (!getPlanFeatures(plan).askHero) {
       if (isMultiTurn) {
         return NextResponse.json({

@@ -28,11 +28,12 @@ export function middleware(request) {
   const { pathname, searchParams } = request.nextUrl
 
   // Tester unlock: /unlock?key=<TESTER_ACCESS_KEY> sets the bypass cookie and
-  // sends the tester to /login. Guarded so an empty/unset key never unlocks.
+  // sends the tester to /onboarding to create an account. Guarded so an empty/
+  // unset key never unlocks.
   if (pathname === '/unlock') {
     const url = request.nextUrl.clone()
     if (TESTER_KEY && searchParams.get('key') === TESTER_KEY) {
-      url.pathname = '/login'
+      url.pathname = '/onboarding'
       url.search = ''
       const res = NextResponse.redirect(url)
       res.cookies.set(TESTER_COOKIE, TESTER_KEY, {

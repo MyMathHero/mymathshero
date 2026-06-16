@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { resolveEffectivePlan, isFreeTrialActive } from '@/lib/freeTrial'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,15 +48,26 @@ export async function GET(request) {
       trialEndsAt = trialEnd.toISOString()
     }
 
+    // App-granted "first month free" promo — surface its window and let it drive
+    // the effective plan (downgrades to free automatically once it elapses).
+    const freeMonthActive = isFreeTrialActive(parent)
+    const freeTrialUntil = parent.freeTrialUntil
+      ? new Date(parent.freeTrialUntil).toISOString()
+      : null
+    const effectivePlan = resolveEffectivePlan(parent)
+
     return NextResponse.json({
       subscribed: parent.subscribed ?? false,
-      plan: parent.plan ?? (parent.subscribed ? 'standard' : 'free'),
+      plan: effectivePlan,
       accessBlocked: parent.accessBlocked ?? false,
       subscriptionStatus: parent.subscriptionStatus ?? null,
       foundingFamily: parent.foundingFamily ?? false,
       currentPeriodEnd: parent.currentPeriodEnd ?? null,
       status: paymentSession?.status ?? 'none',
       trialEndsAt,
+      // First-month-free promo fields.
+      freeMonthActive,
+      freeTrialUntil,
     })
   } catch (error) {
     console.error('Payment status error:', error.message)
