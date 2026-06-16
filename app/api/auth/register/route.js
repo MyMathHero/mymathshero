@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
 import { buildFreeTrialGrant } from '@/lib/freeTrial'
+import { createToken, setAuthCookie } from '@/lib/auth'
 
 // Tester access: when the `testerFreeAccess` flag is on, every new parent signup
 // is granted a free month of Premium with NO card and NO auto-charge (used for
@@ -67,7 +68,15 @@ export async function POST(request) {
         ...trialFields,
       })
 
-      return NextResponse.json({
+      // Log the parent in immediately so they land on the dashboard after
+      // onboarding instead of bouncing back to the "Create account" landing.
+      const token = await createToken({
+        userId: parentId,
+        role: 'parent',
+        name: name.trim(),
+        grade: null,
+      })
+      const response = NextResponse.json({
         success: true,
         data: {
           id: parentId,
@@ -78,6 +87,8 @@ export async function POST(request) {
           freeTrialUntil: trialFields.freeTrialUntil || null,
         },
       }, { status: 201 })
+      setAuthCookie(response, token)
+      return response
     }
 
     // ── Teacher registration ─────────────────────────────────────────────────

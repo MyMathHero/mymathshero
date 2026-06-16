@@ -145,7 +145,9 @@ export default function ParentDashboard() {
             setChildData(cdata.children[0])
             setStep('dashboard')
           } else {
-            setStep('landing')
+            // Logged-in parent with no child yet — continue onboarding by adding
+            // a child, NOT the public "Create account" landing.
+            setStep('addChild')
           }
           return
         }
