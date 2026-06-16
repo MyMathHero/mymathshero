@@ -156,6 +156,19 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     tags: ['puzzle', 'memory', 'free'],
   },
   {
+    id: 'block_world',
+    title: 'BlockWorld',
+    category: 'Adventure',
+    emoji: '⛏️',
+    description: 'Explore, mine and build in a blocky 3D world!',
+    coinsCost: 30,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: '/games/minecraft/minecraft_full_game.html',
+    comingSoon: false,
+    tags: ['adventure', 'sandbox', '3d', 'popular'],
+  },
+  {
     id: 'castle_defense',
     title: 'Castle Defense',
     category: 'Strategy',
@@ -178,6 +191,7 @@ export const ARCADE_CATEGORIES: ArcadeCategory[] = [
   { id: 'Racing', label: 'Racing', emoji: '🏎️' },
   { id: 'Education', label: 'Education', emoji: '📚' },
   { id: 'Strategy', label: 'Strategy', emoji: '🏰' },
+  { id: 'Adventure', label: 'Adventure', emoji: '⛏️' },
 ]
 
 export function canPlayGame(
