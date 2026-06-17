@@ -11,7 +11,8 @@ import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
-import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles } from 'lucide-react'
+import SupportTickets from '@/components/SupportTickets'
+import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
 
@@ -230,6 +231,7 @@ export default function StudentDashboard() {
 
   // Ask Hero AI tutor panel state
   const [showAskHero, setShowAskHero] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
   const [askHeroAttempts, setAskHeroAttempts] = useState(1)
   // Multi-turn Ask Hero: status gate + general (floating-button) mode.
   const [heroStatus, setHeroStatus] = useState(null)   // { allowed, remaining, reason }
@@ -1929,6 +1931,19 @@ export default function StudentDashboard() {
           </button>
 
           <button
+            onClick={() => setShowSupport(true)}
+            style={{
+              width: '100%', background: 'var(--bg-card)', color: 'var(--text-primary)',
+              border: '2px solid #C49A1A', borderRadius: 12,
+              padding: '12px 16px', fontWeight: 700, fontSize: 14,
+              cursor: 'pointer', marginBottom: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            <LifeBuoy size={16} /> Help &amp; Support
+          </button>
+
+          <button
             onClick={async () => {
               try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
               window.location.href = '/login'
@@ -2446,6 +2461,8 @@ export default function StudentDashboard() {
           onClose={() => setShowAskHero(false)}
         />
       )}
+
+      {showSupport && <SupportTickets onClose={() => setShowSupport(false)} />}
 
       {/* Floating Ask Hero button — persistent general-mode tutor */}
       <button

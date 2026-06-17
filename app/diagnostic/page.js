@@ -81,6 +81,7 @@ export default function DiagnosticPage() {
       correct,
       timeTakenMs: timer * 1000,
       grade: q.grade,
+      level: q.level, // 'at' | 'below' | 'above' — weights placement scoring
     }
     setResults(prev => [...prev, r])
 

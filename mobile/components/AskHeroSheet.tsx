@@ -194,6 +194,8 @@ export default function AskHeroSheet({
         messages: updatedConversation,
         questionText: general ? null : question,
         questionId: general ? null : (questionId || null),
+        // skillId lets the server tailor hints to this skill's recent history.
+        skillId: general ? null : (skillId || null),
         studentName,
         grade,
         studentId,

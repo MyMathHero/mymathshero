@@ -51,7 +51,7 @@ If the student is still stuck AFTER you have explained in words, you MAY end you
 - [[manipulative:tenframe]] — for counting and small numbers (a grid they fill with counters)
 Only add a tag when a visual would genuinely help — not every message. Put it on its own line at the very end. Never mention the tag itself in your words; just keep tutoring naturally.`
 
-function buildSystemPrompt(studentName, grade, questionText) {
+function buildSystemPrompt(studentName, grade, questionText, studentContext = '') {
   return (questionText
     ? `You are Hero, a friendly and encouraging AI Maths tutor for Australian primary school students.
 You are talking to ${studentName} who is in Grade ${grade}.
@@ -78,7 +78,55 @@ STRICT RULES:
 - Keep responses short (2-4 sentences), warm, and age-appropriate
 - Use emojis occasionally
 - If a student says "I don't know", encourage them to guess and explain their thinking`
-  ) + MANIPULATIVE_INSTRUCTION
+  ) + studentContext + MANIPULATIVE_INSTRUCTION
+}
+
+// Builds a short, private STUDENT CONTEXT block from the student's recent
+// history on THIS skill so Hero can tailor its guidance. Additive only — it
+// informs tone/approach, never the tutoring rules. Returns '' when there is no
+// usable history (new student or no skill context), so the prompt is unchanged.
+async function buildStudentContext(db, studentId, skillId) {
+  if (!studentId || !skillId) return ''
+  try {
+    const [events, scoreDoc] = await Promise.all([
+      db.collection('session_events')
+        .find({ studentId, skillId })
+        .project({ correct: 1, behaviour: 1, scoreAfter: 1, _id: 0 })
+        .sort({ timestamp: -1 })
+        .limit(5)
+        .toArray(),
+      db.collection('skill_scores').findOne(
+        { studentId, skillId },
+        { projection: { score: 1, mastered: 1, _id: 0 } }
+      ),
+    ])
+
+    if ((!events || events.length === 0) && !scoreDoc) return ''
+
+    const lines = []
+    if (events && events.length > 0) {
+      const correct = events.filter(e => e.correct).length
+      // Most common recent behaviour (e.g. conceptual_gap / careless_error).
+      const counts = {}
+      for (const e of events) {
+        if (e.behaviour) counts[e.behaviour] = (counts[e.behaviour] || 0) + 1
+      }
+      const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0]
+      lines.push(`- Recent on this skill: ${correct}/${events.length} correct${dominant ? `; often "${dominant.replace(/_/g, ' ')}"` : ''}.`)
+    }
+    if (scoreDoc && typeof scoreDoc.score === 'number') {
+      lines.push(`- Current mastery: ${Math.round(scoreDoc.score)}/100${scoreDoc.mastered ? ' (mastered)' : ''}.`)
+    }
+    if (lines.length === 0) return ''
+
+    return `
+
+STUDENT CONTEXT (private — use to tailor your approach, never read aloud or mention scores):
+${lines.join('\n')}`
+  } catch {
+    // Context is a nice-to-have; never let it break a hint.
+    return ''
+  }
 }
 
 // Pulls a [[manipulative:xxx]] tag out of an AI reply. Returns the cleaned
@@ -204,10 +252,14 @@ export async function POST(request) {
         { $set: { heroMessageCount: { date: today, count: currentCount + 1 } } }
       )
 
+      // Inject the student's recent history on this skill (if we know the skill)
+      // so Hero can tailor its approach. Empty string when there's no history.
+      const studentContext = await buildStudentContext(db, sid, skillId)
       const systemPrompt = buildSystemPrompt(
         studentName || student.name || 'Hero',
         grade ?? student.grade ?? 3,
-        questionText || null
+        questionText || null,
+        studentContext
       )
       const rawReply = await callOpenRouter(
         systemPrompt,

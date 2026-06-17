@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import ArcadeSettings from '@/components/ArcadeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
+import SupportTickets from '@/components/SupportTickets'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
@@ -102,6 +103,7 @@ export default function ParentDashboard() {
   const [changePwLoading, setChangePwLoading] = useState(false)
   const [changePwError, setChangePwError] = useState('')
   const [showAddChildModal, setShowAddChildModal] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
   const [addChildForm, setAddChildForm] = useState({ name: '', grade: '3', pin: '' })
   const [addChildLoading, setAddChildLoading] = useState(false)
   const [addChildError, setAddChildError] = useState('')
@@ -1261,6 +1263,12 @@ export default function ParentDashboard() {
                         onClick={() => setAccountView('arcade')}
                       />
                     )}
+                    <AccountTile
+                      icon="🎫"
+                      title="Help & Support"
+                      desc="Contact our team and track your support tickets."
+                      onClick={() => setShowSupport(true)}
+                    />
                   </div>
 
                   {/* Sign out lives on the index for one-tap access. */}
@@ -1672,6 +1680,8 @@ export default function ParentDashboard() {
       )}
 
       {/* NPS SURVEY — bottom-right popup, monthly */}
+      {showSupport && <SupportTickets onClose={() => setShowSupport(false)} />}
+
       {showNPS && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24,

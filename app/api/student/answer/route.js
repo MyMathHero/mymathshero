@@ -2,7 +2,7 @@ import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { updateSmartScore } from '@/lib/smartscore'
 import { classifyBehaviour, getBehaviourInsight } from '@/lib/behaviour'
-import { getRecommendations } from '@/lib/recommender'
+import { getRecommendations, getEffectiveCeiling } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { updateStreak } from '@/lib/streak'
 
@@ -278,8 +278,13 @@ export async function POST(request) {
     const scoreMap = {}
     allScores.forEach(s => { scoreMap[s.skillId] = s.score })
 
+    // Dynamic grade ceiling: once a student has mastered most of their grade's
+    // skills, recommend from grade+1 so advanced kids stay challenged.
+    const baseGrade = student?.grade ?? 3
+    const effectiveGrade = getEffectiveCeiling(baseGrade, scoreMap)
+    const gradeUp = effectiveGrade > baseGrade
     const recommendations = getRecommendations(
-      student?.grade ?? 3,
+      effectiveGrade,
       scoreMap,
       5
     )
@@ -308,6 +313,9 @@ export async function POST(request) {
       coinsGained: coinGain,
       insight,
       recommendations,
+      // True when the student has just unlocked grade+1 work — UI can celebrate.
+      gradeUp,
+      effectiveGrade,
       sessionProgress: { questionCount: newQuestionCount, isNewSession },
       giftEarned,
       newBadges,

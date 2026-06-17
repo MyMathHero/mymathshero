@@ -8,6 +8,7 @@ import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { studentAPI } from '../../lib/api'
 import ThemeToggle from '../../components/ThemeToggle'
+import SupportSheet from '../../components/SupportSheet'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
 import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
@@ -29,6 +30,7 @@ export default function Profile() {
   // Avatar picker state
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [avatarSaving, setAvatarSaving] = useState(false)
+  const [showSupport, setShowSupport] = useState(false)
 
   useEffect(() => { loadProfile() }, [])
 
@@ -246,12 +248,18 @@ export default function Profile() {
           </Text>
         </View>
 
+        <TouchableOpacity style={p.supportBtn} onPress={() => setShowSupport(true)}>
+          <Text style={p.supportText}>🎫 Help & Support</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={p.logoutBtn} onPress={handleLogout}>
           <Text style={p.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
 
       {/* Change PIN Modal — real API call */}
       <Modal visible={showPinModal} transparent animationType="slide" onRequestClose={closePinModal}>
@@ -411,6 +419,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     paddingVertical: 10, borderBottomWidth: 1, borderColor: '#F0F4F8' },
   infoLabel: { color: c.textSecondary, fontSize: 14 },
   infoValue: { color: c.textPrimary, fontWeight: '700', fontSize: 14 },
+
+  supportBtn: { marginHorizontal: 16, marginBottom: 12, backgroundColor: c.bgCard,
+    borderRadius: 14, padding: 16, alignItems: 'center',
+    borderWidth: 2, borderColor: c.accentGold },
+  supportText: { color: c.textPrimary, fontWeight: '800', fontSize: 16 },
 
   logoutBtn: { marginHorizontal: 16, backgroundColor: c.errorBg,
     borderRadius: 14, padding: 16, alignItems: 'center',

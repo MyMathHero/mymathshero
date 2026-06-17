@@ -9,6 +9,7 @@ import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import api from '../../lib/api'
 import CharacterAvatar from '../../components/CharacterAvatar'
+import SupportSheet from '../../components/SupportSheet'
 import { isCharacterId } from '../../lib/characterAvatars'
 
 export default function ParentAccountScreen() {
@@ -20,6 +21,7 @@ export default function ParentAccountScreen() {
   const [children, setChildren] = useState<any[]>([])
   const [subStatus, setSubStatus] = useState<any>(null)
   const [parentId, setParentId] = useState('')
+  const [showSupport, setShowSupport] = useState(false)
 
   // Inline name + email editing (matches the web Account Settings page).
   const [editingName, setEditingName] = useState(false)
@@ -724,6 +726,20 @@ export default function ParentAccountScreen() {
           </View>
         </View>
 
+        {/* HELP & SUPPORT */}
+        <View style={s.section}>
+          <View style={s.card}>
+            <TouchableOpacity
+              style={[s.actionRow, { borderRadius: 14 }]}
+              onPress={() => setShowSupport(true)}
+            >
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15, padding: 4 }}>
+                🎫 Help &amp; Support
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* LOGOUT */}
         <View style={[s.section, { marginBottom: 40 }]}>
           <View style={s.card}>
@@ -742,6 +758,8 @@ export default function ParentAccountScreen() {
         </View>
 
       </ScrollView>
+
+      <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
     </SafeAreaView>
   )
 }

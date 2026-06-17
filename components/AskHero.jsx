@@ -99,6 +99,8 @@ export default function AskHero({
           messages: updatedConversation,
           questionText: general ? null : question,
           questionId: general ? null : questionId,
+          // skillId lets the server tailor hints to this skill's recent history.
+          skillId: general ? null : skillId,
           studentName,
           grade,
           studentId,

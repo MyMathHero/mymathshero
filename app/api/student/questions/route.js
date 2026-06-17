@@ -118,7 +118,8 @@ export async function GET(request) {
 
 // Generate more questions for a skill via AI when the stock is running low.
 // Mirrors the doc shape used by /api/admin/generate-questions so they're interchangeable.
-async function generateMoreQuestions(skillId, grade, subject, db) {
+// Exported so the diagnostic can reuse the same generator to fill skill gaps.
+export async function generateMoreQuestions(skillId, grade, subject, db) {
   try {
     if (!process.env.OPENROUTER_API_KEY) return
     const existingCount = await db.collection('questions').countDocuments({ skillId })
