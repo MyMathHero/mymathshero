@@ -68,6 +68,17 @@ export async function POST(request) {
         ...trialFields,
       })
 
+      // Admin-feed notification: a new parent signed up.
+      try {
+        const { notifyAdmin } = await import('@/lib/notifications')
+        notifyAdmin(db, {
+          type: 'system', icon: '🧑‍🤝‍🧑',
+          title: 'New parent signup',
+          body: `${name.trim()} (${normalizedEmail})${grantFreeMonth ? ' — tester free month' : ''}`,
+          link: 'parents',
+        }).catch(() => {})
+      } catch { /* non-fatal */ }
+
       // Log the parent in immediately so they land on the dashboard after
       // onboarding instead of bouncing back to the "Create account" landing.
       const token = await createToken({

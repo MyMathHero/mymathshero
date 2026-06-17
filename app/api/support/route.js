@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 import { sendEmail } from '@/lib/email'
+import { notifyAdmin } from '@/lib/notifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -180,6 +181,15 @@ export async function POST(request) {
         name: 'Support',
         body: `<strong>${subject}</strong> (${category})<br><br>${message}`,
       }),
+    }).catch(() => {})
+
+    // Admin-feed notification so it surfaces in the admin console too.
+    notifyAdmin(db, {
+      type: 'support', icon: '🎫',
+      title: 'New support ticket',
+      body: `${payload.name || 'A user'}: “${subject}” (${category})`,
+      link: 'support',
+      meta: { ticketId },
     }).catch(() => {})
 
     return NextResponse.json({ success: true, id: ticketId })

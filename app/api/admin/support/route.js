@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { createNotification } from '@/lib/notifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -142,6 +143,26 @@ export async function POST(request) {
           body: reply || null,
           status: set.status || ticket.status,
         }),
+      }).catch(() => {})
+    }
+
+    // Persistent in-app notification → the PARENT. For a parent ticket userId is
+    // the parent; for a student ticket resolve the parent via the child record.
+    let parentId = null
+    if (ticket.role === 'parent') parentId = ticket.userId
+    else {
+      const child = await db.collection('children').findOne({ id: ticket.userId }, { projection: { parentId: 1 } })
+      parentId = child?.parentId || null
+    }
+    if (parentId) {
+      createNotification(db, {
+        recipientId: parentId,
+        type: 'support',
+        icon: '🎫',
+        title: reply ? 'Support replied to your ticket' : 'Your ticket was updated',
+        body: reply ? `“${ticket.subject}” — ${reply.slice(0, 120)}` : `“${ticket.subject}” is now ${(set.status || ticket.status).replace('_', ' ')}.`,
+        link: 'support',
+        meta: { ticketId: ticket.id },
       }).catch(() => {})
     }
 

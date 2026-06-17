@@ -9,6 +9,8 @@ import * as SecureStore from 'expo-secure-store'
 import { parentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import CharacterAvatar from '../../components/CharacterAvatar'
+import NotificationBell from '../../components/NotificationBell'
+import SupportSheet from '../../components/SupportSheet'
 import { isCharacterId } from '../../lib/characterAvatars'
 
 export default function ParentDashboard() {
@@ -17,6 +19,7 @@ export default function ParentDashboard() {
   const router = useRouter()
   const [parentId, setParentId] = useState('')
   const [parentName, setParentName] = useState('')
+  const [showSupport, setShowSupport] = useState(false)
   const [children, setChildren] = useState<any[]>([])
   const [activeChild, setActiveChild] = useState<any>(null)
   const [progress, setProgress] = useState<any>(null)
@@ -142,6 +145,7 @@ export default function ParentDashboard() {
             {parentName ? <Text style={styles.welcomeSub}>{parentName}</Text> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <NotificationBell onOpenLink={(link) => { if (link === 'support') setShowSupport(true) }} />
             <TouchableOpacity
               onPress={() => router.push('/parent/account')}
               style={{
@@ -307,6 +311,8 @@ export default function ParentDashboard() {
           <View style={{ height: 60 }} />
         </ScrollView>
       )}
+
+      <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
     </SafeAreaView>
   )
 }

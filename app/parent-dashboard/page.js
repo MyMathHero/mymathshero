@@ -6,6 +6,7 @@ import ArcadeSettings from '@/components/ArcadeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
+import NotificationBell from '@/components/NotificationBell'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
@@ -1096,6 +1097,17 @@ export default function ParentDashboard() {
         >
           <User size={14} /> Account
         </button>
+      )}
+
+      {step === 'dashboard' && !loading && (
+        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 80 }}>
+          <NotificationBell
+            onOpenLink={(link) => {
+              if (link === 'support') { setShowSupport(true); return }
+              if (link === 'subscription' || link === 'children') { openAccount(); setAccountView(link) }
+            }}
+          />
+        </div>
       )}
 
       {/* ACCESS-BLOCKED BANNER — shows when sub lapsed, instead of hard-redirecting */}

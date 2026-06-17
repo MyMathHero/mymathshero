@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { MongoClient } from 'mongodb'
 import { getPlanFromPriceId, STRIPE_CONFIG } from '@/lib/stripeConfig'
 import { sendEmail } from '@/lib/email'
+import { createNotification, notifyAdmin } from '@/lib/notifications'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -202,6 +203,13 @@ export async function POST(request) {
             { id: parentId },
             { $set: update }
           )
+
+          // Admin feed: a new checkout completed.
+          notifyAdmin(db, {
+            type: 'billing', icon: '💳',
+            title: isSiblingAddOn ? 'Sibling add-on purchased' : 'New subscription checkout',
+            body: `Parent ${parentId} completed checkout.`,
+          }).catch(() => {})
         }
         break
       }
@@ -249,6 +257,15 @@ export async function POST(request) {
             html: welcomeHtml({ name: parent.name, plan, foundingFamily: parent.foundingFamily }),
           }).catch(() => {})
         }
+        if (parent?.id) {
+          const firstTime = invoice.billing_reason === 'subscription_create'
+          createNotification(db, {
+            recipientId: parent.id, type: 'billing', icon: '✅',
+            title: firstTime ? 'Subscription active' : 'Payment received',
+            body: firstTime ? `Your ${plan === 'premium' ? 'Premium' : 'Standard'} plan is now active.` : 'Your subscription payment went through.',
+            link: 'subscription',
+          }).catch(() => {})
+        }
         break
       }
 
@@ -277,6 +294,20 @@ export async function POST(request) {
             html: paymentFailedHtml({ name: parent.name, attemptCount }),
           }).catch(() => {})
         }
+        if (parent?.id) {
+          createNotification(db, {
+            recipientId: parent.id, type: 'billing', icon: '⚠️',
+            title: 'Payment failed',
+            body: 'We couldn’t process your payment. Update your card to keep access.',
+            link: 'subscription',
+          }).catch(() => {})
+        }
+        // Admin feed: payment failures are worth surfacing.
+        notifyAdmin(db, {
+          type: 'billing', icon: '⚠️',
+          title: 'Payment failed',
+          body: `${parent?.name || parent?.email || customerId} — attempt ${attemptCount}`,
+        }).catch(() => {})
         break
       }
 

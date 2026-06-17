@@ -289,6 +289,25 @@ export async function POST(request) {
       5
     )
 
+    // Notify the parent the FIRST time a child unlocks the next grade (guard on
+    // a child flag so it fires once, not on every subsequent answer).
+    if (gradeUp && student?.gradeUpNotifiedFor !== effectiveGrade) {
+      await db.collection('children').updateOne(
+        { id: studentId },
+        { $set: { gradeUpNotifiedFor: effectiveGrade } }
+      )
+      const parentOwnerId = student?.parentId ?? student?.parent_id
+      if (parentOwnerId) {
+        const { createNotification } = await import('@/lib/notifications')
+        createNotification(db, {
+          recipientId: parentOwnerId, type: 'progress', icon: '🚀',
+          title: `${student.name} levelled up!`,
+          body: `${student.name} mastered their grade and unlocked Year ${effectiveGrade} work. 🎉`,
+          link: 'children',
+        }).catch(() => {})
+      }
+    }
+
     // 11. Get behaviour insight
     const insight = getBehaviourInsight(behaviour, skillId)
 
