@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
 import HeroRobot from '../../components/HeroRobot'
 
 export default function Diagnostic() {
@@ -70,7 +71,8 @@ export default function Diagnostic() {
 
   if (stage === 'welcome') {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenBackground>
+    <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
           <HeroRobot mood="waving" size={140} containerStyle="card" />
           <Text style={[styles.title, { marginTop: 12 }]}>
@@ -94,12 +96,14 @@ export default function Diagnostic() {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+    </ScreenBackground>
     )
   }
 
   if (stage === 'done') {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenBackground>
+    <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
           <HeroRobot mood="celebrating" size={140} containerStyle="card" />
           <Text style={[styles.title, { marginTop: 12 }]}>
@@ -118,13 +122,15 @@ export default function Diagnostic() {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+    </ScreenBackground>
     )
   }
 
   // Quiz stage
   if (questions.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+    <ScreenBackground>
+    <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.center}>
           <HeroRobot mood="thinking" size={60} containerStyle="card" />
           <Text style={[styles.sub, { marginTop: 12 }]}>No assessment questions available right now.</Text>
@@ -134,11 +140,13 @@ export default function Diagnostic() {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+    </ScreenBackground>
     )
   }
 
   const q = questions[current]
   return (
+    <ScreenBackground>
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Assessment</Text>
@@ -179,11 +187,12 @@ export default function Diagnostic() {
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
+  container: { flex: 1, backgroundColor: 'transparent' },
   center: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emoji: { fontSize: 64, marginBottom: 12 },
   title: { fontSize: 28, fontWeight: '800', color: c.textPrimary, marginBottom: 10 },

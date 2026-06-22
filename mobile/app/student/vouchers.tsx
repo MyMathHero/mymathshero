@@ -6,6 +6,7 @@ import {
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
 import { voucherAPI } from '../../lib/api'
 import { theme } from '../../lib/theme'
 
@@ -124,6 +125,7 @@ export default function VouchersScreen() {
   }
 
   return (
+    <ScreenBackground>
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
@@ -245,13 +247,14 @@ export default function VouchersScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
+  container: { flex: 1, backgroundColor: 'transparent' },
   loading: {
-    flex: 1, backgroundColor: c.bgHeader,
+    flex: 1, backgroundColor: c.bgPrimary,
     alignItems: 'center', justifyContent: 'center',
   },
   loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
@@ -259,10 +262,10 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, backgroundColor: c.bgHeader,
+    padding: 16, backgroundColor: 'transparent',
   },
   back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
-  title: { color: 'white', fontWeight: '800', fontSize: 18 },
+  title: { color: c.textPrimary, fontWeight: '800', fontSize: 18, letterSpacing: -0.3 },
   pointsPill: {
     backgroundColor: 'rgba(196,154,26,0.2)',
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,

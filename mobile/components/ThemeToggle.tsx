@@ -22,12 +22,12 @@ export default function ThemeToggle({ compact = false }: Props) {
       <TouchableOpacity
         onPress={() => handlePress(next.id)}
         style={[s.compactBtn, {
-          backgroundColor: 'rgba(255,255,255,0.1)',
-          borderColor: colors.accentGold + '50',
+          backgroundColor: colors.bgCard,
+          borderColor: colors.borderColor,
         }]}
       >
         <Text style={s.compactEmoji}>{current.emoji}</Text>
-        <Text style={[s.compactLabel, { color: colors.textOnDark }]}>
+        <Text style={[s.compactLabel, { color: colors.textPrimary }]}>
           {current.label}
         </Text>
       </TouchableOpacity>
@@ -69,12 +69,12 @@ export default function ThemeToggle({ compact = false }: Props) {
 const s = StyleSheet.create({
   compactBtn: {
     flexDirection: 'row', alignItems: 'center',
-    gap: 4, borderRadius: 16,
-    paddingHorizontal: 10, paddingVertical: 5,
+    gap: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 7,
     borderWidth: 1,
   },
-  compactEmoji: { fontSize: 14 },
-  compactLabel: { fontSize: 11, fontWeight: '700' },
+  compactEmoji: { fontSize: 15 },
+  compactLabel: { fontSize: 13, fontWeight: '700' },
   container: {
     flexDirection: 'row', borderRadius: 14,
     padding: 3, borderWidth: 1, gap: 3,

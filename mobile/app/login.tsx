@@ -13,6 +13,8 @@ import { authAPI } from '../lib/api'
 import { theme } from '../lib/theme'
 import { useTheme, ThemeColors } from '../lib/themeContext'
 import HeroRobot from '../components/HeroRobot'
+import ThemeToggle from '../components/ThemeToggle'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type Role = 'student' | 'parent' | null
 
@@ -30,7 +32,9 @@ const MATH_SYMBOLS: Array<{ s: string; top: string; left?: string; right?: strin
 
 export default function Login() {
   const router = useRouter()
-  const { colors } = useTheme()
+  const { colors, themeId } = useTheme()
+  const insets = useSafeAreaInsets()
+  const isDark = themeId === 'dark'
   const s = useMemo(() => makeStyles(colors), [colors])
   const [role, setRole] = useState<Role>(null)
   const [username, setUsername] = useState('')
@@ -97,9 +101,14 @@ export default function Login() {
   return (
     <View style={s.root}>
       <LinearGradient
-        colors={['#0F1F3D', '#16294A', '#1B2B4B']}
+        colors={colors.loginGradient}
         style={StyleSheet.absoluteFill}
       />
+
+      {/* Theme toggle — top-right, above the hero */}
+      <View style={{ position: 'absolute', top: insets.top + 8, right: 16, zIndex: 10 }}>
+        <ThemeToggle compact />
+      </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -142,7 +151,7 @@ export default function Login() {
           </View>
 
           {/* Frosted glass card */}
-          <BlurView intensity={30} tint="light" style={s.card}>
+          <BlurView intensity={30} tint={isDark ? 'dark' : 'light'} style={s.card}>
             <Text style={s.label}>Who are you?</Text>
 
             <View style={s.roleRow}>
@@ -198,7 +207,7 @@ export default function Login() {
 }
 
 function GradCapIcon({ active }: { active: boolean }) {
-  const col = active ? '#C49A1A' : '#1B2B4B'
+  const col = active ? '#C49A1A' : '#FFFFFF'
   return (
     <Svg width={40} height={40} viewBox="0 0 24 24">
       <Path d="M12 3L1 8l11 5 9-4.09V14h2V8L12 3z" fill={col} />
@@ -208,7 +217,7 @@ function GradCapIcon({ active }: { active: boolean }) {
 }
 
 function ParentsIcon({ active }: { active: boolean }) {
-  const col = active ? '#C49A1A' : '#1B2B4B'
+  const col = active ? '#C49A1A' : '#FFFFFF'
   return (
     <Svg width={40} height={40} viewBox="0 0 24 24">
       <Circle cx="8" cy="8" r="3.2" fill={col} />
@@ -247,20 +256,21 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     fontSize: 15, marginTop: 6,
   },
   card: {
-    // BlurView needs a translucent base tint so the frost reads on the gradient.
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
+    // Fills the rest of the screen so there's no hard seam where it ends.
+    // A subtle translucent panel that blends into the gradient — no frost slab.
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     padding: 28,
     paddingTop: 30,
-    minHeight: 380,
     overflow: 'hidden',
     borderTopWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   label: {
     fontSize: 20, fontWeight: '800',
-    color: '#1B2B4B',
+    color: '#FFFFFF',
     marginBottom: 18,
   },
   roleRow: {
@@ -268,44 +278,43 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     marginBottom: 24,
   },
   roleCard: {
-    flex: 1, paddingVertical: 22,
-    borderRadius: 18, borderWidth: 1.5,
-    borderColor: 'rgba(56,189,248,0.5)',
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    alignItems: 'center', gap: 10,
-    // soft glow like the reference
-    shadowColor: '#38BDF8',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 4,
+    flex: 1, paddingVertical: 26,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    alignItems: 'center', gap: 12,
   },
   roleCardActive: {
     borderColor: c.accentGold,
-    backgroundColor: 'rgba(196,154,26,0.18)',
+    borderWidth: 2,
+    backgroundColor: 'rgba(196,154,26,0.16)',
     shadowColor: c.accentGold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 6,
   },
   roleLabel: {
-    fontSize: 16, color: '#1B2B4B', fontWeight: '700',
+    fontSize: 16, color: '#FFFFFF', fontWeight: '700',
   },
-  roleLabelActive: { color: '#1B2B4B', fontWeight: '800' },
+  roleLabelActive: { color: c.accentGold, fontWeight: '800' },
   form: { gap: 12, marginBottom: 16 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
     borderRadius: 14, padding: 16,
     fontSize: 16, color: '#1B2B4B',
   },
   btn: {
-    backgroundColor: '#1B2B4B',
+    backgroundColor: 'rgba(196,154,26,0.95)',
     borderRadius: 14, padding: 18,
     alignItems: 'center',
-    borderWidth: 2, borderColor: c.accentGold,
+    borderWidth: 1, borderColor: c.accentGold,
     marginBottom: 16,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: 'white', fontSize: 17, fontWeight: '800' },
+  btnText: { color: '#1B2B4B', fontSize: 17, fontWeight: '800' },
   signupRow: { marginTop: 4, alignItems: 'center' },
-  signupText: { fontSize: 15, color: '#334155' },
+  signupText: { fontSize: 15, color: 'rgba(255,255,255,0.7)' },
   signupLink: { color: c.accentGold, fontWeight: '800' },
 })

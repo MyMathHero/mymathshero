@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo} from 'react'
 import { View, Text, ScrollView, StyleSheet,
   ActivityIndicator, TouchableOpacity } from 'react-native'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
+import { ScreenBackground } from '../../lib/ui'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { studentAPI } from '../../lib/api'
@@ -39,6 +40,7 @@ export default function League() {
   const topThree = userRank <= 3
 
   return (
+    <ScreenBackground>
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.headerTopRow}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -83,30 +85,33 @@ export default function League() {
       {/* Floating glassy bottom navigation */}
       <FloatingTabBar />
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
+  container: { flex: 1, backgroundColor: 'transparent' },
   headerTopRow: { flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: 16,
-    paddingTop: 12, backgroundColor: c.bgHeader },
+    paddingTop: 12, backgroundColor: 'transparent' },
   back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
   heroHeader: {
-    backgroundColor: c.bgHeader,
+    backgroundColor: 'transparent',
     paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20,
     alignItems: 'center',
   },
-  heroHeaderTitle: { color: 'white', fontWeight: '800', fontSize: 20, marginTop: 8 },
+  heroHeaderTitle: { color: c.textPrimary, fontWeight: '800', fontSize: 20, marginTop: 8, letterSpacing: -0.3 },
   heroHeaderSub: { color: c.accentGold, fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { flex: 1, padding: 16 },
   resetText: { color: c.textSecondary, fontSize: 13,
     textAlign: 'center', marginBottom: 16 },
-  row: { backgroundColor: c.bgCard, borderRadius: 12, padding: 14,
+  row: { backgroundColor: c.bgCard, borderRadius: 16, padding: 14,
     marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: c.borderColor },
-  rowMe: { borderColor: '#C49A1A', backgroundColor: '#FFFBEB', borderWidth: 2 },
+    borderWidth: 1, borderColor: c.cardBorder,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  rowMe: { borderColor: c.accentGold, backgroundColor: c.accentGoldLight, borderWidth: 2 },
   rank: { fontSize: 22, width: 36, textAlign: 'center' },
   name: { fontSize: 15, fontWeight: '700', color: c.textPrimary },
   grade: { fontSize: 12, color: c.textMuted },

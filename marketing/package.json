@@ -1,0 +1,23 @@
+{
+  "name": "mymathshero-marketing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated Remotion project for MyMathsHero marketing videos. Has its own deps — does NOT touch the Next.js app or mobile app.",
+  "scripts": {
+    "dev": "remotion studio",
+    "render:16x9": "remotion render Explainer16x9 out/explainer-16x9.mp4",
+    "render:9x16": "remotion render Explainer9x16 out/explainer-9x16.mp4",
+    "render:1x1": "remotion render Explainer1x1 out/explainer-1x1.mp4",
+    "render:all": "npm run render:16x9 && npm run render:9x16 && npm run render:1x1"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.380",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.380"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "typescript": "5.6.3"
+  }
+}

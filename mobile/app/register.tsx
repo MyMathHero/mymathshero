@@ -7,6 +7,7 @@ import {
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../lib/ui'
 import api, { authAPI } from '../lib/api'
 import { useTheme, ThemeColors } from '../lib/themeContext'
 
@@ -141,7 +142,8 @@ export default function Register() {
   const stepNumbers = { parent: 1, child: 2, plan: 3 }
 
   return (
-    <SafeAreaView style={s.safe}>
+    <ScreenBackground>
+    <SafeAreaView style={[s.safe, { backgroundColor: 'transparent' }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -298,6 +300,7 @@ export default function Register() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 

@@ -1,9 +1,10 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import ThemeToggle from '@/components/ThemeToggle'
+import NotificationBell from '@/components/NotificationBell'
 
 // The compact ThemeToggle is styled for dark headers (white label). The navbar
 // is light, so wrap it in a small navy chip to keep it legible.
@@ -25,6 +26,7 @@ export default function Navbar() {
   const [authState, setAuthState] = useState(null)
   const { flags } = useFeatureFlags()
   const pathname = usePathname()
+  const router = useRouter()
 
   useEffect(() => {
     let cancelled = false
@@ -74,8 +76,19 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Right — theme + logout */}
+        {/* Right — notifications (parents) + theme + logout */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12 }}>
+          {authState.role === 'parent' && (
+            <NotificationBell
+              onOpenLink={(link) => {
+                // The feed lives globally; route to the dashboard which owns the
+                // support modal + account views. ?open= is read there.
+                if (link === 'support') router.push('/parent-dashboard?open=support')
+                else if (link === 'subscription' || link === 'children') router.push(`/parent-dashboard?open=${link}`)
+                else router.push('/parent-dashboard')
+              }}
+            />
+          )}
           <NavbarThemeToggle />
           <button onClick={handleLogout} style={{
             background: 'none',

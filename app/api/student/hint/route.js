@@ -141,7 +141,10 @@ function extractManipulative(reply) {
 }
 
 async function callOpenRouter(systemPrompt, conversation, fallback) {
-  if (!process.env.OPENROUTER_API_KEY) return fallback
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.error('[hint] OPENROUTER_API_KEY missing — returning fallback')
+    return fallback
+  }
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -153,7 +156,7 @@ async function callOpenRouter(systemPrompt, conversation, fallback) {
       },
       body: JSON.stringify({
         model: 'anthropic/claude-haiku-4-5',
-        max_tokens: 200,
+        max_tokens: 300,
         temperature: 0.7,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -161,11 +164,22 @@ async function callOpenRouter(systemPrompt, conversation, fallback) {
         ],
       }),
     })
-    if (!response.ok) return fallback
+    if (!response.ok) {
+      // Surface WHY (bad key, no credits, rate limit, unknown model…) instead of
+      // silently degrading to the same fallback line every turn.
+      const detail = await response.text().catch(() => '')
+      console.error(`[hint] OpenRouter ${response.status}: ${detail.slice(0, 300)}`)
+      return fallback
+    }
     const data = await response.json()
-    return data.choices?.[0]?.message?.content?.trim() || fallback
+    const content = data.choices?.[0]?.message?.content?.trim()
+    if (!content) {
+      console.error('[hint] OpenRouter returned empty content:', JSON.stringify(data).slice(0, 300))
+      return fallback
+    }
+    return content
   } catch (err) {
-    console.warn('OpenRouter call failed:', err.message)
+    console.error('[hint] OpenRouter call threw:', err.message)
     return fallback
   }
 }

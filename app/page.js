@@ -460,10 +460,10 @@ export default function LandingPage() {
               color: 'white', fontSize: 28,
               fontWeight: 800, margin: '8px 0 4px',
             }}>
-              $19.99 for your entire first year
+              First month free, then just $19.99/mo for your first year
             </p>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, margin: 0 }}>
-              Full Premium access · +$10 per additional child
+              Full Premium access · $24.99/mo after your first year · +$10 per additional child
             </p>
           </div>
 

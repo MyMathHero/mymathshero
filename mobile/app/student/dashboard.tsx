@@ -16,6 +16,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
 import ThemeToggle from '../../components/ThemeToggle'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
+import { ScreenBackground, GlowBar, Card, StatPill } from '../../lib/ui'
+import { LinearGradient } from 'expo-linear-gradient'
 import HeroRobot from '../../components/HeroRobot'
 import {
   getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP, type SkillCategoryKey,
@@ -317,7 +319,8 @@ export default function StudentDashboard() {
   const firstName = student?.name?.split(' ')[0] || 'Hero'
 
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: colors.bgPrimary }]} edges={['top']}>
+    <ScreenBackground>
+    <SafeAreaView style={[s.container, { backgroundColor: 'transparent' }]} edges={['top']}>
       {/* AI Hero nudge banner — appears at top, auto-dismisses after 6s */}
       {heroNudge && (
         <TouchableOpacity
@@ -349,60 +352,56 @@ export default function StudentDashboard() {
         </TouchableOpacity>
       )}
 
-      {/* A) Full navy hero header */}
-      <View style={[s.header, { backgroundColor: colors.bgHeader }]}>
-        {/* Top row: logo + coins + streak */}
+      {/* A) Header — brand + theme toggle, then avatar/greeting with coins+streak */}
+      <View style={s.header}>
+        {/* Top row: brand left, theme toggle right */}
         <View style={s.topRow}>
           <Text style={s.brand}>
-            MyMaths<Text style={{ color: theme.colors.gold }}>Hero</Text>
+            MyMaths<Text style={{ color: colors.accentGold }}>Hero</Text>
           </Text>
-          <View style={s.topStats}>
-            <Text style={s.coins}>🪙 {student?.coins || 0}</Text>
-            <Text style={s.streak}>🔥 {student?.streak || 0}</Text>
-            <ThemeToggle compact />
-          </View>
+          <ThemeToggle compact />
         </View>
 
-        {/* Greeting + chosen hero avatar */}
+        {/* Avatar + greeting; coins + streak pills sit under the toggle (right). */}
         <View style={s.greetingRow}>
           <TouchableOpacity onPress={() => router.push('/student/profile')} activeOpacity={0.85}>
-            <CharacterAvatar id={student?.avatar} size={80} />
+            <View style={s.avatarRing}>
+              <CharacterAvatar id={student?.avatar} size={60} />
+            </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={s.greetingHi}>Good day, Hero! 👋</Text>
             <Text style={s.greetingName}>{firstName}</Text>
             <Text style={s.greetingXp}>⚡ {student?.xp || 0} Hero Points</Text>
-            <View style={s.xpBarBg}>
-              <View style={[s.xpBarFill, { width: `${Math.min(100, xpProgress)}%` as any }]} />
+          </View>
+          <View style={s.heroStatsCol}>
+            <View style={s.pill}>
+              <Text style={s.pillText}>🪙 {student?.coins || 0}</Text>
+            </View>
+            <View style={s.pill}>
+              <Text style={[s.pillText, { color: '#FF6B35' }]}>🔥 {student?.streak || 0}</Text>
             </View>
           </View>
         </View>
+        <GlowBar progress={Math.min(100, xpProgress) / 100} height={6} style={{ marginTop: 12 }} />
       </View>
 
-      {/* B) Horizontal stats strip */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={s.statsStrip}
-        contentContainerStyle={{ padding: 12, gap: 10 }}
-      >
+      {/* B) Three stat cards in a row (Mastered · Accuracy · Questions) */}
+      <View style={s.statsRow}>
         {[
-          { label: 'Mastered',  value: stats?.mastered || 0,                     emoji: '🏆', color: '#059669' },
-          { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,               emoji: '🎯', color: '#DC2626' },
-          { label: 'Questions', value: stats?.totalQuestionsThisWeek || 0,       emoji: '📝', color: '#2563EB' },
-          { label: 'Sessions',  value: student?.sessions_completed || 0,         emoji: '📚', color: '#7C3AED' },
+          { label: 'Mastered',  value: stats?.mastered || 0,               emoji: '🏆' },
+          { label: 'Accuracy',  value: `${stats?.accuracy || 0}%`,         emoji: '🎯' },
+          { label: 'Questions', value: stats?.totalQuestionsThisWeek || 0, emoji: '📋' },
         ].map((tile, i) => (
-          <View key={i} style={s.statTile}>
-            <View style={[s.statTileChip, { backgroundColor: tile.color }]}>
-              <Text style={s.statTileEmoji}>{tile.emoji}</Text>
+          <StatPill key={i} style={s.statTile}>
+            <Text style={s.statTileEmoji}>{tile.emoji}</Text>
+            <View style={s.statTileText}>
+              <Text style={s.statTileValue} numberOfLines={1}>{tile.value}</Text>
+              <Text style={s.statTileLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{tile.label}</Text>
             </View>
-            <View>
-              <Text style={s.statTileValue}>{tile.value}</Text>
-              <Text style={s.statTileLabel}>{tile.label}</Text>
-            </View>
-          </View>
+          </StatPill>
         ))}
-      </ScrollView>
+      </View>
 
       <ScrollView
         style={s.scroll}
@@ -420,55 +419,53 @@ export default function StudentDashboard() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 12, paddingRight: 16 }}
           >
-            {/* Daily Puzzle (dark) */}
-            <TouchableOpacity onPress={openDailyPuzzle} activeOpacity={0.85} style={[s.challenge, s.challengeDark]}>
-              <Text style={s.challengeEmoji}>🧩</Text>
-              <Text style={[s.challengeTitle, { color: theme.colors.gold }]}>Daily Puzzle</Text>
-              <Text style={[s.challengeSub, { color: 'rgba(255,255,255,0.6)' }]}>
-                New puzzle every day!
-              </Text>
-              <View style={s.pointsPill}>
-                <Text style={[s.pointsText, { color: theme.colors.gold }]}>+20 pts</Text>
-              </View>
+            {/* Daily Puzzle */}
+            <TouchableOpacity onPress={openDailyPuzzle} activeOpacity={0.85}>
+              <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
+                <Text style={s.challengeEmoji}>🧩</Text>
+                <Text style={s.challengeTitle}>Daily Puzzle</Text>
+                <Text style={s.challengeSub}>New puzzle every day!</Text>
+                <View style={s.pointsPill}>
+                  <Text style={s.pointsText}>+20 pts</Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
 
-            {/* Speed Round (gold) */}
-            <TouchableOpacity onPress={openSpeedRound} activeOpacity={0.85} style={[s.challenge, s.challengeGold]}>
-              <Text style={s.challengeEmoji}>⚡</Text>
-              <Text style={[s.challengeTitle, { color: 'white' }]}>Speed Round</Text>
-              <Text style={[s.challengeSub, { color: 'rgba(255,255,255,0.85)' }]}>
-                5 questions fast!
-              </Text>
-              <View style={s.pointsPill}>
-                <Text style={[s.pointsText, { color: 'white' }]}>+15 pts</Text>
-              </View>
+            {/* Speed Round */}
+            <TouchableOpacity onPress={openSpeedRound} activeOpacity={0.85}>
+              <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
+                <Text style={s.challengeEmoji}>⚡</Text>
+                <Text style={s.challengeTitle}>Speed Round</Text>
+                <Text style={s.challengeSub}>5 questions fast!</Text>
+                <View style={s.pointsPill}>
+                  <Text style={s.pointsText}>+15 pts</Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
 
-            {/* Hero's Pick (white) */}
-            <TouchableOpacity onPress={openHeroPick} activeOpacity={0.85} style={[s.challenge, s.challengeWhite]}>
-              <Text style={s.challengeEmoji}>🤖</Text>
-              <Text style={[s.challengeTitle, { color: theme.colors.textPrimary }]}>
-                Hero&apos;s Pick
-              </Text>
-              <Text style={[s.challengeSub, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                {recommendations[0]?.name || 'AI selected'}
-              </Text>
-              <View style={s.pointsPill}>
-                <Text style={[s.pointsText, { color: theme.colors.textPrimary }]}>+10 pts</Text>
-              </View>
+            {/* Hero's Pick */}
+            <TouchableOpacity onPress={openHeroPick} activeOpacity={0.85}>
+              <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
+                <Text style={s.challengeEmoji}>🤖</Text>
+                <Text style={s.challengeTitle}>Hero&apos;s Pick</Text>
+                <Text style={s.challengeSub} numberOfLines={1}>{recommendations[0]?.name || 'AI selected'}</Text>
+                <View style={s.pointsPill}>
+                  <Text style={s.pointsText}>+10 pts</Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Weak Spot */}
             {weakestSkill && (
-              <TouchableOpacity onPress={openWeakSpot} activeOpacity={0.85} style={[s.challenge, s.challengeWeak]}>
+              <TouchableOpacity onPress={openWeakSpot} activeOpacity={0.85}>
+                <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
                 <Text style={s.challengeEmoji}>🎯</Text>
-                <Text style={[s.challengeTitle, { color: theme.colors.textPrimary }]}>Weak Spot</Text>
-                <Text style={[s.challengeSub, { color: theme.colors.warning }]} numberOfLines={1}>
-                  {weakestSkill.name}
-                </Text>
+                <Text style={s.challengeTitle}>Weak Spot</Text>
+                <Text style={s.challengeSub} numberOfLines={1}>{weakestSkill.name}</Text>
                 <View style={s.pointsPill}>
-                  <Text style={[s.pointsText, { color: theme.colors.textPrimary }]}>+25 pts</Text>
+                  <Text style={s.pointsText}>+25 pts</Text>
                 </View>
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -575,7 +572,7 @@ export default function StudentDashboard() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.missionName} numberOfLines={1}>{info.name}</Text>
-                    <Text style={[s.missionCategory, { color: info.color }]} numberOfLines={1}>
+                    <Text style={s.missionCategory} numberOfLines={1}>
                       {info.categoryLabel} · {score}/100
                     </Text>
                     <View style={s.barOuter}>
@@ -594,10 +591,17 @@ export default function StudentDashboard() {
                       <Text style={s.examBtnText}>🏆 Exam</Text>
                     </TouchableOpacity>
                   ) : (
-                    <View style={s.missionCta}>
-                      <Text style={s.missionCtaText}>
-                        {score > 0 ? 'Continue' : 'Start'}
-                      </Text>
+                    <View style={s.missionCtaWrap}>
+                      <LinearGradient
+                        colors={colors.ctaGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={s.missionCta}
+                      >
+                        <Text style={s.missionCtaText} numberOfLines={1}>
+                          {score > 0 ? 'Continue' : 'Start'}
+                        </Text>
+                      </LinearGradient>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -606,17 +610,16 @@ export default function StudentDashboard() {
           })()}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Floating Ask Hero button — sits just above the floating tab bar.
-          The tab bar bottom is insets.bottom + 12 and it is ~68px tall, so we
-          clear it with insets.bottom + 92. Smaller on mobile per design. */}
+      {/* Floating Ask Hero button — sits just above the docked bottom nav
+          (72px tall + safe-area inset), so clear it with insets.bottom + 84. */}
       <TouchableOpacity
         onPress={openHeroFromDashboard}
         style={{
           position: 'absolute',
-          bottom: insets.bottom + 92,
+          bottom: insets.bottom + 84,
           right: 18,
           zIndex: 100,
         }}
@@ -639,116 +642,134 @@ export default function StudentDashboard() {
       {/* Floating glassy bottom navigation */}
       <FloatingTabBar />
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bgPrimary },
   loading: {
-    flex: 1, backgroundColor: c.bgHeader,
+    flex: 1, backgroundColor: c.bgPrimary,
     alignItems: 'center', justifyContent: 'center',
   },
-  loadingLogo: { fontSize: 32, fontWeight: '800', color: 'white' },
+  loadingLogo: { fontSize: 32, fontWeight: '800', color: c.textPrimary },
   loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
 
-  // Header
-  header: { backgroundColor: c.bgHeader, paddingTop: 8, paddingBottom: 20, paddingHorizontal: 20 },
+  // Header — sits on the page bg (no navy block). Spec: 16px h-padding.
+  header: { backgroundColor: 'transparent', paddingTop: 6, paddingBottom: 8, paddingHorizontal: 16 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  brand: { color: 'white', fontWeight: '800', fontSize: 20 },
-  topStats: { flexDirection: 'row', gap: 16 },
-  coins: { color: c.accentGold, fontWeight: '800', fontSize: 15 },
-  streak: { color: '#FF6B35', fontWeight: '800', fontSize: 15 },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  greetingHi: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
-  greetingName: { color: 'white', fontWeight: '800', fontSize: 22, marginTop: 2 },
-  greetingXp: { color: c.accentGold, fontSize: 13, fontWeight: '600', marginTop: 2 },
-  xpBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, marginTop: 8, overflow: 'hidden' },
-  xpBarFill: { height: '100%', backgroundColor: c.accentGold, borderRadius: 3 },
+  brand: { color: c.accentGold, fontWeight: '700', fontSize: 22, letterSpacing: -0.3 },
+  topStats: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  // Coins + streak stacked under the toggle, on the right of the greeting.
+  heroStatsCol: { gap: 6, alignItems: 'flex-end' },
+  pill: {
+    backgroundColor: c.bgCard, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: c.cardBorder,
+  },
+  pillText: { color: c.textPrimary, fontWeight: '700', fontSize: 13 },
 
-  // Stats strip
-  statsStrip: { backgroundColor: c.bgHeaderSecondary, flexGrow: 0 },
+  // Avatar + greeting row.
+  greetingRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  avatarRing: {
+    borderRadius: 999, padding: 2,
+    borderWidth: 2, borderColor: c.accentGold,
+  },
+  greetingHi: { color: c.textSecondary, fontSize: 13, fontWeight: '600' },
+  greetingName: { color: c.textPrimary, fontWeight: '700', fontSize: 28, marginTop: 1, letterSpacing: -0.3 },
+  greetingXp: { color: c.accentGold, fontSize: 14, fontWeight: '700', marginTop: 2 },
+
+  // Three rounded-rectangle stat cards in a row (emoji left, value+label right).
+  statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 20 },
   statTile: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    flex: 1, borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
   },
-  statTileChip: { width: 34, height: 34, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center' },
-  statTileEmoji: { fontSize: 17 },
-  statTileValue: { fontWeight: '800', fontSize: 17, color: 'white' },
-  statTileLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10, marginTop: 1 },
+  statTileText: { flex: 1, minWidth: 0 },
+  statTileEmoji: { fontSize: 22 },
+  statTileValue: { fontWeight: '700', fontSize: 19, color: c.textPrimary },
+  statTileLabel: { color: c.textSecondary, fontSize: 11, marginTop: 0 },
 
-  // Scroll body
+  // Scroll body — spec: 24px section spacing, 16px h-padding.
   scroll: { flex: 1 },
-  section: { paddingTop: 20, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: c.textPrimary, marginBottom: 4 },
-  sectionSub: { color: c.textSecondary, fontSize: 13, marginBottom: 14 },
+  section: { paddingTop: 24, paddingHorizontal: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: c.textPrimary, marginBottom: 4, letterSpacing: -0.3 },
+  sectionSub: { color: c.textSecondary, fontSize: 12, marginBottom: 14 },
 
-  // Challenges
+  // Challenges — 160px cards: white/dark fill with a warm gold edge glow,
+  // gold emoji, black/white title, grey sub, solid dark-gold "+pts" pill.
   challenge: {
-    width: 155, borderRadius: 18, padding: 18,
-    borderWidth: 2,
-    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    width: 160, borderRadius: 20, padding: 16,
+    borderWidth: 1, borderColor: c.cardBorder,
+    shadowColor: c.accentGold, shadowOpacity: 0.18, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
-  challengeDark: { backgroundColor: c.bgHeader, borderColor: c.accentGold },
-  challengeGold: { backgroundColor: c.accentGold, borderColor: c.accentGold },
-  challengeWhite: { backgroundColor: c.bgCard, borderColor: c.borderColor },
-  challengeWeak: { backgroundColor: c.accentGoldLight, borderColor: c.wrongBg },
-  challengeEmoji: { fontSize: 36, marginBottom: 8 },
-  challengeTitle: { fontWeight: '800', fontSize: 15, marginBottom: 4 },
-  challengeSub: { fontSize: 12, marginBottom: 10 },
-  pointsPill: { backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start' },
-  pointsText: { fontSize: 11, fontWeight: '700' },
+  challengeEmoji: { fontSize: 34, marginBottom: 10 },
+  challengeTitle: { fontWeight: '700', fontSize: 16, marginBottom: 3, color: c.challengeText },
+  challengeSub: { fontSize: 12, marginBottom: 12, color: c.challengeTextSub },
+  pointsPill: { backgroundColor: '#9A7B1E', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, alignSelf: 'flex-start' },
+  pointsText: { fontSize: 12, fontWeight: '700', color: '#FBF3DC' },
 
   // Missions
   missionsHeading: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   emptyMissions: { padding: 24, alignItems: 'center', gap: 12 },
   emptyText: { color: c.textMuted, fontSize: 14, textAlign: 'center' },
   startCatBtn: {
-    backgroundColor: c.bgHeader, borderRadius: 12,
+    backgroundColor: c.accentGold, borderRadius: 12,
     paddingHorizontal: 18, paddingVertical: 12,
-    borderWidth: 2, borderColor: c.accentGold,
+    shadowColor: c.glow, shadowOpacity: 0.6, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 }, elevation: 3,
   },
-  startCatBtnText: { color: 'white', fontWeight: '800', fontSize: 13 },
+  startCatBtnText: { color: '#1B2B4B', fontWeight: '800', fontSize: 13 },
   missionRow: {
-    backgroundColor: c.bgCard, borderRadius: 16, padding: 16,
-    marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 14,
-    borderWidth: 1, borderColor: c.borderColor,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    backgroundColor: c.bgCard, borderRadius: 16,
+    paddingVertical: 14, paddingHorizontal: 14,
+    marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: c.cardBorder,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
   scoreRing: {
-    width: 54, height: 54, borderRadius: 27,
+    width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2.5,
+    borderWidth: 2,
   },
-  scoreRingText: { fontSize: 22, fontWeight: '800' },
+  scoreRingText: { fontSize: 18, fontWeight: '700' },
   missionName: { fontSize: 15, fontWeight: '700', color: c.textPrimary, marginBottom: 2 },
-  missionCategory: { fontSize: 11, fontWeight: '600', marginBottom: 6 },
-  barOuter: { height: 6, backgroundColor: c.bgPrimary, borderRadius: 3, overflow: 'hidden' },
+  missionCategory: { fontSize: 12, fontWeight: '600', marginBottom: 6, color: c.textSecondary },
+  barOuter: { height: 6, backgroundColor: c.borderColor, borderRadius: 3, overflow: 'hidden' },
   barInner: { height: '100%', borderRadius: 3 },
+  // Gold-gradient Continue button with a soft glow. flexShrink:0 keeps it from
+  // being squeezed (so "Continue" never clips); the text column shrinks instead.
+  missionCtaWrap: {
+    borderRadius: 12, flexShrink: 0,
+    shadowColor: c.accentGold, shadowOpacity: 0.55, shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 }, elevation: 5,
+  },
   missionCta: {
-    backgroundColor: c.bgHeader, borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1.5, borderColor: c.accentGold,
+    borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 10,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
   },
-  missionCtaText: { color: 'white', fontWeight: '700', fontSize: 12 },
+  missionCtaText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
   examBtn: {
-    backgroundColor: c.bgHeader, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 2, borderColor: c.accentGold,
+    backgroundColor: c.accentGoldLight, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: c.accentGold,
   },
-  examBtnText: { color: c.accentGold, fontWeight: '800', fontSize: 12 },
+  examBtnText: { color: c.accentGold, fontWeight: '700', fontSize: 13 },
 
-  // Category filter pills
+  // Category filter pills — gold active (white text) / gold-border inactive.
   catPill: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 16, borderWidth: 1.5,
-    borderColor: c.borderColor, backgroundColor: c.bgCard,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 18, borderWidth: 1,
+    borderColor: c.accentGold + '66', backgroundColor: 'transparent',
   },
-  catPillActive: { backgroundColor: c.bgHeader, borderColor: c.bgHeader },
-  catPillText: { fontSize: 12, fontWeight: '700', color: c.textSecondary },
-  catPillTextActive: { color: 'white' },
+  catPillActive: { backgroundColor: c.accentGold, borderColor: c.accentGold },
+  catPillText: { fontSize: 12, fontWeight: '700', color: c.accentGold },
+  catPillTextActive: { color: '#FFFFFF' },
 
   // Nudge banner
   nudgeBanner: {

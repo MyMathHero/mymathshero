@@ -178,7 +178,7 @@ function confirmationHtml(position) {
         <div style="background:#FFFBEB;border:1px solid #C49A1A;border-radius:12px;padding:16px;margin:20px 0;">
           <p style="margin:0;font-weight:700;color:#1B2B4B;font-size:14px;line-height:1.5;">
             🎁 Founding Family Offer:<br/>
-            First 1,000 families get full Premium access for just $19.99 for the entire first year (normally $24.99/month).
+            First 1,000 families get their first month free, then just $19.99/month for the first year (normally $24.99/month).
           </p>
         </div>
         <p style="color:#94A3B8;font-size:12px;margin:24px 0 0;text-align:center;">

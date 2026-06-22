@@ -35,7 +35,8 @@
       ],
       "expo-video",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      "expo-sharing"
     ],
     "scheme": "mymathshero",
     "extra": {

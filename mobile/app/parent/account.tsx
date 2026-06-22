@@ -7,6 +7,8 @@ import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
+import ParentTabBar from '../../components/ParentTabBar'
 import api from '../../lib/api'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import SupportSheet from '../../components/SupportSheet'
@@ -300,8 +302,8 @@ export default function ParentAccountScreen() {
     subStatus?.subscriptionStatus === 'trialing'
 
   return (
-    <SafeAreaView style={{ flex: 1,
-      backgroundColor: '#F0F4F8' }}>
+    <ScreenBackground>
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}
@@ -757,10 +759,13 @@ export default function ParentAccountScreen() {
           </View>
         </View>
 
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
+      <ParentTabBar />
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 

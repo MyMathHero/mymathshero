@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
 import { studentAPI } from '../../lib/api'
 import ThemeToggle from '../../components/ThemeToggle'
 import SupportSheet from '../../components/SupportSheet'
@@ -125,6 +126,7 @@ export default function Profile() {
   const xpProgress = xp % 100
 
   return (
+    <ScreenBackground>
     <SafeAreaView style={p.safe}>
       <View style={p.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -346,26 +348,29 @@ export default function Profile() {
         </View>
       </Modal>
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bgPrimary },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   header: { flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', padding: 16, backgroundColor: c.bgHeader },
+    justifyContent: 'space-between', padding: 16, backgroundColor: 'transparent' },
   back: { color: c.accentGold, fontWeight: '700', fontSize: 15 },
-  title: { color: 'white', fontWeight: '800', fontSize: 18 },
+  title: { color: c.textPrimary, fontWeight: '800', fontSize: 18, letterSpacing: -0.3 },
 
-  heroCard: { backgroundColor: c.bgHeader, margin: 16,
+  heroCard: { backgroundColor: c.bgCard, margin: 16,
     borderRadius: 20, padding: 24, alignItems: 'center',
-    borderWidth: 2, borderColor: '#C49A1A' },
-  heroName: { color: 'white', fontWeight: '800', fontSize: 22, marginBottom: 4 },
+    borderWidth: 2, borderColor: c.accentGold,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  heroName: { color: c.textPrimary, fontWeight: '800', fontSize: 22, marginBottom: 4 },
   heroGrade: { color: c.accentGold, fontSize: 14, fontWeight: '600', marginBottom: 2 },
-  heroLevel: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 14 },
-  xpBarBg: { width: '80%', height: 8, backgroundColor: 'rgba(255,255,255,0.1)',
+  heroLevel: { color: c.textMuted, fontSize: 13, marginBottom: 14 },
+  xpBarBg: { width: '80%', height: 8, backgroundColor: c.borderColor,
     borderRadius: 4, overflow: 'hidden', marginBottom: 8 },
-  xpBarFill: { height: '100%', backgroundColor: '#C49A1A', borderRadius: 4 },
-  xpLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  xpBarFill: { height: '100%', backgroundColor: c.accentGold, borderRadius: 4 },
+  xpLabel: { color: c.textSecondary, fontSize: 12 },
 
   changeHero: { color: c.accentGold, fontSize: 13, fontWeight: '700', marginBottom: 10 },
 

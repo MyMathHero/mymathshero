@@ -8,6 +8,9 @@ import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { parentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
+import ParentTabBar from '../../components/ParentTabBar'
+import ThemeToggle from '../../components/ThemeToggle'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import NotificationBell from '../../components/NotificationBell'
 import SupportSheet from '../../components/SupportSheet'
@@ -24,6 +27,7 @@ export default function ParentDashboard() {
   const [activeChild, setActiveChild] = useState<any>(null)
   const [progress, setProgress] = useState<any>(null)
   const [insight, setInsight] = useState<string>('')
+  const [insightLoading, setInsightLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -47,7 +51,13 @@ export default function ParentDashboard() {
       const res = await parentAPI.children(id)
       const kids = res?.data?.children || []
       setChildren(kids)
-      if (kids.length > 0) setActiveChild(kids[0])
+      if (kids.length > 0) {
+        // Restore the previously-selected child (shared with Progress/Reports
+        // tabs) or default to the first.
+        const savedId = await SecureStore.getItemAsync('active_child_id')
+        const restored = kids.find((k: any) => k.id === savedId) || kids[0]
+        setActiveChild(restored)
+      }
       else setLoading(false)
     } catch (err) {
       // Network failure — don't kick the user back to login just because
@@ -79,6 +89,17 @@ export default function ParentDashboard() {
       setLoading(false)
       setRefreshing(false)
     }
+  }
+
+  // Refresh just the AI insight (lighter than a full reload).
+  async function refreshInsight() {
+    if (!activeChild?.id || !parentId || insightLoading) return
+    setInsightLoading(true)
+    try {
+      const res = await parentAPI.insights(activeChild.id, parentId)
+      setInsight(res?.data?.insight || '')
+    } catch { /* keep previous */ }
+    finally { setInsightLoading(false) }
   }
 
   const onRefresh = useCallback(() => {
@@ -135,6 +156,7 @@ export default function ParentDashboard() {
   ]
 
   return (
+    <ScreenBackground>
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
@@ -146,26 +168,7 @@ export default function ParentDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <NotificationBell onOpenLink={(link) => { if (link === 'support') setShowSupport(true) }} />
-            <TouchableOpacity
-              onPress={() => router.push('/parent/account')}
-              style={{
-                backgroundColor: 'rgba(196,154,26,0.15)',
-                borderWidth: 1, borderColor: '#C49A1A',
-                borderRadius: 20, paddingHorizontal: 14,
-                paddingVertical: 7,
-                flexDirection: 'row', alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <Text style={{ fontSize: 16 }}>👤</Text>
-              <Text style={{ color: '#C49A1A', fontWeight: '700',
-                fontSize: 13 }}>
-                Account
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-              <Text style={styles.logoutText}>Log out</Text>
-            </TouchableOpacity>
+            <ThemeToggle compact />
           </View>
         </View>
 
@@ -204,14 +207,14 @@ export default function ParentDashboard() {
               <TouchableOpacity
                 key={c.id}
                 style={[styles.childChip, activeChild?.id === c.id && styles.childChipActive]}
-                onPress={() => setActiveChild(c)}
+                onPress={() => { setActiveChild(c); SecureStore.setItemAsync('active_child_id', c.id).catch(() => {}) }}
               >
                 {isCharacterId(c.avatar)
                   ? <CharacterAvatar id={c.avatar} size={28} />
                   : <Text style={styles.childEmoji}>{c.avatar || '🦊'}</Text>}
                 <View>
-                  <Text style={[styles.childName, activeChild?.id === c.id && { color: 'white' }]}>{c.name}</Text>
-                  <Text style={[styles.childGrade, activeChild?.id === c.id && { color: 'rgba(255,255,255,0.8)' }]}>Grade {c.grade}</Text>
+                  <Text style={styles.childName}>{c.name}</Text>
+                  <Text style={styles.childGrade}>Grade {c.grade}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -244,15 +247,53 @@ export default function ParentDashboard() {
             ))}
           </View>
 
-          {/* AI Insight */}
+          {/* AI Insights — timeline of a few cards */}
           <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
               <Text style={{ fontSize: 20 }}>🤖</Text>
-              <Text style={styles.insightTitle}>Hero&apos;s Daily Insight</Text>
+              <Text style={styles.insightTitle}>Hero&apos;s Insights</Text>
+              <TouchableOpacity onPress={refreshInsight} disabled={insightLoading} hitSlop={10} style={{ marginLeft: 'auto' }}>
+                {insightLoading
+                  ? <ActivityIndicator color="#C49A1A" size="small" />
+                  : <Text style={styles.insightRefresh}>↻</Text>}
+              </TouchableOpacity>
             </View>
-            <Text style={styles.insightText}>
-              {insight || `${student?.name || 'Your child'} is making great progress! Keep encouraging daily practice.`}
-            </Text>
+            {(() => {
+              const name = student?.name || 'Your child'
+              const items: { icon: string; title: string; body: string }[] = [
+                {
+                  icon: '✦',
+                  title: 'Hero says',
+                  body: insight || `${name} is making great progress! Keep encouraging daily practice.`,
+                },
+                {
+                  icon: '⚡',
+                  title: 'This week',
+                  body: (stats.totalQuestionsThisWeek || 0) > 0
+                    ? `${stats.totalQuestionsThisWeek} questions answered with ${stats.accuracy || 0}% accuracy.`
+                    : `No questions answered yet this week — a gentle nudge can help.`,
+                },
+                {
+                  icon: '🏆',
+                  title: 'Mastery',
+                  body: (stats.mastered || 0) > 0
+                    ? `${stats.mastered} skill${stats.mastered === 1 ? '' : 's'} mastered so far. Keep it up!`
+                    : `No skills mastered yet — they're on the way there.`,
+                },
+              ]
+              return items.map((it, i) => (
+                <View key={i} style={styles.timelineRow}>
+                  <View style={styles.timelineGutter}>
+                    <View style={styles.timelineDot}><Text style={{ fontSize: 11 }}>{it.icon}</Text></View>
+                    {i < items.length - 1 && <View style={styles.timelineLine} />}
+                  </View>
+                  <View style={{ flex: 1, paddingBottom: i < items.length - 1 ? 14 : 0 }}>
+                    <Text style={styles.timelineTitle}>{it.title}</Text>
+                    <Text style={styles.insightText}>{it.body}</Text>
+                  </View>
+                </View>
+              ))
+            })()}
           </View>
 
           {/* Maths Skills Overview */}
@@ -304,56 +345,60 @@ export default function ParentDashboard() {
               automatically every Sunday.
             </Text>
             <Text style={styles.cardFooter}>
-              For detailed analytics visit mymathshero.com.au
+              Tap Progress below for detailed analytics.
             </Text>
           </View>
 
-          <View style={{ height: 60 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       )}
 
       <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
+      <ParentTabBar />
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
-  loading: { flex: 1, backgroundColor: c.bgHeader,
+  container: { flex: 1, backgroundColor: 'transparent' },
+  loading: { flex: 1, backgroundColor: c.bgPrimary,
     alignItems: 'center', justifyContent: 'center' },
-  loadingLogo: { fontSize: 32, fontWeight: '800', color: 'white' },
+  loadingLogo: { fontSize: 32, fontWeight: '800', color: c.textPrimary },
   loadingText: { color: c.accentGold, marginTop: 12, fontWeight: '600' },
 
-  header: { backgroundColor: c.bgHeader, padding: 20, paddingBottom: 16 },
+  header: { backgroundColor: 'transparent', padding: 20, paddingBottom: 12 },
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'flex-start' },
-  eyebrow: { color: 'rgba(255,255,255,0.6)', fontSize: 11,
+  eyebrow: { color: c.textSecondary, fontSize: 11,
     fontWeight: '700', letterSpacing: 1 },
-  welcome: { color: 'white', fontWeight: '800', fontSize: 22, marginTop: 2 },
-  welcomeSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2 },
-  logoutBtn: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  welcome: { color: c.textPrimary, fontWeight: '800', fontSize: 22, marginTop: 2, letterSpacing: -0.3 },
+  welcomeSub: { color: c.textSecondary, fontSize: 13, marginTop: 2 },
+  logoutBtn: { borderWidth: 1, borderColor: c.cardBorder,
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  logoutText: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  logoutText: { color: c.textSecondary, fontSize: 12 },
 
-  activeChildCard: { backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14, padding: 14, marginTop: 14,
+  activeChildCard: { backgroundColor: c.bgCard,
+    borderRadius: 16, padding: 14, marginTop: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: 'rgba(196,154,26,0.3)' },
+    borderWidth: 1, borderColor: c.cardBorder,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   activeChildAvatar: { width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#C49A1A', alignItems: 'center', justifyContent: 'center' },
-  activeChildName: { color: 'white', fontWeight: '800', fontSize: 16 },
+    backgroundColor: c.accentGold, alignItems: 'center', justifyContent: 'center' },
+  activeChildName: { color: c.textPrimary, fontWeight: '800', fontSize: 16 },
   activeChildMeta: { color: c.accentGold, fontSize: 12, fontWeight: '600' },
-  activeChildStreak: { color: 'white', fontWeight: '800', fontSize: 15 },
-  activeChildStreakLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10 },
+  activeChildStreak: { color: c.textPrimary, fontWeight: '800', fontSize: 15 },
+  activeChildStreakLabel: { color: c.textMuted, fontSize: 10 },
 
-  childRow: { backgroundColor: c.bgHeader, paddingBottom: 12 },
+  childRow: { backgroundColor: 'transparent', paddingBottom: 12 },
   childChip: { flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: 'transparent' },
-  childChipActive: { borderColor: '#C49A1A', backgroundColor: 'rgba(196,154,26,0.25)' },
+    backgroundColor: c.bgCard, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: c.cardBorder },
+  childChipActive: { borderColor: c.accentGold, backgroundColor: c.accentGoldLight },
   childEmoji: { fontSize: 22 },
-  childName: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
-  childGrade: { fontSize: 10, color: 'rgba(255,255,255,0.5)' },
+  childName: { fontSize: 13, fontWeight: '700', color: c.textPrimary },
+  childGrade: { fontSize: 10, color: c.textSecondary },
 
   scroll: { flex: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
@@ -373,7 +418,14 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   insightHeader: { flexDirection: 'row', alignItems: 'center',
     gap: 8, marginBottom: 10 },
   insightTitle: { color: c.accentGold, fontWeight: '800', fontSize: 14 },
-  insightText: { color: 'white', fontSize: 14, lineHeight: 22 },
+  insightText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 21 },
+  insightRefresh: { color: c.accentGold, fontSize: 20, fontWeight: '800' },
+  timelineRow: { flexDirection: 'row', gap: 12 },
+  timelineGutter: { alignItems: 'center', width: 22 },
+  timelineDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(196,154,26,0.25)',
+    alignItems: 'center', justifyContent: 'center' },
+  timelineLine: { flex: 1, width: 2, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 2 },
+  timelineTitle: { color: c.accentGold, fontWeight: '800', fontSize: 12, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 
   cardSection: { backgroundColor: c.bgCard, borderRadius: 16, padding: 18,
     marginHorizontal: 16, marginBottom: 16,

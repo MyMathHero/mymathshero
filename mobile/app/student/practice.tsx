@@ -9,6 +9,7 @@ import * as SecureStore from 'expo-secure-store'
 import api, { studentAPI } from '../../lib/api'
 import { showAchievementNotification } from '../../lib/notifications'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ScreenBackground } from '../../lib/ui'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
@@ -304,7 +305,8 @@ export default function Practice() {
   // Speed round complete screen
   if (speedRoundDone) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenBackground>
+    <SafeAreaView style={styles.container}>
         <View style={styles.loading}>
           <Text style={{ fontSize: 64 }}>⚡</Text>
           <Text style={[styles.loadingText, { fontSize: 24, fontWeight: '800', color: 'white' }]}>
@@ -324,6 +326,7 @@ export default function Practice() {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+      </ScreenBackground>
     )
   }
 
@@ -348,6 +351,7 @@ export default function Practice() {
   const q = questions[currentIndex]
 
   return (
+    <ScreenBackground>
     <SafeAreaView style={styles.container}>
       {/* Top bar */}
       <View style={styles.topBar}>
@@ -500,11 +504,12 @@ export default function Practice() {
         grade={parseInt(grade || '3', 10)}
       />
     </SafeAreaView>
+    </ScreenBackground>
   )
 }
 
 const makeStyles = (c: ThemeColors) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: c.bgPrimary },
+  container: { flex: 1, backgroundColor: 'transparent' },
   loading: { flex: 1, backgroundColor: c.bgHeader,
     alignItems: 'center', justifyContent: 'center', padding: 24 },
   loadingText: { color: c.accentGold, fontWeight: '600', marginTop: 12, textAlign: 'center' },

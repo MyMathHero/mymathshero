@@ -6,7 +6,6 @@ import ArcadeSettings from '@/components/ArcadeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
-import NotificationBell from '@/components/NotificationBell'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
@@ -258,6 +257,20 @@ export default function ParentDashboard() {
     setAccountView('index')
     setAccountPanelOpen(true)
   }
+
+  // Honour ?open=support|subscription|children when the navbar bell routes here
+  // from another page. Runs once the dashboard is ready; then clears the param.
+  useEffect(() => {
+    if (step !== 'dashboard') return
+    const params = new URLSearchParams(window.location.search)
+    const open = params.get('open')
+    if (!open) return
+    if (open === 'support') setShowSupport(true)
+    else if (open === 'subscription' || open === 'children') { openAccount(); setAccountView(open) }
+    // Remove the param so it doesn't re-fire on refresh.
+    window.history.replaceState({}, '', '/parent-dashboard')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
 
   function closeAccount() {
     setAccountPanelOpen(false)
@@ -1099,16 +1112,8 @@ export default function ParentDashboard() {
         </button>
       )}
 
-      {step === 'dashboard' && !loading && (
-        <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 80 }}>
-          <NotificationBell
-            onOpenLink={(link) => {
-              if (link === 'support') { setShowSupport(true); return }
-              if (link === 'subscription' || link === 'children') { openAccount(); setAccountView(link) }
-            }}
-          />
-        </div>
-      )}
+      {/* Notification bell now lives in the global Navbar (top-right) for parents —
+          it was previously hidden behind the navbar when floated here. */}
 
       {/* ACCESS-BLOCKED BANNER — shows when sub lapsed, instead of hard-redirecting */}
       {subStatus?.accessBlocked && step === 'dashboard' && (
