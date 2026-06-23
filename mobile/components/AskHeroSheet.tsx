@@ -6,9 +6,10 @@ import {
 } from 'react-native'
 import * as Speech from 'expo-speech'
 import * as SecureStore from 'expo-secure-store'
-import { createAudioPlayer, type AudioPlayer } from 'expo-audio'
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
-import api from '../lib/api'
+import { fetch as expoFetch } from 'expo/fetch'
+import api, { API_URL } from '../lib/api'
 import HeroRobot from './HeroRobot'
 import Manipulative from './manipulatives/Manipulative'
 
@@ -105,23 +106,43 @@ export default function AskHeroSheet({
     try {
       await stopAllAudio()
 
-      // POST to the web proxy. Use api (axios) so our interceptors/base-URL apply.
-      const res = await api.post(
-        '/api/hero-voice',
-        { text: clean },
-        { responseType: 'arraybuffer' }
-      )
-      const buf: ArrayBuffer = res.data
-      if (!buf || (buf as ArrayBuffer).byteLength === 0) {
+      // Play through the device even when the iOS silent switch is on, so Hero's
+      // voice is actually audible. Best-effort — never block playback if it fails.
+      try {
+        await setAudioModeAsync({ playsInSilentMode: true })
+      } catch {}
+
+      // Fetch the audio via expo/fetch (NOT axios). axios `responseType:
+      // 'arraybuffer'` is unreliable in React Native and returns a body whose
+      // bytes are mangled, so playback silently failed and we dropped to the
+      // phone's default TTS voice. expo/fetch's response.bytes() gives a real
+      // Uint8Array. We add the same auth headers the axios interceptor would.
+      const token = await SecureStore.getItemAsync('auth_token')
+      const res = await expoFetch(`${API_URL}/api/hero-voice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token
+            ? {
+                Cookie: `mymathshero_token=${token}`,
+                Authorization: `Bearer ${token}`,
+              }
+            : {}),
+        },
+        body: JSON.stringify({ text: clean }),
+      })
+      if (!res.ok) {
+        throw new Error(`hero-voice ${res.status}`)
+      }
+      const bytes = await res.bytes()
+      if (!bytes || bytes.byteLength === 0) {
         throw new Error('Empty audio response')
       }
 
       // Write the audio bytes to a cache file via the modern File API.
       const file = new File(Paths.cache, `hero-${Date.now()}.mp3`)
       try { file.create() } catch {}
-      const writer = file.writableStream().getWriter()
-      await writer.write(new Uint8Array(buf))
-      await writer.close()
+      file.write(bytes)
 
       // Play via expo-audio. createAudioPlayer is the imperative SDK 56 API.
       const player = createAudioPlayer({ uri: file.uri })

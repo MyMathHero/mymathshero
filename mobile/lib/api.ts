@@ -1,7 +1,7 @@
 import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 
-const API_URL = 'https://mymathshero.com.au'
+export const API_URL = 'https://mymathshero.com.au'
 // For local testing change to your Mac IP:
 // const API_URL = 'http://192.168.x.x:3000'
 
