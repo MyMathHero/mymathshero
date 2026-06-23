@@ -201,6 +201,9 @@ function ParentFlow({ onBack }) {
   const [grade, setGrade] = useState('')
   const [avatar, setAvatar] = useState('🦊')
   const [parentId, setParentId] = useState('')
+  // Parent insight — feeds AI placement so we don't trust the enrolled grade alone.
+  const [perceivedLevel, setPerceivedLevel] = useState('at')
+  const [confidence, setConfidence] = useState('medium')
 
   const [credentials, setCredentials] = useState(null)
   const [pinVisible, setPinVisible] = useState(false)
@@ -250,7 +253,7 @@ function ParentFlow({ onBack }) {
       const res = await fetch('/api/add-child', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parent_id: parentId, child_name: childName, grade: gradeLabelToInt(grade), avatar }),
+        body: JSON.stringify({ parent_id: parentId, child_name: childName, grade: gradeLabelToInt(grade), avatar, perceivedLevel, confidence }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Failed to add child'); return }
@@ -308,6 +311,20 @@ function ParentFlow({ onBack }) {
             <Select value={grade} onChange={e => { setGrade(e.target.value); setFieldErrors(f => ({ ...f, grade: '' })) }}>
               <option value="">Select year…</option>
               {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+            </Select>
+          </Field>
+          <Field label={`How is ${childName.trim() ? childName.split(' ')[0] : 'your child'} performing in maths?`}>
+            <Select value={perceivedLevel} onChange={e => setPerceivedLevel(e.target.value)}>
+              <option value="below">Below year level</option>
+              <option value="at">At year level</option>
+              <option value="above">Above year level</option>
+            </Select>
+          </Field>
+          <Field label="How confident are you about that?">
+            <Select value={confidence} onChange={e => setConfidence(e.target.value)}>
+              <option value="low">Not very sure</option>
+              <option value="medium">Fairly sure</option>
+              <option value="high">Very sure</option>
             </Select>
           </Field>
           <Field label="Pick an avatar">

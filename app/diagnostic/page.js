@@ -10,6 +10,12 @@ const BRAND_GOLD = 'var(--accent-gold)'
 const BRAND_BG = '#F0F4F8'
 const BRAND_SUBTEXT = '#64748B'
 
+// Older questions baked the letter into each option ("A) 3 rows of 5"). Strip
+// any leading "A) "/"A. "/"A " for display. Display-only — comparisons still use
+// the raw option value.
+const stripLetterPrefix = (s) =>
+  String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
+
 export default function DiagnosticPage() {
   const router = useRouter()
   const { flags } = useFeatureFlags()
@@ -22,6 +28,7 @@ export default function DiagnosticPage() {
   const [timer, setTimer] = useState(0)
   const [error, setError] = useState('')
   const [skillsSet, setSkillsSet] = useState(0)
+  const [placement, setPlacement] = useState(null)
 
   // Auth check on mount — must be a logged-in student.
   useEffect(() => {
@@ -106,6 +113,7 @@ export default function DiagnosticPage() {
       })
       const data = await res.json()
       setSkillsSet(data?.skillsSet || 0)
+      setPlacement(data?.placement || null)
       setStage('results')
     } catch {
       setError('Could not save your results. Please try again.')
@@ -129,7 +137,11 @@ export default function DiagnosticPage() {
     const aboveRate = totalAbove > 0 ? correctAbove / totalAbove : 0
     const atRate = totalAt > 0 ? correctAt / totalAt : 0
     let label
-    if (aboveRate >= 0.6) label = `On track for Year ${grade + 1}`
+    // Prefer the AI placement estimate when available; fall back to the rate heuristic.
+    const gradeLabel = (g) => (g === 0 ? 'Prep' : `Year ${g}`)
+    if (placement?.estimatedGrade != null && placement.estimatedGrade > grade) {
+      label = `Performing around ${gradeLabel(placement.estimatedGrade)} level 🚀`
+    } else if (aboveRate >= 0.6) label = `On track for Year ${grade + 1}`
     else if (atRate >= 0.6) label = `Working at Year ${grade} level`
     else label = `Building Year ${grade} foundations`
     const summary = [{ name: 'Maths', label, emoji: '🔢' }]
@@ -247,7 +259,7 @@ export default function DiagnosticPage() {
                       cursor: answerLocked !== null ? 'default' : 'pointer',
                     }}
                   >
-                    {opt}
+                    {stripLetterPrefix(opt)}
                   </button>
                 )
               })}
@@ -295,6 +307,19 @@ export default function DiagnosticPage() {
               </div>
             ))}
           </div>
+          {placement?.rationale && (
+            <div style={{
+              background: BRAND_BG, borderRadius: 12, padding: '14px 16px',
+              border: '1px solid var(--border-color)', textAlign: 'left', marginBottom: 18,
+            }}>
+              <p style={{ color: BRAND_DARK, fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>
+                📋 Your parents will see this
+              </p>
+              <p style={{ color: BRAND_SUBTEXT, fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+                {placement.rationale}
+              </p>
+            </div>
+          )}
           <button
             onClick={() => router.push('/student-dashboard')}
             style={{

@@ -42,12 +42,18 @@ export const authAPI = {
 export const studentAPI = {
   progress: (studentId: string) =>
     api.get(`/api/student/progress?studentId=${studentId}`),
-  questions: (skillId: string, grade: number = 3) =>
-    api.get(`/api/student/questions?skillId=${skillId}&grade=${grade}&limit=10&subject=Maths`),
+  // studentId is required for difficulty-aware serving — the API picks the
+  // question difficulty band from the student's SmartScore for this skill.
+  // Without it the server falls back to the easy band.
+  questions: (skillId: string, grade: number = 3, studentId?: string) =>
+    api.get(`/api/student/questions?skillId=${skillId}&grade=${grade}&limit=10&subject=Maths${studentId ? `&studentId=${studentId}` : ''}`),
   answer: (data: any) =>
     api.post('/api/student/answer', data),
   hint: (data: any) =>
     api.post('/api/student/hint', data),
+  // Structured animated whiteboard lesson for the full-screen "Teach Me" tutor.
+  lesson: (data: any) =>
+    api.post('/api/student/lesson', data),
   leaderboard: (studentId: string) =>
     api.get(`/api/student/leaderboard?studentId=${studentId}&type=grade&period=monthly`),
   diagnostic: (grade: number) =>

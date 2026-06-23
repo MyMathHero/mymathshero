@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { summariseDiagnostic, estimateLevel, nudgeSkillScore } from '@/lib/placement'
 
 let client
 async function connectDB() {
@@ -137,6 +138,21 @@ export async function POST(request) {
 
     const db = await connectDB()
 
+    // Load the student for grade + parent insight + name (drives placement).
+    const student = await db.collection('children').findOne({ id: studentId })
+    const enteredGrade = Number.isFinite(student?.grade) ? student.grade : 3
+    const parentInsight = student?.parentInsight || { perceivedLevel: 'at', confidence: 'medium' }
+
+    // Fuse diagnostic results + response speed + parent insight into an estimate
+    // of the student's true working level. Never throws — falls back internally.
+    const summary = summariseDiagnostic(results)
+    const placement = await estimateLevel({
+      enteredGrade,
+      studentName: student?.name,
+      summary,
+      parentInsight,
+    })
+
     // Aggregate per-skill, weighting each result by its difficulty level.
     const skillResults = {}
     results.forEach(r => {
@@ -155,7 +171,11 @@ export async function POST(request) {
     let mastered = 0
     for (const [skillId, data] of Object.entries(skillResults)) {
       const weightedAccuracy = data.weightedTotal > 0 ? data.weightedCorrect / data.weightedTotal : 0
-      const startingScore = placementScore(weightedAccuracy, data.hadAbove)
+      const baseScore = placementScore(weightedAccuracy, data.hadAbove)
+      // Conservative AI-placement nudge: only lifts at/above-grade seeds when the
+      // estimate exceeds the entered grade. Skill grade comes from the m_<grade>_ id.
+      const skillGrade = parseInt(String(skillId).match(/^m_(\d+)_/)?.[1] ?? enteredGrade, 10)
+      const startingScore = nudgeSkillScore(baseScore, placement, skillGrade)
       const isMastered = startingScore >= 80
       if (isMastered) mastered++
 
@@ -181,7 +201,18 @@ export async function POST(request) {
 
     await db.collection('children').updateOne(
       { id: studentId },
-      { $set: { diagnosticComplete: true, diagnosticDate: new Date() } }
+      { $set: {
+          diagnosticComplete: true,
+          diagnosticDate: new Date(),
+          placement: {
+            enteredGrade,
+            estimatedGrade: placement.estimatedGrade,
+            confidence: placement.confidence,
+            rationale: placement.rationale,
+            source: placement.source,
+            generatedAt: new Date(),
+          },
+        } }
     )
 
     return NextResponse.json({
@@ -189,6 +220,12 @@ export async function POST(request) {
       message: 'Diagnostic complete',
       skillsSet: Object.keys(skillResults).length,
       mastered,
+      placement: {
+        enteredGrade,
+        estimatedGrade: placement.estimatedGrade,
+        confidence: placement.confidence,
+        rationale: placement.rationale,
+      },
     })
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

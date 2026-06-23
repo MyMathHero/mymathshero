@@ -1,4 +1,4 @@
-import { useState, useMemo} from 'react'
+import { useState, useMemo, useRef, useEffect} from 'react'
 import { View, Text, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
@@ -8,6 +8,12 @@ import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScreenBackground } from '../../lib/ui'
 import HeroRobot from '../../components/HeroRobot'
+
+// Older questions baked the letter into each option ("A) 3 rows of 5"). We
+// render our own letter badge, so strip any leading "A) "/"A. "/"A " for display
+// to avoid showing the letter twice. Display-only — never use for comparison.
+const stripLetterPrefix = (s: string) =>
+  String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
 
 export default function Diagnostic() {
   const { colors } = useTheme()
@@ -19,6 +25,15 @@ export default function Diagnostic() {
   const [results, setResults] = useState<any[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [placement, setPlacement] = useState<any>(null)
+  // Real per-question timing — feeds the placement speed signal. Previously
+  // hardcoded to 5000ms, which hid the "fast + correct = too easy" signal.
+  const questionStartRef = useRef<number>(Date.now())
+
+  // Reset the per-question stopwatch whenever a new question is shown.
+  useEffect(() => {
+    if (stage === 'quiz') questionStartRef.current = Date.now()
+  }, [current, stage])
 
   async function startDiagnostic() {
     setLoading(true)
@@ -44,8 +59,9 @@ export default function Diagnostic() {
       questionId: q.questionId,
       skillId: q.skillId,
       correct: option === q.correctAnswer,
-      timeTakenMs: 5000,
+      timeTakenMs: Math.max(0, Date.now() - questionStartRef.current),
       grade: q.grade,
+      level: q.level, // 'at' | 'below' | 'above' — weights placement scoring
     }
     const updated = [...results, newResult]
     setResults(updated)
@@ -64,7 +80,8 @@ export default function Diagnostic() {
     setLoading(true)
     try {
       const studentId = await SecureStore.getItemAsync('user_id')
-      await studentAPI.submitDiagnostic({ studentId, results: finalResults })
+      const res = await studentAPI.submitDiagnostic({ studentId, results: finalResults })
+      setPlacement(res?.data?.placement || null)
     } catch {}
     finally { setLoading(false) }
   }
@@ -112,6 +129,12 @@ export default function Diagnostic() {
           <Text style={styles.sub}>
             Hero has set up your personalised Maths learning plan!
           </Text>
+          {!!placement?.rationale && (
+            <View style={styles.infoBox}>
+              <Text style={[styles.infoText, { marginBottom: 4 }]}>📋 Your parents will see this</Text>
+              <Text style={[styles.sub, { marginBottom: 0, textAlign: 'left' }]}>{placement.rationale}</Text>
+            </View>
+          )}
           <TouchableOpacity style={styles.startBtn}
             onPress={() => router.replace('/student/dashboard')}
             disabled={loading}>
@@ -180,7 +203,7 @@ export default function Diagnostic() {
               activeOpacity={0.8}
             >
               <Text style={styles.optionLetter}>{String.fromCharCode(65 + i)}</Text>
-              <Text style={styles.optionText}>{opt}</Text>
+              <Text style={styles.optionText}>{stripLetterPrefix(opt)}</Text>
             </TouchableOpacity>
           )
         })}

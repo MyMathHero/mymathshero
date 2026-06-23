@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
-import AskHero from '@/components/AskHero'
+import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
@@ -15,6 +15,14 @@ import SupportTickets from '@/components/SupportTickets'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
+
+// Older questions baked the letter into each option ("A) 3 rows of 5"). We
+// render our own letter badge, so strip any leading "A) "/"A. "/"A " for display
+// to avoid showing the letter twice. New questions are already clean (server
+// strips on generation), so this is a no-op for them. Display-only — never use
+// the stripped value for answer comparison.
+const stripLetterPrefix = (s) =>
+  String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
 
 const subjects = [
   { id: 'maths', name: 'Maths', emoji: '🔢', gradient: 'from-blue-500 to-indigo-600' },
@@ -195,6 +203,12 @@ export default function StudentDashboard() {
   const [practiceModal, setPracticeModal] = useState(null)
   const [practiceLoading, setPracticeLoading] = useState(false)
   const [answerState, setAnswerState] = useState(null)
+  // Mandatory in-practice difficulty check (report §4). Counts answered questions
+  // in the current practice run; every 5 we block "Next" with a required
+  // Too Easy / Just Right / Too Hard prompt that calibrates future difficulty.
+  const practiceAnsweredRef = useRef(0)
+  const [difficultyPrompt, setDifficultyPrompt] = useState(false)
+  const [difficultySubmitting, setDifficultySubmitting] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const [hintLoading, setHintLoading] = useState(false)
   const [aiHint, setAiHint] = useState(null) // { text, source }
@@ -633,6 +647,9 @@ export default function StudentDashboard() {
       if (result.mastered) {
         Analytics.skillMastered(practiceModal.skillId, practiceModal.skillName, student?.grade)
       }
+      // Count answered questions in this run (speed rounds excluded — they have
+      // their own completion screen) to drive the mandatory difficulty prompt.
+      if (!speedRound) practiceAnsweredRef.current += 1
 
       const correctIndex = result.correctAnswer
         ? practiceModal.options.indexOf(result.correctAnswer)
@@ -708,12 +725,51 @@ export default function StudentDashboard() {
     setShowSteps(false)
     setShowCelebration(false)
     setSpeedRound(null)
+    setDifficultyPrompt(false)
+    practiceAnsweredRef.current = 0
+  }
+
+  // Mandatory difficulty feedback (report §4). Records the signal (which the
+  // feedback API turns into a per-skill calibration bias) then resumes practice.
+  // No skip path — the student must pick one of the three.
+  const submitDifficulty = async (message, rating) => {
+    if (difficultySubmitting) return
+    setDifficultySubmitting(true)
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authStudentId,
+          role: 'student',
+          type: 'session',
+          rating,
+          message,
+          context: { skillId: practiceModal?.skillId, page: 'practice' },
+          platform: 'web',
+        }),
+      })
+    } catch {
+      // Never trap the student if the network hiccups — proceed regardless.
+    } finally {
+      setDifficultySubmitting(false)
+      setDifficultyPrompt(false)
+      handleNextQuestion()
+    }
   }
 
   // Load the next question for the SAME skill without closing the modal.
   // Prefers a question different from the current one so it doesn't repeat.
   const handleNextQuestion = async () => {
     if (!practiceModal?.skillId) { closePractice(); return }
+    // Mandatory difficulty check every 5 answered questions (report §4). Block
+    // here and show the prompt; submitDifficulty() resumes by calling
+    // handleNextQuestion again once the student picks an option.
+    if (!speedRound && !difficultyPrompt &&
+        practiceAnsweredRef.current > 0 && practiceAnsweredRef.current % 5 === 0) {
+      setDifficultyPrompt(true)
+      return
+    }
     const skillId = practiceModal.skillId
     const currentQid = practiceModal.questionId
     const grade = student?.grade ?? 3
@@ -2006,6 +2062,35 @@ export default function StudentDashboard() {
         </div>
       )}
 
+      {/* Mandatory difficulty check (report §4) — blocks until the student picks
+          one of three. No backdrop dismiss, no skip; feeds difficulty calibration. */}
+      {difficultyPrompt && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-7 text-center pop-in">
+            <div className="text-4xl mb-2">🤖</div>
+            <h3 className="text-xl font-extrabold text-navy mb-1">Quick check!</h3>
+            <p className="text-sm text-gray-500 mb-5">How are these questions feeling? Pick one to keep going.</p>
+            <div className="flex flex-col gap-3">
+              <button
+                disabled={difficultySubmitting}
+                onClick={() => submitDifficulty('too_hard', 2)}
+                className="w-full py-3 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-60"
+              >😕 Too Hard</button>
+              <button
+                disabled={difficultySubmitting}
+                onClick={() => submitDifficulty('just_right', 4)}
+                className="w-full py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60"
+              >😊 Just Right</button>
+              <button
+                disabled={difficultySubmitting}
+                onClick={() => submitDifficulty('too_easy', 3)}
+                className="w-full py-3 rounded-xl font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-60"
+              >😎 Too Easy</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Practice Modal */}
       {practiceModal && !practiceLoading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={closePractice}>
@@ -2170,7 +2255,7 @@ export default function StudentDashboard() {
                                 >
                                   {answerState?.loading && isSelected ? '⏳' : letters[i]}
                                 </span>
-                                <span className="flex-1">{opt}</span>
+                                <span className="flex-1">{stripLetterPrefix(opt)}</span>
                                 {showResult && isAnswerCorrect && <span className="text-lg celebrate-bounce">✅</span>}
                                 {showResult && isAnswerWrong && <span className="text-lg">❌</span>}
                               </span>
@@ -2450,7 +2535,7 @@ export default function StudentDashboard() {
 
       {/* Ask Hero AI tutor panel — multi-turn chat */}
       {showAskHero && (!heroStatus || heroStatus.allowed) && (heroGeneral || practiceModal) && (
-        <AskHero
+        <HeroTutor
           question={heroGeneral ? null : practiceModal?.question}
           skillId={heroGeneral ? null : (practiceModal?.skillId || 'm_3_multiply100')}
           skillName={heroGeneral ? null : practiceModal?.skillName}
@@ -2702,7 +2787,7 @@ export default function StudentDashboard() {
                         fontSize: 13, flexShrink: 0 }}>
                         {String.fromCharCode(65 + i)}
                       </span>
-                      {opt}
+                      {stripLetterPrefix(opt)}
                     </button>
                   ))}
                 </div>

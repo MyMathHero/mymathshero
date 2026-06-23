@@ -247,6 +247,26 @@ export default function ParentDashboard() {
             ))}
           </View>
 
+          {/* Placement Report — AI estimate of the child's true working level. */}
+          {!!activeChild?.placement?.rationale && (
+            <View style={styles.cardSection}>
+              <Text style={styles.cardSectionTitle}>🏆 Placement Report</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                <View style={styles.placeChip}>
+                  <Text style={styles.placeChipText}>
+                    Enrolled: {activeChild.placement.enteredGrade === 0 ? 'Prep' : `Year ${activeChild.placement.enteredGrade}`}
+                  </Text>
+                </View>
+                <View style={[styles.placeChip, activeChild.placement.estimatedGrade > activeChild.placement.enteredGrade && styles.placeChipUp]}>
+                  <Text style={styles.placeChipText}>
+                    Estimated: {activeChild.placement.estimatedGrade === 0 ? 'Prep' : `Year ${activeChild.placement.estimatedGrade}`}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.cardBody}>{activeChild.placement.rationale}</Text>
+            </View>
+          )}
+
           {/* AI Insights — timeline of a few cards */}
           <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
@@ -434,6 +454,9 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
     color: c.textPrimary, marginBottom: 16 },
   cardBody: { fontSize: 13, color: c.textSecondary, lineHeight: 20, marginBottom: 12 },
   cardFooter: { fontSize: 12, color: c.accentGold, fontWeight: '600' },
+  placeChip: { backgroundColor: c.bgPrimary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  placeChipUp: { backgroundColor: c.accentGoldLight },
+  placeChipText: { fontSize: 11, fontWeight: '700', color: c.textPrimary },
 
   skillHeaderRow: { flexDirection: 'row',
     justifyContent: 'space-between', marginBottom: 4 },

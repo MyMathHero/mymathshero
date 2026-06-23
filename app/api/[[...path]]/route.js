@@ -258,7 +258,7 @@ async function handleRoute(request, { params }) {
     // ===== ADD CHILD =====
     if (route === '/add-child' && method === 'POST') {
       const body = await request.json()
-      const { parent_id, child_name, grade, avatar } = body
+      const { parent_id, child_name, grade, avatar, perceivedLevel, confidence } = body
 
       if (!parent_id) return handleCORS(NextResponse.json({ error: 'Parent ID is required' }, { status: 400 }))
       if (!child_name || !child_name.trim()) return handleCORS(NextResponse.json({ error: 'Child name is required' }, { status: 400 }))
@@ -285,6 +285,13 @@ async function handleRoute(request, { params }) {
         pin,
         grade: gradeInt,
         avatar: avatar || 'hero', // default character avatar (see lib/characterAvatars)
+        // Parent insight feeds AI placement after the diagnostic. Defaults keep
+        // older clients working (treated as at-grade / medium confidence).
+        parentInsight: {
+          perceivedLevel: ['below', 'at', 'above'].includes(perceivedLevel) ? perceivedLevel : 'at',
+          confidence: ['low', 'medium', 'high'].includes(confidence) ? confidence : 'medium',
+          enteredGrade: gradeInt,
+        },
         coins: 100,
         xp: 0,
         level: 1,

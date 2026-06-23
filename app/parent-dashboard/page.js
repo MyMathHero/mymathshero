@@ -914,6 +914,31 @@ export default function ParentDashboard() {
           ))}
         </div>
 
+        {/* Placement Report — AI estimate of the child's true working level from
+            the diagnostic, fused with parent insight. Only shown once set. */}
+        {childData?.placement?.rationale && (
+          <div className="mb-6 bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
+              <Trophy size={15} className="text-amber-500" />
+              <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Placement Report</h2>
+            </div>
+            <div className="p-4">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                  Enrolled: {childData.placement.enteredGrade === 0 ? 'Prep' : `Year ${childData.placement.enteredGrade}`}
+                </span>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${childData.placement.estimatedGrade > childData.placement.enteredGrade ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
+                  Estimated: {childData.placement.estimatedGrade === 0 ? 'Prep' : `Year ${childData.placement.estimatedGrade}`}
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-gray-400">
+                  {childData.placement.confidence} confidence
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed">{childData.placement.rationale}</p>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Skill Heatmap */}
           <div className="flex-1 min-w-0">

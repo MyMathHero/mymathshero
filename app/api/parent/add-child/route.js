@@ -43,7 +43,7 @@ export async function POST(request) {
     }
     const parentId = payload.userId
 
-    const { name, grade, pin } = await request.json().catch(() => ({}))
+    const { name, grade, pin, perceivedLevel, confidence } = await request.json().catch(() => ({}))
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Child name is required' }, { status: 400 })
@@ -91,6 +91,12 @@ export async function POST(request) {
       username: generateUsername(trimmedName),
       grade: gradeNum,
       pin: hashedPin,
+      // Parent insight feeds AI placement after the diagnostic.
+      parentInsight: {
+        perceivedLevel: ['below', 'at', 'above'].includes(perceivedLevel) ? perceivedLevel : 'at',
+        confidence: ['low', 'medium', 'high'].includes(confidence) ? confidence : 'medium',
+        enteredGrade: gradeNum,
+      },
       xp: 0,
       coins: 0,
       streak: 0,

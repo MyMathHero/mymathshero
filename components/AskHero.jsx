@@ -24,6 +24,9 @@ export default function AskHero({
   grade = 3,
   questionId,
   onClose,
+  // When true, render only the chat body (no fixed overlay / header / robot) so
+  // HeroTutor can host it as a tab. HeroTutor owns the robot, X, and voice chrome.
+  embedded = false,
 }) {
   // General mode = opened from the floating button with no question context.
   const general = !question
@@ -147,6 +150,104 @@ export default function AskHero({
   }
 
   const robot = ROBOT_STATES[robotState]
+
+  // The chat thread + input. Shared between the standalone modal and the
+  // embedded (HeroTutor tab) layout.
+  const chatBody = (
+    <>
+      {/* Chat messages */}
+      <div style={{
+        flex: 1, overflowY: 'auto',
+        padding: 16, display: 'flex',
+        flexDirection: 'column', gap: 10,
+        minHeight: 180,
+      }}>
+        {chatHistory.map((msg, i) => (
+          <div key={i}>
+            <div style={{
+              display: 'flex',
+              justifyContent: msg.role === 'hero' ? 'flex-start' : 'flex-end',
+            }}>
+              {msg.role === 'hero' && (
+                <AskHeroIcon size={18} style={{ marginRight: 6, alignSelf: 'flex-end' }} />
+              )}
+              <div style={{
+                maxWidth: '78%',
+                padding: '10px 14px',
+                borderRadius: msg.role === 'hero' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
+                background: msg.role === 'hero' ? '#1B2B4B' : '#C49A1A',
+                color: 'white',
+                fontSize: 14, lineHeight: 1.5,
+              }}>
+                {msg.message}
+              </div>
+            </div>
+            {msg.role === 'hero' && msg.manipulative && (
+              <Manipulative tool={msg.manipulative} />
+            )}
+          </div>
+        ))}
+
+        {loading && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: 8 }}>
+            <AskHeroIcon size={18} />
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '4px 16px 16px 16px',
+              background: '#1B2B4B', color: '#C49A1A',
+              fontSize: 14,
+            }}>
+              Hero is thinking ✦✦✦
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Chat input */}
+      <div style={{
+        padding: 14,
+        borderTop: '1px solid #E2E8F0',
+        display: 'flex', gap: 8,
+      }}>
+        <input
+          value={chatInput}
+          onChange={e => setChatInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+          placeholder="Ask Hero anything about Maths..."
+          disabled={loading}
+          style={{
+            flex: 1, padding: '10px 14px',
+            borderRadius: 10,
+            border: '1.5px solid #E2E8F0',
+            fontSize: 14, color: '#1B2B4B',
+            outline: 'none',
+          }}
+        />
+        <button
+          onClick={handleChatSend}
+          disabled={loading || !chatInput.trim()}
+          style={{
+            background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',
+            color: 'white', border: 'none',
+            borderRadius: 10, padding: '10px 16px',
+            fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default', fontSize: 14,
+          }}
+        >
+          Send
+        </button>
+      </div>
+    </>
+  )
+
+  // Embedded mode: HeroTutor owns the robot/header/X. Render just the chat body.
+  if (embedded) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+        {chatBody}
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -285,93 +386,9 @@ export default function AskHero({
           </div>
         </div>
 
-        {/* Chat messages */}
-        <div style={{
-          flex: 1, overflowY: 'auto',
-          padding: 16, display: 'flex',
-          flexDirection: 'column', gap: 10,
-          minHeight: 180, maxHeight: 320,
-        }}>
-          {chatHistory.map((msg, i) => (
-            <div key={i}>
-              <div style={{
-                display: 'flex',
-                justifyContent: msg.role === 'hero'
-                  ? 'flex-start' : 'flex-end',
-              }}>
-                {msg.role === 'hero' && (
-                  <AskHeroIcon size={18} style={{ marginRight: 6, alignSelf: 'flex-end' }} />
-                )}
-                <div style={{
-                  maxWidth: '78%',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'hero'
-                    ? '4px 16px 16px 16px'
-                    : '16px 4px 16px 16px',
-                  background: msg.role === 'hero'
-                    ? '#1B2B4B' : '#C49A1A',
-                  color: 'white',
-                  fontSize: 14, lineHeight: 1.5,
-                }}>
-                  {msg.message}
-                </div>
-              </div>
-              {/* Inline visual tool Hero chose to surface (if any). */}
-              {msg.role === 'hero' && msg.manipulative && (
-                <Manipulative tool={msg.manipulative} />
-              )}
-            </div>
-          ))}
-
-          {loading && (
-            <div style={{ display: 'flex',
-              justifyContent: 'flex-start', alignItems: 'center', gap: 8 }}>
-              <AskHeroIcon size={18} />
-              <div style={{
-                padding: '10px 14px',
-                borderRadius: '4px 16px 16px 16px',
-                background: '#1B2B4B', color: '#C49A1A',
-                fontSize: 14,
-              }}>
-                Hero is thinking ✦✦✦
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Chat input */}
-        <div style={{
-          padding: 14,
-          borderTop: '1px solid #E2E8F0',
-          display: 'flex', gap: 8,
-        }}>
-          <input
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-            placeholder="Ask Hero anything about Maths..."
-            disabled={loading}
-            style={{
-              flex: 1, padding: '10px 14px',
-              borderRadius: 10,
-              border: '1.5px solid #E2E8F0',
-              fontSize: 14, color: '#1B2B4B',
-              outline: 'none',
-            }}
-          />
-          <button
-            onClick={handleChatSend}
-            disabled={loading || !chatInput.trim()}
-            style={{
-              background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',
-              color: 'white', border: 'none',
-              borderRadius: 10, padding: '10px 16px',
-              fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default', fontSize: 14,
-            }}
-          >
-            Send
-          </button>
+        {/* Chat thread + input (shared with embedded mode) */}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, maxHeight: 380 }}>
+          {chatBody}
         </div>
       </div>
 

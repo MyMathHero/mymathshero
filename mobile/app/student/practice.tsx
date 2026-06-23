@@ -27,6 +27,13 @@ export default function Practice() {
   const isSpeedRound = speedRound === 'true'
   const SPEED_ROUND_TOTAL = 5
 
+  // Older questions stored their options with the letter baked in ("A) 3 rows
+  // of 5"). We render our own letter badge, so strip any leading "A) " / "A. " /
+  // "A " prefix to avoid showing the letter twice. New questions are already
+  // clean (server strips it on generation) so this is a no-op for them.
+  const stripLetterPrefix = (s: string) =>
+    String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
+
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
@@ -42,6 +49,7 @@ export default function Practice() {
   const [studentPlan, setStudentPlan] = useState('free')
   const [cheatWarning, setCheatWarning] = useState(false)
   const timerRef = useRef<any>(null)
+  const studentIdRef = useRef<string | null>(null)
   const totalTimerRef = useRef<any>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const cheatCountRef = useRef(0)
@@ -138,7 +146,7 @@ export default function Practice() {
   // Fetch a fresh question that isn't the one the student just left.
   async function loadDifferentQuestion() {
     try {
-      const res = await studentAPI.questions(skillId, parseInt(grade || '3'))
+      const res = await studentAPI.questions(skillId, parseInt(grade || '3'), studentIdRef.current || undefined)
       const incoming: any[] = res?.data?.questions || []
       if (incoming.length === 0) return
       const currentQid = questions[currentIndex]?.questionId
@@ -172,8 +180,13 @@ export default function Practice() {
 
   async function loadQuestions() {
     try {
+      // Cache the studentId so difficulty-aware serving works on every fetch
+      // (initial load + loadDifferentQuestion).
+      if (!studentIdRef.current) {
+        studentIdRef.current = await SecureStore.getItemAsync('user_id')
+      }
       const res = await studentAPI.questions(
-        skillId, parseInt(grade || '3')
+        skillId, parseInt(grade || '3'), studentIdRef.current || undefined
       )
       setQuestions(res.data.questions || [])
     } catch {
@@ -248,19 +261,19 @@ export default function Practice() {
     }
   }
 
-  // Prompt every 5 questions completed. Spec calls for thumbs up / just right /
-  // too easy; I added "Not now" so the student isn't trapped if they're mid-flow.
+  // Prompt every 5 questions completed. MANDATORY (report §4): no "Not now" /
+  // skip — the difficulty signal must always be captured so it can calibrate
+  // future question difficulty. Non-cancelable; the student must pick one.
   function askSessionFeedback() {
     Alert.alert(
       '🤖 Quick Check!',
-      'How are the questions going?',
+      'How are the questions going? (Tap one to keep going)',
       [
         { text: '😕 Too Hard',    onPress: () => submitQuickFeedback(2, 'too_hard') },
         { text: '😊 Just Right',  onPress: () => submitQuickFeedback(4, 'just_right') },
         { text: '😎 Too Easy',    onPress: () => submitQuickFeedback(3, 'too_easy') },
-        { text: 'Not now', style: 'cancel' },
       ],
-      { cancelable: true }
+      { cancelable: false }
     )
   }
 
@@ -427,7 +440,7 @@ export default function Practice() {
             </Text>
             {!result.correct && result.correctAnswer && (
               <Text style={styles.resultAnswer}>
-                The answer is: <Text style={styles.resultAnswerStrong}>{result.correctAnswer}</Text>
+                The answer is: <Text style={styles.resultAnswerStrong}>{stripLetterPrefix(result.correctAnswer)}</Text>
               </Text>
             )}
             <View style={styles.resultXpPill}>
@@ -459,7 +472,7 @@ export default function Practice() {
               <Text style={styles.optionLetter}>
                 {isCorrect ? '✓' : String.fromCharCode(65 + i)}
               </Text>
-              <Text style={styles.optionText}>{opt}</Text>
+              <Text style={styles.optionText}>{stripLetterPrefix(opt)}</Text>
             </TouchableOpacity>
           )
         })}

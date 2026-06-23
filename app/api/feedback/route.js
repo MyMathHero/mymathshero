@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { biasForFeedback } from '@/lib/difficulty'
 
 let client
 async function connectDB() {
@@ -69,6 +70,26 @@ export async function POST(request) {
       createdAt: new Date(),
       reviewed: false,
     })
+
+    // Difficulty calibration: a mandatory in-practice "too easy / too hard / just
+    // right" check carries a skillId. Persist the band bias onto the student's
+    // skill_score so /api/student/questions serves harder/easier items next time.
+    // (Report §4: feedback must drive future question selection.)
+    const skillId = context?.skillId
+    if (
+      type === 'session' && role === 'student' && userId &&
+      typeof skillId === 'string' && skillId.startsWith('m_')
+    ) {
+      const bias = biasForFeedback(safeMessage)
+      await db.collection('skill_scores').updateOne(
+        { studentId: userId, skillId },
+        {
+          $set: { feedbackBias: bias, feedbackBiasAt: new Date() },
+          $setOnInsert: { studentId: userId, skillId, score: 0, attempts: 0, createdAt: new Date() },
+        },
+        { upsert: true }
+      )
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

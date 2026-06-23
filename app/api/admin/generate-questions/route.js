@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { getSkillGraph } from '@/lib/recommender'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
+import { bandForDifficulty, BAND_ORDER, BAND_RANGE } from '@/lib/difficulty'
 
 // Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
 // taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
@@ -35,7 +36,15 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-async function generateForSkill(skill, count) {
+// Per-band instruction + the numeric difficulty range the model must stay in.
+// `band` is optional — when omitted the generator behaves exactly as before.
+const BAND_INSTRUCTION = {
+  easy: 'Make these EASY/foundational: single-step, small numbers, recall-level. difficulty MUST be between 0.1 and 0.39.',
+  medium: 'Make these MODERATE: typical at-grade questions, may need a step or two. difficulty MUST be between 0.4 and 0.69.',
+  hard: 'Make these CHALLENGING/extension: multi-step, word problems, or larger numbers that stretch a strong student. difficulty MUST be between 0.7 and 0.9.',
+}
+
+async function generateForSkill(skill, count, band = null) {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY not set')
   }
@@ -44,6 +53,7 @@ async function generateForSkill(skill, count) {
 
   const userPrompt = [
     `Generate ${count} multiple choice questions for "${skill.name}", ${skill.subject}, ${gradeLabel} Australian Victorian Curriculum.`,
+    ...(band ? [BAND_INSTRUCTION[band], ''] : []),
     `Each question needs:`,
     `- question: clear, age-appropriate question string`,
     `- correctAnswer: plain text of the correct answer. DO NOT prefix with a letter like "A)" or "A." — return the literal answer value only (e.g. "45", "Pentagon", "0.5").`,
@@ -105,11 +115,19 @@ function stripLetterPrefix(s) {
   return String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
 }
 
-function buildQuestionDoc(q, skill, index) {
+function buildQuestionDoc(q, skill, index, band = null) {
   const cleanCorrect = stripLetterPrefix(q.correctAnswer)
   const cleanDistractors = (q.distractors || []).map(stripLetterPrefix)
   const options = [cleanCorrect, ...cleanDistractors].sort(() => Math.random() - 0.5)
   const id = `ai_${skill.id}_${Date.now()}_${index}`
+  // Trust the band we asked for: clamp difficulty into the band's range so the
+  // stored numeric value and difficultyBand never disagree. When no band was
+  // requested, use the AI value and derive the band from it.
+  let difficulty = typeof q.difficulty === 'number' ? q.difficulty : skill.difficulty
+  if (band && BAND_RANGE[band]) {
+    const [lo, hi] = BAND_RANGE[band]
+    difficulty = Math.min(hi, Math.max(lo, difficulty))
+  }
   return {
     id,
     skillId: skill.id,
@@ -118,7 +136,8 @@ function buildQuestionDoc(q, skill, index) {
     question: q.question,
     options,
     correctAnswer: cleanCorrect,
-    difficulty: typeof q.difficulty === 'number' ? q.difficulty : skill.difficulty,
+    difficulty,
+    difficultyBand: band || bandForDifficulty(difficulty),
     hint: q.hint || '',
     explanation: q.explanation || '',
     active: true,
@@ -144,16 +163,34 @@ export async function GET(request) {
     const skillGraph = getMathsSkills()
       .filter(s => !subject || s.subject === subject)
 
+    // Count per skill AND per band so the dry-run shows exactly which bands are
+    // thin. A doc with no difficultyBand yet is bucketed under '_unbanded'.
     const existingCounts = await db.collection('questions').aggregate([
-      { $group: { _id: '$skillId', count: { $sum: 1 } } },
+      { $group: {
+          _id: { skillId: '$skillId', band: { $ifNull: ['$difficultyBand', '_unbanded'] } },
+          count: { $sum: 1 },
+      } },
     ]).toArray()
-    const countMap = {}
-    for (const row of existingCounts) countMap[row._id] = row.count
+    const countMap = {}     // skillId -> total
+    const bandMap = {}      // skillId -> { easy, medium, hard, _unbanded }
+    for (const row of existingCounts) {
+      const { skillId, band } = row._id
+      countMap[skillId] = (countMap[skillId] ?? 0) + row.count
+      bandMap[skillId] = bandMap[skillId] || {}
+      bandMap[skillId][band] = row.count
+    }
 
     const totalQuestions = await db.collection('questions').countDocuments()
     const skillsBelow = skillGraph
-      .map(s => ({ skillId: s.id, name: s.name, subject: s.subject, current: countMap[s.id] ?? 0 }))
-      .filter(s => s.current < target)
+      .map(s => ({
+        skillId: s.id,
+        name: s.name,
+        subject: s.subject,
+        current: countMap[s.id] ?? 0,
+        bands: BAND_ORDER.reduce((acc, b) => ({ ...acc, [b]: bandMap[s.id]?.[b] ?? 0 }), {}),
+        unbanded: bandMap[s.id]?._unbanded ?? 0,
+      }))
+      .filter(s => s.current < target || BAND_ORDER.some(b => (s.bands[b] ?? 0) < target / BAND_ORDER.length))
       .sort((a, b) => a.current - b.current)
 
     return NextResponse.json({ totalQuestions, target, skillsBelow })
@@ -167,6 +204,90 @@ export async function POST(request) {
   try {
     const body = await request.json()
     const db = await connectDB()
+
+    // ── backfillBands mode ────────────────────────────────────────────────────
+    // One-off: stamp difficultyBand onto any existing question that lacks it,
+    // derived deterministically from its numeric difficulty. Idempotent.
+    if (body.backfillBands) {
+      const cursor = db.collection('questions').find(
+        { difficultyBand: { $exists: false } },
+        { projection: { _id: 1, difficulty: 1 } }
+      )
+      const ops = []
+      for await (const doc of cursor) {
+        ops.push({
+          updateOne: {
+            filter: { _id: doc._id },
+            update: { $set: { difficultyBand: bandForDifficulty(doc.difficulty) } },
+          },
+        })
+        if (ops.length >= 1000) {
+          await db.collection('questions').bulkWrite(ops)
+          ops.length = 0
+        }
+      }
+      let backfilled = 0
+      if (ops.length > 0) {
+        const res = await db.collection('questions').bulkWrite(ops)
+        backfilled = res.modifiedCount
+      }
+      const remaining = await db.collection('questions').countDocuments({ difficultyBand: { $exists: false } })
+      return NextResponse.json({ backfilled, remaining })
+    }
+
+    // ── generateBanded mode ───────────────────────────────────────────────────
+    // For each Prep–Year 6 Maths skill and each band, top up to targetPerBand.
+    // Re-runnable: resumes from existing per-band counts so it can run in waves.
+    if (body.generateBanded) {
+      const targetPerBand = body.targetPerBand ?? 20
+      const subjectFilter = body.subject
+      const gradeMin = body.gradeMin ?? 0
+      const gradeMax = body.gradeMax ?? 6
+      const skillGraph = getMathsSkills()
+        .filter(s => !subjectFilter || s.subject === subjectFilter)
+        .filter(s => s.grade >= gradeMin && s.grade <= gradeMax)
+
+      // Existing per-(skill,band) counts in one aggregation.
+      const existingCounts = await db.collection('questions').aggregate([
+        { $group: { _id: { skillId: '$skillId', band: '$difficultyBand' }, count: { $sum: 1 } } },
+      ]).toArray()
+      const bandCount = {} // `${skillId}|${band}` -> count
+      for (const row of existingCounts) {
+        if (row._id.band) bandCount[`${row._id.skillId}|${row._id.band}`] = row.count
+      }
+
+      const details = []
+      let totalGenerated = 0
+      let totalErrors = 0
+
+      for (const skill of skillGraph) {
+        for (const band of BAND_ORDER) {
+          const existing = bandCount[`${skill.id}|${band}`] ?? 0
+          const needed = targetPerBand - existing
+          if (needed <= 0) continue
+          try {
+            const questions = await generateForSkill(skill, needed, band)
+            const docs = questions.slice(0, needed).map((q, i) => buildQuestionDoc(q, skill, i, band))
+            if (docs.length > 0) await db.collection('questions').insertMany(docs)
+            totalGenerated += docs.length
+            details.push({ skillId: skill.id, band, generated: docs.length, existing })
+          } catch (err) {
+            console.error(`[generate banded] Failed for ${skill.id}/${band}:`, err.message)
+            totalErrors++
+            details.push({ skillId: skill.id, band, error: err.message, existing })
+          }
+          await sleep(500)
+        }
+      }
+
+      return NextResponse.json({
+        generated: totalGenerated,
+        errors: totalErrors,
+        targetPerBand,
+        skillsProcessed: skillGraph.length,
+        details,
+      })
+    }
 
     // ── generateAll mode ──────────────────────────────────────────────────────
     if (body.generateAll) {

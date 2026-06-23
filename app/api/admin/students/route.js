@@ -10,7 +10,23 @@ async function connectDB() {
   return client.db(process.env.DB_NAME || 'mymathshero')
 }
 
-export async function GET() {
+// Returns every student's profile + progress → admin-only. Gate on x-admin-key
+// like the other sensitive admin routes (support, notifications, feedback).
+function checkAdminKey(request) {
+  const expected = process.env.ADMIN_API_KEY
+  if (!expected) {
+    console.error('[admin/students] ADMIN_API_KEY env var missing')
+    return { ok: false, status: 500, error: 'Server misconfigured' }
+  }
+  if (request.headers.get('x-admin-key') !== expected) {
+    return { ok: false, status: 401, error: 'Unauthorized' }
+  }
+  return { ok: true }
+}
+
+export async function GET(request) {
+  const auth = checkAdminKey(request)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
   try {
     const db = await connectDB()
     const students = await db.collection('children')

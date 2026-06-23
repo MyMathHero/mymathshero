@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { normaliseGrade } from '@/lib/normaliseGrade'
+import { bandForDifficulty, bandForScore, adjacentBands, shiftBand } from '@/lib/difficulty'
 
 let client
 async function connectDB() {
@@ -68,15 +69,48 @@ export async function GET(request) {
       ? { ...baseMatch, id: { $nin: answeredCorrectlyIds } }
       : baseMatch
 
-    // $sample randomizes order so we rotate through the whole pool (this is the
-    // core fix — the old .find().limit() returned the same docs every call).
-    // Over-fetch for variety, then trim to `limit` below.
+    // Dynamic difficulty: serve questions matched to the student's mastery of
+    // THIS skill. A near-mastered student (high SmartScore) gets hard items; a
+    // beginner gets easy ones. As the score climbs mid-session, later fetches
+    // escalate the band — this breaks the "too easy forever" loop.
+    let targetBand = 'easy'
+    if (studentId) {
+      const scoreDoc = await db.collection('skill_scores').findOne(
+        { studentId, skillId },
+        { projection: { score: 1, feedbackBias: 1, _id: 0 } }
+      )
+      targetBand = bandForScore(scoreDoc?.score ?? 0)
+      // Apply the student's mandatory difficulty feedback on top of the score
+      // band: "too easy" → one band harder, "too hard" → one band easier.
+      if (scoreDoc?.feedbackBias) targetBand = shiftBand(targetBand, scoreDoc.feedbackBias)
+    }
+    // Constrain by band. Docs without difficultyBand are tolerated in widened
+    // passes (pre-backfill safety) but excluded from the tight target-band pass.
+    const inBand = (bands) => ({ difficultyBand: { $in: bands } })
+
+    // Over-fetch for variety, then trim to `limit` below. $sample randomizes
+    // order so we rotate through the whole pool.
+    // Pass 1: unmastered AND in the exact target band.
     let questions = await db.collection('questions')
-      .aggregate([{ $match: unmasteredMatch }, { $sample: { size: limit * 3 } }])
+      .aggregate([{ $match: { ...unmasteredMatch, ...inBand([targetBand]) } }, { $sample: { size: limit * 3 } }])
       .toArray()
 
-    // Not enough unmastered questions — fall back to the full skill pool so the
-    // student can keep practising (repeating only because stock is exhausted).
+    // Pass 2: unmastered, widened to adjacent bands.
+    if (questions.length < limit) {
+      questions = await db.collection('questions')
+        .aggregate([{ $match: { ...unmasteredMatch, ...inBand(adjacentBands(targetBand)) } }, { $sample: { size: limit * 3 } }])
+        .toArray()
+    }
+
+    // Pass 3: unmastered, any band (includes unbanded legacy docs).
+    if (questions.length < 2) {
+      questions = await db.collection('questions')
+        .aggregate([{ $match: unmasteredMatch }, { $sample: { size: limit * 3 } }])
+        .toArray()
+    }
+
+    // Pass 4: full skill pool so the student can keep practising (repeating only
+    // because unmastered stock is exhausted).
     if (questions.length < 2) {
       questions = await db.collection('questions')
         .aggregate([{ $match: baseMatch }, { $sample: { size: limit * 3 } }])
@@ -172,7 +206,9 @@ Return only the JSON array, no other text.`
     const stripPrefix = (s) => String(s ?? '').trim().replace(/^[A-Da-d][).\s]+/, '').trim()
     const toInsert = generated
       .filter(q => q && q.question && Array.isArray(q.options) && q.correctAnswer)
-      .map((q, i) => ({
+      .map((q, i) => {
+        const difficulty = typeof q.difficulty === 'number' ? q.difficulty : 0.5
+        return {
         id: `${skillId}_gen_${Date.now()}_${i}`,
         skillId,
         grade,
@@ -182,13 +218,15 @@ Return only the JSON array, no other text.`
         correctAnswer: stripPrefix(q.correctAnswer),
         explanation: q.explanation || '',
         hint: q.hint || '',
-        difficulty: typeof q.difficulty === 'number' ? q.difficulty : 0.5,
+        difficulty,
+        difficultyBand: bandForDifficulty(difficulty),
         active: true,
         aiGenerated: true,
         needsReview: true,
         source: 'AI-Generated',
         createdAt: new Date(),
-      }))
+        }
+      })
 
     if (toInsert.length > 0) {
       await db.collection('questions').insertMany(toInsert)

@@ -49,6 +49,14 @@ export default function AskHeroSheet({
   const [speaking, setSpeaking] = useState(false)
   const [robotMood, setRobotMood] =
     useState<'waving' | 'thinking' | 'happy'>('waving')
+  // Teach Me (animated whiteboard lesson) vs Ask (chat). Default to Teach when
+  // there's a question to teach.
+  const [tab, setTab] = useState<'teach' | 'ask'>(question ? 'teach' : 'ask')
+  const [lesson, setLesson] = useState<{ steps: any[]; manipulative?: string | null } | null>(null)
+  const [lessonLoading, setLessonLoading] = useState(false)
+  const [lessonError, setLessonError] = useState('')
+  const [stepIndex, setStepIndex] = useState(0)
+  const lessonPlayingRef = useRef(false)
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
   const playerRef = useRef<AudioPlayer | null>(null)
@@ -57,11 +65,18 @@ export default function AskHeroSheet({
   useEffect(() => {
     if (visible) {
       resetConversation()
+      const startTab: 'teach' | 'ask' = question ? 'teach' : 'ask'
+      setTab(startTab)
+      setLesson(null); setLessonError(''); setStepIndex(0)
       Animated.spring(slideAnim, {
         toValue: 0, useNativeDriver: true,
         tension: 65, friction: 11,
       }).start()
-      const t = setTimeout(() => { void playIntroduction() }, 600)
+      // Teach mode auto-fetches + narrates a lesson; Ask mode plays the chat intro.
+      const t = setTimeout(() => {
+        if (startTab === 'teach') { void runLesson() }
+        else { void playIntroduction() }
+      }, 600)
       return () => clearTimeout(t)
     }
     Animated.timing(slideAnim, {
@@ -91,6 +106,41 @@ export default function AskHeroSheet({
       : `Hi ${studentName}! I'm Hero, your AI Maths tutor. I won't give you the answer, but I'll help you figure it out. What part are you stuck on?`
     addHeroMessage(intro, true)
     await speakWithOpenAI(intro)
+  }
+
+  // Fetch a structured lesson and narrate it step-by-step, revealing each line
+  // as Hero speaks it. Reuses speakWithOpenAI (OpenAI TTS via expo/fetch).
+  async function runLesson() {
+    if (!question || lessonLoading) return
+    setLessonLoading(true); setLessonError(''); setRobotMood('thinking')
+    try {
+      const studentId = (await SecureStore.getItemAsync('user_id')) || ''
+      const res = await api.post('/api/student/lesson', {
+        questionText: question, questionId: questionId || null,
+        skillId: skillId || null, studentId, grade,
+      })
+      if (res.data?.upgrade) { setLessonError(res.data.message || 'Teach Me is a Premium feature 💎'); setRobotMood('waving'); return }
+      const lsn = res.data?.lesson
+      if (!lsn?.steps?.length) { setLessonError("I couldn't build a lesson right now."); setRobotMood('waving'); return }
+      setLesson(lsn)
+      setStepIndex(0)
+      lessonPlayingRef.current = true
+      // Narrate steps in order, revealing each as we speak it.
+      for (let i = 0; i < lsn.steps.length; i++) {
+        if (!lessonPlayingRef.current) break
+        setStepIndex(i)
+        setRobotMood('happy')
+        const say = lsn.steps[i]?.say
+        if (say) await speakWithOpenAI(say)
+        else await new Promise(r => setTimeout(r, 1200))
+      }
+      setRobotMood('happy')
+    } catch {
+      setLessonError("I had trouble connecting. Try again! 🤖")
+      setRobotMood('waving')
+    } finally {
+      setLessonLoading(false)
+    }
   }
 
   // Try the OpenAI nova proxy at /api/hero-voice; fall back to expo-speech.
@@ -237,8 +287,25 @@ export default function AskHeroSheet({
   }
 
   async function handleClose() {
+    lessonPlayingRef.current = false
     await stopAllAudio()
     onClose()
+  }
+
+  // Switch tabs: stop any lesson/voice, then enter the chosen mode.
+  function switchTab(next: 'teach' | 'ask') {
+    if (next === tab) return
+    lessonPlayingRef.current = false
+    void stopAllAudio()
+    setTab(next)
+    if (next === 'teach') { if (!lesson) void runLesson() }
+    else if (messages.length === 0) { void playIntroduction() }
+  }
+
+  function replayLesson() {
+    if (!lesson) return
+    lessonPlayingRef.current = false
+    void stopAllAudio().then(() => { setStepIndex(0); setLesson(null); void runLesson() })
   }
 
   if (!visible) return null
@@ -256,7 +323,7 @@ export default function AskHeroSheet({
         onPress={handleClose}
       />
 
-      <Animated.View style={[s.sheet, { transform: [{ translateY: slideAnim }] }]}>
+      <Animated.View style={[s.sheet, tab === 'teach' && s.sheetTall, { transform: [{ translateY: slideAnim }] }]}>
         <View style={s.handle} />
 
         {/* Hero header */}
@@ -268,10 +335,10 @@ export default function AskHeroSheet({
 
           <View style={{ flex: 1 }}>
             <Text style={s.heroName}>
-              Ask <Text style={{ color: '#C49A1A' }}>Hero</Text> ✦
+              {tab === 'teach' ? <>Hero is <Text style={{ color: '#C49A1A' }}>teaching</Text> ✦</> : <>Ask <Text style={{ color: '#C49A1A' }}>Hero</Text> ✦</>}
             </Text>
             <Text style={s.heroSub}>
-              {loading ? '🤔 Hero is thinking...'
+              {loading || lessonLoading ? '🤔 Hero is thinking...'
                 : speaking ? '🔊 Hero is speaking...'
                 : '🤖 Your AI Maths Tutor'}
             </Text>
@@ -282,6 +349,55 @@ export default function AskHeroSheet({
           </TouchableOpacity>
         </View>
 
+        {/* Tabs (only when a question is present to teach) */}
+        {!general && (
+          <View style={s.tabsRow}>
+            <TouchableOpacity onPress={() => switchTab('teach')} style={[s.tab, tab === 'teach' && s.tabActive]}>
+              <Text style={[s.tabText, tab === 'teach' && s.tabTextActive]}>✏️ Teach Me</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => switchTab('ask')} style={[s.tab, tab === 'ask' && s.tabActive]}>
+              <Text style={[s.tabText, tab === 'ask' && s.tabTextActive]}>💬 Ask Hero</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Teach Me: animated whiteboard lesson ───────────────────────── */}
+        {tab === 'teach' && (
+          <View style={{ flex: 1 }}>
+            <View style={s.questionRef}>
+              <Text style={s.questionRefLabel}>📝 Question</Text>
+              <Text style={s.questionRefText} numberOfLines={3}>{question}</Text>
+            </View>
+            <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
+              {lessonLoading && !lesson && (
+                <Text style={s.wbHint}>Hero is preparing your lesson… ✦✦✦</Text>
+              )}
+              {!!lessonError && <Text style={s.wbError}>{lessonError}</Text>}
+              {lesson?.steps.slice(0, stepIndex + 1).map((st: any, i: number) => (
+                <View key={i} style={{ marginBottom: 16 }}>
+                  {!!st.say && <Text style={s.wbSay}>{st.say}</Text>}
+                  {!!st.write && (
+                    <Text style={[s.wbWrite, st.emphasis === 'result' && s.wbResult]}>{st.write}</Text>
+                  )}
+                </View>
+              ))}
+              {lesson?.manipulative && stepIndex >= (lesson.steps.length - 1) && (
+                <Manipulative tool={lesson.manipulative} />
+              )}
+            </ScrollView>
+            {lesson && (
+              <View style={s.lessonControls}>
+                <TouchableOpacity onPress={replayLesson} style={s.lessonBtn}>
+                  <Text style={s.lessonBtnText}>⏮ Replay</Text>
+                </TouchableOpacity>
+                <Text style={s.lessonStep}>Step {Math.min(stepIndex + 1, lesson.steps.length)} / {lesson.steps.length}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Ask Hero: chat (only in ask mode) ──────────────────────────── */}
+        {tab === 'ask' && (<>
         {/* Current question reference (only in question mode) */}
         <View style={s.questionRef}>
           <Text style={s.questionRefLabel}>
@@ -364,6 +480,7 @@ export default function AskHeroSheet({
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        </>)}
       </Animated.View>
     </Modal>
   )
@@ -386,6 +503,22 @@ const s = StyleSheet.create({
     borderTopWidth: 3,
     borderColor: '#C49A1A',
   },
+  sheetTall: { maxHeight: '94%', minHeight: '90%' },
+  tabsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#1B2B4B' },
+  tab: { paddingHorizontal: 16, paddingVertical: 10, borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)' },
+  tabActive: { backgroundColor: '#C49A1A' },
+  tabText: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 13 },
+  tabTextActive: { color: 'white' },
+  whiteboard: { flex: 1, backgroundColor: '#FCFBF7' },
+  wbHint: { color: '#64748B', fontSize: 17 },
+  wbError: { color: '#B91C1C', fontSize: 16 },
+  wbSay: { color: '#1B2B4B', fontSize: 18, lineHeight: 25, marginBottom: 6 },
+  wbWrite: { color: '#0f3d6e', fontSize: 22, fontWeight: '600' },
+  wbResult: { color: '#15803d', fontSize: 26, fontWeight: '800', backgroundColor: '#ECFDF5', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  lessonControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderTopWidth: 1, borderColor: '#E2E8F0' },
+  lessonBtn: { backgroundColor: '#C49A1A', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  lessonBtnText: { color: 'white', fontWeight: '800', fontSize: 14 },
+  lessonStep: { color: '#64748B', fontSize: 13, fontWeight: '600' },
   handle: {
     width: 44, height: 4,
     backgroundColor: '#E2E8F0',

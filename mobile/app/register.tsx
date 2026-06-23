@@ -36,6 +36,9 @@ export default function Register() {
   const [childName, setChildName] = useState('')
   const [childGrade, setChildGrade] = useState('3')
   const [childAvatar] = useState('🦊')
+  // Parent insight — feeds AI placement so we don't trust the enrolled grade alone.
+  const [perceivedLevel, setPerceivedLevel] = useState<'below' | 'at' | 'above'>('at')
+  const [confidence, setConfidence] = useState<'low' | 'medium' | 'high'>('medium')
 
   // Plan — captured locally only (no backend support yet)
   const [selectedPlan, setSelectedPlan] = useState<'standard' | 'premium'>('premium')
@@ -92,6 +95,8 @@ export default function Register() {
           child_name: childName.trim(),
           grade: childGrade,
           avatar: childAvatar,
+          perceivedLevel,
+          confidence,
         })
       } catch (childErr) {
         // Non-fatal — parent can add a child later from the dashboard.
@@ -222,6 +227,32 @@ export default function Register() {
                   ))}
                 </View>
               </ScrollView>
+
+              <Text style={s.sectionLabel}>How is your child performing in maths?</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+                {([['below', 'Below'], ['at', 'At level'], ['above', 'Above']] as const).map(([val, label]) => (
+                  <TouchableOpacity
+                    key={val}
+                    onPress={() => setPerceivedLevel(val)}
+                    style={[s.gradeBtn, { flex: 1, alignItems: 'center' }, perceivedLevel === val && s.gradeBtnActive]}
+                  >
+                    <Text style={[s.gradeBtnText, perceivedLevel === val && s.gradeBtnTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.sectionLabel}>How confident are you about that?</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+                {([['low', 'Not sure'], ['medium', 'Fairly'], ['high', 'Very sure']] as const).map(([val, label]) => (
+                  <TouchableOpacity
+                    key={val}
+                    onPress={() => setConfidence(val)}
+                    style={[s.gradeBtn, { flex: 1, alignItems: 'center' }, confidence === val && s.gradeBtnActive]}
+                  >
+                    <Text style={[s.gradeBtnText, confidence === val && s.gradeBtnTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <TouchableOpacity style={s.btn} onPress={nextStep}>
                 <Text style={s.btnText}>Next — Choose Plan →</Text>
