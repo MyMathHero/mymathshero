@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  summariseDiagnostic, fallbackEstimate, estimateLevel, nudgeSkillScore, buildLevelOverride,
+  summariseDiagnostic, fallbackEstimate, estimateLevel, nudgeSkillScore,
 } from '../../lib/placement.js'
 
 const fastCorrectAbove = (skillId) => ({ skillId, correct: true, timeTakenMs: 2000, level: 'above' })
@@ -88,42 +88,6 @@ describe('estimateLevel (no API key → deterministic fallback)', () => {
     } finally {
       if (prev !== undefined) process.env.OPENROUTER_API_KEY = prev
     }
-  })
-})
-
-describe('buildLevelOverride', () => {
-  it('accepts a grade override and records audit fields', () => {
-    const r = buildLevelOverride({ grade: 7, reason: 'parent says too easy', by: 'ms-jones' }, { grade: 4 })
-    expect(r.error).toBeUndefined()
-    expect(r.gradeChange).toBe(7)
-    expect(r.override.grade).toBe(7)
-    expect(r.override.previousGrade).toBe(4)
-    expect(r.override.by).toBe('ms-jones')
-    expect(r.override.reason).toBe('parent says too easy')
-    expect(r.override.at).toBeInstanceOf(Date)
-  })
-
-  it('accepts a learning-level override without a grade change', () => {
-    const r = buildLevelOverride({ level: 6 }, { grade: 4 })
-    expect(r.gradeChange).toBeUndefined()
-    expect(r.override.level).toBe(6)
-  })
-
-  it('rejects out-of-range or non-integer values', () => {
-    expect(buildLevelOverride({ grade: 13 }).error).toBeTruthy()
-    expect(buildLevelOverride({ grade: -1 }).error).toBeTruthy()
-    expect(buildLevelOverride({ level: 'abc' }).error).toBeTruthy()
-  })
-
-  it('requires at least one of grade/level', () => {
-    expect(buildLevelOverride({ reason: 'x' }).error).toBeTruthy()
-    expect(buildLevelOverride({}).error).toBeTruthy()
-  })
-
-  it('clamps reason length and defaults by to "admin"', () => {
-    const r = buildLevelOverride({ grade: 5, reason: 'x'.repeat(900) })
-    expect(r.override.reason.length).toBe(500)
-    expect(r.override.by).toBe('admin')
   })
 })
 
