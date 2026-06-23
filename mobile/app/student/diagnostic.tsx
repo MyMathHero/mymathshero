@@ -29,6 +29,9 @@ export default function Diagnostic() {
   // Real per-question timing — feeds the placement speed signal. Previously
   // hardcoded to 5000ms, which hid the "fast + correct = too easy" signal.
   const questionStartRef = useRef<number>(Date.now())
+  // Adaptive climb: next harder stage's grade + the current stage's results.
+  const [nextStageGrade, setNextStageGrade] = useState<number | null>(null)
+  const stageResultsRef = useRef<any[]>([])
 
   // Reset the per-question stopwatch whenever a new question is shown.
   useEffect(() => {
@@ -43,11 +46,32 @@ export default function Diagnostic() {
       )
       const res = await studentAPI.diagnostic(grade)
       setQuestions(res.data.questions || [])
+      setNextStageGrade(res.data.nextStageGrade ?? null)
+      stageResultsRef.current = []
       setStage('quiz')
     } catch {
       Alert.alert('Error', 'Could not load assessment. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch one harder stage and append it; step into it. Returns true if added.
+  async function loadNextStage(): Promise<boolean> {
+    const sg = nextStageGrade
+    if (sg == null) return false
+    try {
+      const res = await studentAPI.diagnosticStage(sg)
+      const qs = res.data?.questions || []
+      if (!qs.length) return false
+      stageResultsRef.current = []
+      setNextStageGrade(res.data?.nextStageGrade ?? null)
+      setQuestions(prev => [...prev, ...qs])
+      setCurrent(i => i + 1)
+      setSelected(null)
+      return true
+    } catch {
+      return false
     }
   }
 
@@ -65,13 +89,21 @@ export default function Diagnostic() {
     }
     const updated = [...results, newResult]
     setResults(updated)
-    setTimeout(() => {
+    if (q.level === 'above') stageResultsRef.current = [...stageResultsRef.current, newResult]
+
+    setTimeout(async () => {
       if (current < questions.length - 1) {
         setCurrent(i => i + 1)
         setSelected(null)
-      } else {
-        finishDiagnostic(updated)
+        return
       }
+      // Queue exhausted — climb if the student aced this above-grade stage
+      // (≥2 correct AND ≥70%); else finish. Mirrors shouldClimb() in lib/placement.
+      const sr = stageResultsRef.current
+      const correctN = sr.filter(x => x.correct).length
+      const aced = sr.length > 0 && correctN >= 2 && correctN / sr.length >= 0.7
+      if (aced && nextStageGrade != null && await loadNextStage()) return
+      finishDiagnostic(updated)
     }, 800)
   }
 

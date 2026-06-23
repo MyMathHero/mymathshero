@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   summariseDiagnostic, fallbackEstimate, estimateLevel, nudgeSkillScore,
+  shouldClimb, MAX_DIAGNOSTIC_GRADE,
 } from '../../lib/placement.js'
 
 const fastCorrectAbove = (skillId) => ({ skillId, correct: true, timeTakenMs: 2000, level: 'above' })
@@ -88,6 +89,28 @@ describe('estimateLevel (no API key → deterministic fallback)', () => {
     } finally {
       if (prev !== undefined) process.env.OPENROUTER_API_KEY = prev
     }
+  })
+})
+
+describe('shouldClimb (adaptive diagnostic)', () => {
+  const ok = { correct: true }, no = { correct: false }
+  it('climbs when the student aces a stage (≥2 correct, ≥70%)', () => {
+    expect(shouldClimb([ok, ok, ok], 6)).toBe(true)   // 3/3
+    expect(shouldClimb([ok, ok], 6)).toBe(true)       // 2/2
+  })
+  it('70% threshold is enforced', () => {
+    expect(shouldClimb([ok, ok, no], 6)).toBe(false)     // 2/3 ≈ 0.67 < 0.7
+    expect(shouldClimb([ok, ok, ok, no], 6)).toBe(true)  // 3/4 = 0.75
+  })
+  it('requires at least 2 correct', () => {
+    expect(shouldClimb([ok], 6)).toBe(false)        // only 1 correct
+    expect(shouldClimb([ok, no, no], 6)).toBe(false)
+  })
+  it('stops at the max grade', () => {
+    expect(shouldClimb([ok, ok, ok], MAX_DIAGNOSTIC_GRADE)).toBe(false)
+  })
+  it('does not climb on an empty stage', () => {
+    expect(shouldClimb([], 6)).toBe(false)
   })
 })
 

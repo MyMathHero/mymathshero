@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { getRecommendations } from '@/lib/recommender'
+import { getRecommendations, getEffectiveCeiling } from '@/lib/recommender'
 
 let client
 async function connectDB() {
@@ -31,7 +31,12 @@ export async function GET(request) {
     const scoreMap = {}
     skillScores.forEach(s => { scoreMap[s.skillId] = s.score })
 
-    const recommendations = getRecommendations(student.grade || 3, scoreMap, 5)
+    // Serve at the student's effective grade — lifted by mastery progression or
+    // the AI's diagnostic estimate so advanced students get above-grade work.
+    const effectiveGrade = getEffectiveCeiling(student.grade || 3, scoreMap, {
+      placementFloor: student?.placement?.estimatedGrade ?? 0,
+    })
+    const recommendations = getRecommendations(effectiveGrade, scoreMap, 5)
 
     return NextResponse.json({ recommendations })
   } catch (error) {

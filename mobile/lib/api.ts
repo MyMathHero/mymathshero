@@ -58,6 +58,9 @@ export const studentAPI = {
     api.get(`/api/student/leaderboard?studentId=${studentId}&type=grade&period=monthly`),
   diagnostic: (grade: number) =>
     api.get(`/api/student/diagnostic?grade=${grade}&subject=Maths`),
+  // Adaptive climb: one harder batch at exactly `stageGrade`.
+  diagnosticStage: (stageGrade: number) =>
+    api.get(`/api/student/diagnostic?stageGrade=${stageGrade}&subject=Maths`),
   submitDiagnostic: (data: any) =>
     api.post('/api/student/diagnostic', data),
   changePin: (studentId: string, newPin: string) =>

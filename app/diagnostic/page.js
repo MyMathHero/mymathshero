@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
@@ -29,6 +29,10 @@ export default function DiagnosticPage() {
   const [error, setError] = useState('')
   const [skillsSet, setSkillsSet] = useState(0)
   const [placement, setPlacement] = useState(null)
+  // Adaptive climb: next harder stage's grade, and the running results of the
+  // current above-grade stage (a ref so the advance timeout reads fresh values).
+  const [nextStageGrade, setNextStageGrade] = useState(null)
+  const stageResultsRef = useRef([])
 
   // Auth check on mount — must be a logged-in student.
   useEffect(() => {
@@ -70,9 +74,30 @@ export default function DiagnosticPage() {
       setQuestions(data.questions)
       setIndex(0)
       setResults([])
+      // Adaptive climb: where the next harder stage begins (grade+2), or null at ceiling.
+      setNextStageGrade(data.nextStageGrade ?? null)
+      stageResultsRef.current = []
       setStage('quiz')
     } catch {
       setError('Network error. Please try again.')
+    }
+  }
+
+  // Fetch one harder stage and append it; advance into it. Returns true if added.
+  async function loadNextStage(allResults) {
+    const sg = nextStageGrade
+    if (sg == null) return false
+    try {
+      const res = await fetch(`/api/student/diagnostic?stageGrade=${sg}&subject=Maths`)
+      const data = await res.json()
+      if (!res.ok || !data.questions?.length) return false
+      stageResultsRef.current = []
+      setNextStageGrade(data.nextStageGrade ?? null)
+      setQuestions(prev => [...prev, ...data.questions])
+      setIndex(i => i + 1) // step into the first appended question
+      return true
+    } catch {
+      return false
     }
   }
 
@@ -91,15 +116,24 @@ export default function DiagnosticPage() {
       level: q.level, // 'at' | 'below' | 'above' — weights placement scoring
     }
     setResults(prev => [...prev, r])
+    // Track results of the current adaptive stage (above-grade probes) so we can
+    // decide whether to climb to a harder stage.
+    if (q.level === 'above') stageResultsRef.current = [...stageResultsRef.current, r]
 
-    // brief pause for feedback, then advance
-    setTimeout(() => {
+    setTimeout(async () => {
       setAnswerLocked(null)
       if (index + 1 < questions.length) {
         setIndex(i => i + 1)
-      } else {
-        finishQuiz([...results, r])
+        return
       }
+      // Queue exhausted. If this was an above-grade stage the student aced,
+      // climb one grade higher; otherwise finish. Mirrors shouldClimb() in
+      // lib/placement.js (≥2 correct AND ≥70% of the stage).
+      const sr = stageResultsRef.current
+      const correctN = sr.filter(x => x.correct).length
+      const aced = sr.length > 0 && correctN >= 2 && correctN / sr.length >= 0.7
+      if (aced && nextStageGrade != null && await loadNextStage([...results, r])) return
+      finishQuiz([...results, r])
     }, 700)
   }
 

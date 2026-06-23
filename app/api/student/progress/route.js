@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { getRecommendations, getSkillTreeForGrade, getSkillGraph } from '@/lib/recommender'
+import { getRecommendations, getSkillTreeForGrade, getSkillGraph, getEffectiveCeiling } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
 
 // Belt-and-braces: ensure nothing non-Maths leaks to the client. The recommender
@@ -80,15 +80,22 @@ export async function GET(request) {
     // 4. Calculate weekly activity (questions per day)
     const weeklyActivity = buildWeeklyActivity(recentSessions)
 
+    // Effective grade — lifted above the enrolled grade by mastery progression
+    // or the AI's diagnostic estimate, so an advanced student's recs + skill tree
+    // show their real working level (incl. Years 7–12).
+    const effectiveGrade = getEffectiveCeiling(student.grade || 3, scoreMap, {
+      placementFloor: student?.placement?.estimatedGrade ?? 0,
+    })
+
     // 5. Get recommendations (Maths only)
     const recommendations = mathsOnly(getRecommendations(
-      student.grade || 3,
+      effectiveGrade,
       scoreMap,
       5
     ))
 
     // 6. Get skill tree (Maths only)
-    const skillTree = mathsOnly(getSkillTreeForGrade(student.grade || 3, scoreMap))
+    const skillTree = mathsOnly(getSkillTreeForGrade(effectiveGrade, scoreMap))
 
     // 7. Calculate strand breakdown
     const strandBreakdown = buildStrandBreakdown(skillScores)

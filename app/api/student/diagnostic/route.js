@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { summariseDiagnostic, estimateLevel, nudgeSkillScore } from '@/lib/placement'
+import { summariseDiagnostic, estimateLevel, nudgeSkillScore, MAX_DIAGNOSTIC_GRADE } from '@/lib/placement'
+import { SKILL_ID_MAP } from '@/lib/skillNames'
 
 let client
 async function connectDB() {
@@ -22,16 +23,63 @@ const TARGET_MAX = 15
 // (plus a taste of grade-1 and grade+1) gets probed, ~12–15 questions total.
 // Auto-generates questions for any skill that's short so the diagnostic is
 // always full-length even on a thinly-seeded grade.
+// Maths skills at an exact grade. ≤6 from the curated graph, ≥7 from SKILL_ID_MAP
+// (which has the Years 7–12 skills the adaptive diagnostic climbs into).
+function skillsAtGrade(allCurated, grade) {
+  if (grade <= 6) return allCurated.filter(s => s.grade === grade)
+  return Object.entries(SKILL_ID_MAP)
+    .filter(([id]) => parseInt(id.match(/^m_(\d+)_/)?.[1] ?? '-1', 10) === grade)
+    .map(([id, info]) => ({ id, name: info.name, subject: 'Maths', grade }))
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const grade = parseInt(searchParams.get('grade') || '3', 10)
     const subject = searchParams.get('subject') || 'Maths'
+    // Adaptive climb: when the student aced a stage, the client asks for the next
+    // grade up via ?stageGrade=N. Returns a small batch at that grade + whether a
+    // further stage exists.
+    const stageGrade = searchParams.get('stageGrade') != null
+      ? parseInt(searchParams.get('stageGrade'), 10) : null
     const db = await connectDB()
 
     const { getSkillGraph } = await import('@/lib/recommender')
     const { generateMoreQuestions } = await import('@/app/api/student/questions/route')
     const allSkills = getSkillGraph() // Maths-only
+
+    // Sample `depth` questions for a skill; auto-generate if short. (Shared by
+    // base + stage modes.)
+    async function sampleSkill(skillId, depth, gradeForGen) {
+      const match = {
+        skillId, active: { $ne: false },
+        $or: [{ subject: { $in: ['Maths', 'Mathematics', 'Math'] } }, { subject: { $exists: false } }],
+      }
+      let qs = await db.collection('questions').aggregate([{ $match: match }, { $sample: { size: depth } }]).toArray()
+      if (qs.length < depth) {
+        await generateMoreQuestions(skillId, gradeForGen, subject, db)
+        qs = await db.collection('questions').aggregate([{ $match: match }, { $sample: { size: depth } }]).toArray()
+      }
+      return qs
+    }
+    const tagQ = (arr, level) => arr.map(({ correctAnswer, _id, ...q }) => ({
+      ...q, questionId: q.id || _id?.toString(), level, correctAnswer,
+    }))
+
+    // ── Adaptive stage: a small batch at exactly `stageGrade` ────────────────
+    if (stageGrade != null && stageGrade >= 0 && stageGrade <= MAX_DIAGNOSTIC_GRADE) {
+      const skills = skillsAtGrade(allSkills, stageGrade).slice(0, 3)
+      const out = []
+      for (const s of skills) {
+        out.push(...tagQ(await sampleSkill(s.id, 1, stageGrade), 'above'))
+        if (out.length >= 3) break
+      }
+      return NextResponse.json({
+        questions: out.slice(0, 3),
+        stageGrade,
+        nextStageGrade: stageGrade < MAX_DIAGNOSTIC_GRADE ? stageGrade + 1 : null,
+      })
+    }
 
     // Build the skill set to probe: every at-grade skill, plus up to 2 each from
     // grade-1 (below) and grade+1 (above) so we can place AND probe the ceiling.
@@ -49,39 +97,9 @@ export async function GET(request) {
       ...aboveSkills.map(s => ({ skill: s, level: 'above', depth: PER_SKILL })),
     ]
 
-    // Sample `depth` questions for a planned skill; auto-generate if short.
-    async function sampleForSkill(skillId, depth) {
-      const match = {
-        skillId,
-        active: { $ne: false },
-        $or: [
-          { subject: { $in: ['Maths', 'Mathematics', 'Math'] } },
-          { subject: { $exists: false } },
-        ],
-      }
-      let qs = await db.collection('questions')
-        .aggregate([{ $match: match }, { $sample: { size: depth } }])
-        .toArray()
-      if (qs.length < depth) {
-        // Top up this skill via the same AI generator the practice flow uses.
-        await generateMoreQuestions(skillId, grade, subject, db)
-        qs = await db.collection('questions')
-          .aggregate([{ $match: match }, { $sample: { size: depth } }])
-          .toArray()
-      }
-      return qs
-    }
-
-    const tag = (arr, level) => arr.map(({ correctAnswer, _id, ...q }) => ({
-      ...q,
-      questionId: q.id || _id?.toString(),
-      level,
-      correctAnswer, // kept client-side for self-grade during the diagnostic
-    }))
-
     const below = [], at = [], above = []
     for (const { skill, level, depth } of plan) {
-      const qs = tag(await sampleForSkill(skill.id, depth), level)
+      const qs = tagQ(await sampleSkill(skill.id, depth, grade), level)
       if (level === 'below') below.push(...qs)
       else if (level === 'above') above.push(...qs)
       else at.push(...qs)
@@ -94,9 +112,14 @@ export async function GET(request) {
     // Keep within the target band so it's a steady ~3 minutes.
     if (questions.length > TARGET_MAX) questions = questions.slice(0, TARGET_MAX)
 
+    // The base batch already probes grade+1 ("above"). Adaptive climbing, when
+    // the student aces it, starts at grade+2 and continues up to Year 12.
+    const nextStageGrade = grade + 2 <= MAX_DIAGNOSTIC_GRADE ? grade + 2 : null
+
     return NextResponse.json({
       questions,
       total: questions.length,
+      nextStageGrade,
       // Surfaced for debugging/telemetry; harmless to clients that ignore it.
       meta: { skillsProbed: plan.length, target: [TARGET_MIN, TARGET_MAX] },
     })

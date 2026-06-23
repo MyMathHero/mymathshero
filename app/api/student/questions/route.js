@@ -40,9 +40,15 @@ export async function GET(request) {
     // 'Prep'), and unknown values — falls back to skillDoc.grade or 3. Without
     // this, a request like grade='Year 6' becomes NaN → silently downgrades to
     // grade 3 questions for a Year 6 student.
-    const gradeNum = gradeParam != null && gradeParam !== ''
-      ? normaliseGrade(gradeParam)
-      : (skillDoc?.grade ?? 3)
+    // The skillId encodes the true grade (m_<grade>_…). For Years 7–12 prefer
+    // that over the client `grade` param, since normaliseGrade clamps to 0–6 and
+    // would mis-target AI top-up / cross-skill fallback for above-Year-6 skills.
+    const skillIdGrade = parseInt(skillId.match(/^m_(\d+)_/)?.[1] ?? '', 10)
+    const gradeNum = Number.isFinite(skillIdGrade) && skillIdGrade > 6
+      ? skillIdGrade
+      : (gradeParam != null && gradeParam !== ''
+          ? normaliseGrade(gradeParam)
+          : (skillDoc?.grade ?? 3))
 
     // Questions this student has already answered CORRECTLY for this skill —
     // mastered questions shouldn't repeat. Wrong ones stay in the pool for practice.

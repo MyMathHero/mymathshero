@@ -278,10 +278,13 @@ export async function POST(request) {
     const scoreMap = {}
     allScores.forEach(s => { scoreMap[s.skillId] = s.score })
 
-    // Dynamic grade ceiling: once a student has mastered most of their grade's
-    // skills, recommend from grade+1 so advanced kids stay challenged.
+    // Dynamic grade ceiling: mastery progression OR the AI's diagnostic estimate
+    // (placementFloor) lifts an advanced student above their enrolled grade —
+    // they jump straight to their estimated level and stay challenged.
     const baseGrade = student?.grade ?? 3
-    const effectiveGrade = getEffectiveCeiling(baseGrade, scoreMap)
+    const effectiveGrade = getEffectiveCeiling(baseGrade, scoreMap, {
+      placementFloor: student?.placement?.estimatedGrade ?? 0,
+    })
     const gradeUp = effectiveGrade > baseGrade
     const recommendations = getRecommendations(
       effectiveGrade,
