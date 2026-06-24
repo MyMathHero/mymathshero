@@ -70,7 +70,13 @@ export async function POST(request) {
     const existingCount = await db.collection('children').countDocuments({
       $or: [{ parentId }, { parent_id: parentId }],
     })
-    if (existingCount >= 1 && !parent.siblingAddonActive) {
+    // Allowance = 1 base child + any admin-granted extra slots (testers, support).
+    // adminExtraStudents is set ONLY by the admin grant endpoint and is kept
+    // separate from the paid siblingAddonActive flag so Stripe events never
+    // clobber it. A paid sibling add-on still means unlimited additions.
+    const adminExtra = Math.max(0, Number(parent.adminExtraStudents) || 0)
+    const allowedWithoutAddon = 1 + adminExtra
+    if (existingCount >= allowedWithoutAddon && !parent.siblingAddonActive) {
       return NextResponse.json({
         error: 'Sibling add-on required for additional children',
         requiresSiblingAddon: true,

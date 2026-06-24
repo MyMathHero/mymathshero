@@ -475,7 +475,10 @@ export default function ParentDashboard() {
       return
     }
     const existingChildren = children?.length || 0
-    if (existingChildren >= 1 && !subStatus?.siblingAddonActive) {
+    // Allowance = 1 base + any admin-granted free extra slots (testers/support).
+    // A paid sibling add-on means unlimited additions.
+    const allowedWithoutAddon = subStatus?.allowedWithoutAddon ?? 1
+    if (existingChildren >= allowedWithoutAddon && !subStatus?.siblingAddonActive) {
       const ok = confirm(
         'Adding another child costs $10/month (sibling add-on).\n\nYou\'ll be sent to checkout. Once paid, come back here and tap "Add Another Child" again to enter their details.\n\nContinue?'
       )
@@ -1564,7 +1567,8 @@ export default function ParentDashboard() {
                   )}
                   {(() => {
                     const existingCount = children?.length || 0
-                    const needsSiblingPayment = existingCount >= 1 && !subStatus?.siblingAddonActive
+                    const allowedWithoutAddon = subStatus?.allowedWithoutAddon ?? 1
+                    const needsSiblingPayment = existingCount >= allowedWithoutAddon && !subStatus?.siblingAddonActive
                     return (
                       <button
                         onClick={handleAddChildClick}

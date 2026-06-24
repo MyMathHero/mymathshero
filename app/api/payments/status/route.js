@@ -63,6 +63,13 @@ export async function GET(request) {
       subscriptionStatus: parent.subscriptionStatus ?? null,
       foundingFamily: parent.foundingFamily ?? false,
       currentPeriodEnd: parent.currentPeriodEnd ?? null,
+      // Sibling/extra-child allowance. siblingAddonActive = paid add-on (unlimited
+      // extra children). adminExtraStudents = admin-granted free extra slots.
+      // allowedWithoutAddon lets the dashboards skip the $10 prompt when there's
+      // still headroom from a grant.
+      siblingAddonActive: parent.siblingAddonActive === true,
+      adminExtraStudents: Math.max(0, Number(parent.adminExtraStudents) || 0),
+      allowedWithoutAddon: 1 + Math.max(0, Number(parent.adminExtraStudents) || 0),
       status: paymentSession?.status ?? 'none',
       trialEndsAt,
       // First-month-free promo fields.
