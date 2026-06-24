@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import RoboVideo from './RoboVideo'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
+import { startRecording, isVoiceInputSupported } from '@/lib/heroListen'
 import AskHeroIcon from './AskHeroIcon'
 import Manipulative from './manipulatives/Manipulative'
 
@@ -38,6 +39,10 @@ export default function AskHero({
   const [loading, setLoading] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  // Voice input (speech-to-speech, report #6): 'idle' | 'recording' | 'transcribing'
+  const [voiceState, setVoiceState] = useState('idle')
+  const recorderRef = useRef(null)
+  const voiceSupported = isVoiceInputSupported()
   const chatEndRef = useRef(null)
   const mutedRef = useRef(false)
 
@@ -83,9 +88,11 @@ export default function AskHero({
     }
   }
 
-  async function handleChatSend() {
-    if (!chatInput.trim() || loading) return
-    const userMsg = chatInput.trim()
+  async function handleChatSend(explicitMsg) {
+    // explicitMsg lets voice input send a transcript directly (state updates are
+    // async, so we can't rely on chatInput having been set yet).
+    const userMsg = (typeof explicitMsg === 'string' ? explicitMsg : chatInput).trim()
+    if (!userMsg || loading) return
     setChatInput('')
     setChatHistory(prev => [...prev, { role: 'student', message: userMsg }])
     // Build the full history sent to the API (gives the model memory).
@@ -132,6 +139,38 @@ export default function AskHero({
     setIsSpeaking(false)
   }
 
+  // Mic tap (speech-to-speech, report #6): tap to start recording, tap again to
+  // stop → transcribe (Whisper) → auto-send to Hero, whose reply is spoken back.
+  async function handleMicTap() {
+    if (loading) return
+    if (voiceState === 'recording') {
+      // Stop + transcribe.
+      const rec = recorderRef.current
+      recorderRef.current = null
+      setVoiceState('transcribing')
+      try {
+        const text = await rec.stopAndTranscribe(studentId)
+        setVoiceState('idle')
+        if (text) handleChatSend(text)   // straight into the normal send → Hero speaks reply
+      } catch (err) {
+        setVoiceState('idle')
+        if (String(err?.message) === 'premium_required') {
+          addHeroMessage("Talking to me is a Premium feature 💎 You can still type your question!", 'talking')
+        }
+        // Otherwise stay silent — the student can just type.
+      }
+      return
+    }
+    // Start recording. Stop Hero talking first so it doesn't hear itself.
+    if (isSpeaking) heroStop()
+    try {
+      recorderRef.current = await startRecording()
+      setVoiceState('recording')
+    } catch {
+      setVoiceState('idle')
+    }
+  }
+
   function replayLastMessage() {
     const lastHeroMsg = [...chatHistory].reverse().find(m => m.role === 'hero')
     if (lastHeroMsg && !isMuted) {
@@ -155,6 +194,8 @@ export default function AskHero({
   // embedded (HeroTutor tab) layout.
   const chatBody = (
     <>
+      {/* Mic pulse keyframe — available in both standalone + embedded layouts. */}
+      <style>{`@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.05); } }`}</style>
       {/* Chat messages */}
       <div style={{
         flex: 1, overflowY: 'auto',
@@ -210,12 +251,30 @@ export default function AskHero({
         borderTop: '1px solid #E2E8F0',
         display: 'flex', gap: 8,
       }}>
+        {/* Mic — talk to Hero (speech-to-speech). Tap to record, tap to send. */}
+        {voiceSupported && (
+          <button
+            onClick={handleMicTap}
+            disabled={loading || voiceState === 'transcribing'}
+            title={voiceState === 'recording' ? 'Tap to send' : 'Talk to Hero'}
+            aria-label="Talk to Hero"
+            style={{
+              background: voiceState === 'recording' ? '#EF4444' : '#1B2B4B',
+              color: 'white', border: 'none', borderRadius: 10,
+              width: 44, flexShrink: 0,
+              cursor: loading ? 'default' : 'pointer', fontSize: 18,
+              animation: voiceState === 'recording' ? 'pulse 1s infinite' : 'none',
+            }}
+          >
+            {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
+          </button>
+        )}
         <input
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-          placeholder="Ask Hero anything about Maths..."
-          disabled={loading}
+          placeholder={voiceState === 'recording' ? 'Listening… tap ⏺ to send' : voiceState === 'transcribing' ? 'Got it — thinking…' : 'Ask Hero anything about Maths...'}
+          disabled={loading || voiceState !== 'idle'}
           style={{
             flex: 1, padding: '10px 14px',
             borderRadius: 10,
@@ -225,7 +284,7 @@ export default function AskHero({
           }}
         />
         <button
-          onClick={handleChatSend}
+          onClick={() => handleChatSend()}
           disabled={loading || !chatInput.trim()}
           style={{
             background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',

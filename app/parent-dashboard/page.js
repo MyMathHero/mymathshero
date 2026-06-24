@@ -6,6 +6,7 @@ import ArcadeSettings from '@/components/ArcadeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
+import ReviewSurvey from '@/components/ReviewSurvey'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Users, Brain, X, Trophy, Target, BarChart3, Activity, ArrowUpRight, ArrowDownRight, Download, Plus, User, Mail, Phone, Lock, ArrowRight, CheckCircle2, Eye } from 'lucide-react'
@@ -84,6 +85,7 @@ export default function ParentDashboard() {
 
   // Dashboard data
   const [loading, setLoading] = useState(true)
+  const [showReview, setShowReview] = useState(false) // pre-launch parent review survey (#8)
   const [progress, setProgress] = useState(null)
   const [insights, setInsights] = useState([])
   const [insightsLoading, setInsightsLoading] = useState(false)
@@ -162,6 +164,23 @@ export default function ParentDashboard() {
     })()
     return () => { cancelled = true }
   }, [])
+
+  // Pre-launch parent review survey (report #8) — show once a week at most, only
+  // on the real dashboard, deduped via localStorage so we don't nag.
+  useEffect(() => {
+    const parentId = parentData?.id
+    if (!parentId || step !== 'dashboard') return
+    try {
+      const key = `mmh_parentReviewAt_${parentId}`
+      const last = parseInt(localStorage.getItem(key) || '0', 10)
+      if (Date.now() - last < 7 * 24 * 60 * 60 * 1000) return // within the last week
+      const t = setTimeout(() => {
+        setShowReview(true)
+        localStorage.setItem(key, String(Date.now()))
+      }, 4000)
+      return () => clearTimeout(t)
+    } catch { /* private window — skip */ }
+  }, [parentData?.id, step])
 
   // ── Subscription gate — redirect to /subscribe if access is blocked ─────────
   useEffect(() => {
@@ -1723,6 +1742,11 @@ export default function ParentDashboard() {
 
       {/* NPS SURVEY — bottom-right popup, monthly */}
       {showSupport && <SupportTickets onClose={() => setShowSupport(false)} />}
+
+      {/* Pre-launch parent review survey (feedback #8). */}
+      {showReview && (
+        <ReviewSurvey variant="parent" userId={parentData?.id} onClose={() => setShowReview(false)} />
+      )}
 
       {showNPS && (
         <div style={{

@@ -200,7 +200,44 @@ function update() {
       break
     }
   }
-  if (allGone) nextLevel()
+  if (allGone) celebrateLevel()
+}
+
+// Level-complete celebration (feedback #4): pause, show "Level Complete! +50
+// Coins" for a few seconds with a Continue button + auto-countdown, then advance.
+let countdownTimer = null
+function celebrateLevel() {
+  running = false
+  cancelAnimationFrame(animId)
+  score += 50 // bonus coins for clearing the level
+  updateHUD()
+  let secs = 4
+  const m = document.getElementById('msg')
+  const render = () => {
+    m.innerHTML = `
+      <h2>🎉 Level ${level} Complete!</h2>
+      <p>+50 Coins &middot; Great job!</p>
+      <button onclick="continueLevel()">▶ Continue (${secs})</button>
+    `
+  }
+  render()
+  m.style.display = 'flex'
+  clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    secs--
+    if (secs <= 0) { continueLevel(); return }
+    render()
+  }, 1000)
+}
+
+function continueLevel() {
+  clearInterval(countdownTimer)
+  countdownTimer = null
+  document.getElementById('msg').style.display = 'none'
+  nextLevel()
+  running = true
+  cancelAnimationFrame(animId)
+  loop()
 }
 
 function draw() {

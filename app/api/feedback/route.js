@@ -11,7 +11,9 @@ async function connectDB() {
   return client.db(process.env.DB_NAME || 'mymathshero')
 }
 
-const VALID_TYPES = new Set(['session', 'nps', 'bug', 'feature', 'general'])
+// 'review' = the pre-launch student/parent review surveys (report #8): an
+// enjoyment/confidence rating (1–4) + an open-text response.
+const VALID_TYPES = new Set(['session', 'nps', 'bug', 'feature', 'general', 'review'])
 const VALID_ROLES = new Set(['student', 'parent', 'teacher', 'admin'])
 
 // POST is intentionally open — it's called from the student / parent

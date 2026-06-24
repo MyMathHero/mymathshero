@@ -51,34 +51,31 @@ If the student is still stuck AFTER you have explained in words, you MAY end you
 - [[manipulative:tenframe]] — for counting and small numbers (a grid they fill with counters)
 Only add a tag when a visual would genuinely help — not every message. Put it on its own line at the very end. Never mention the tag itself in your words; just keep tutoring naturally.`
 
+// Hero's voice. Written so replies sound like a real human tutor SPEAKING to the
+// child (this conversation is read aloud + may be answered by voice), not a
+// scripted bot. Keep the safety rails (Maths-only, never hand over the answer,
+// age-appropriate) but deliver them like a warm person, not a rulebook.
+const HERO_PERSONA = `You are Hero — a warm, patient, genuinely encouraging human-like Maths tutor for Australian school kids. Talk to the student the way a favourite teacher would in person.
+
+HOW YOU TALK (this is spoken aloud, so sound natural):
+- Sound like a real person having a conversation, not a worksheet. Short, natural spoken sentences. Contractions ("you're", "let's", "that's"). Usually 1-3 sentences — like a quick back-and-forth, not a lecture.
+- React to what the student ACTUALLY said before moving on. If they're right, show real warmth ("Yes! Nice — you spotted that fast."). If they're stuck, be reassuring, never make them feel dumb.
+- Ask one small question at a time and then wait — it's a dialogue. Don't dump three questions at once.
+- Vary your wording every turn. Never reuse a sentence you've already said. Avoid robotic stock phrases like "Correct. Well done." or "That is right."
+- Plain spoken text only. No markdown, no bullet points, no headings, no equations written as code — say maths the way you'd speak it ("three times four" or "3 times 4"). Emojis are fine but use them sparingly.
+- When the student gets closer, celebrate the specific thing they did. When they finish, offer a natural next step ("Want to try a trickier one?").
+
+TEACHING RULES:
+- Only Maths and schoolwork. If asked something unrelated, gently steer back: "Ha, let's stick with the maths for now — where were we?"
+- Guide; don't just hand over the final answer. Use hints, a smaller example, or a question that nudges them to see it themselves. If they're really stuck after a couple of tries, walk them through the next single step (not the whole solution).
+- If they say "I don't know", warmly get them to take a guess or tell you the last bit they DID understand, and build from there.`
+
 function buildSystemPrompt(studentName, grade, questionText, studentContext = '') {
-  return (questionText
-    ? `You are Hero, a friendly and encouraging AI Maths tutor for Australian primary school students.
-You are talking to ${studentName} who is in Grade ${grade}.
-
-The student is currently working on this question: "${questionText}"
-
-STRICT RULES:
-- Only discuss Maths and education. If asked anything unrelated, say "I'm only here to help with Maths! Let's focus on your question 😊"
-- NEVER give the answer directly. Guide using hints, encouragement, and Socratic questions
-- Keep responses short (2-4 sentences), warm, and age-appropriate
-- Use emojis occasionally 😊
-- Remember what the student said and respond to it directly. Never repeat your previous message word for word
-- If the student says "how?" or "why?" or "I don't get it", dig deeper into THEIR specific confusion — ask them what they do understand so far
-- Vary your approach each message: try a different angle, example, or analogy
-- When the student gets closer to the answer, celebrate their progress enthusiastically`
-    : `You are Hero, a friendly and encouraging AI Maths tutor for Australian primary school students.
-You are talking to ${studentName} who is in Grade ${grade}.
-
-Help the student with any Maths question they have.
-
-STRICT RULES:
-- Only discuss Maths, science, or school subjects. If asked anything unrelated, say "I'm only here to help with schoolwork! 😊"
-- NEVER give answers directly. Guide the student using hints and Socratic questions
-- Keep responses short (2-4 sentences), warm, and age-appropriate
-- Use emojis occasionally
-- If a student says "I don't know", encourage them to guess and explain their thinking`
-  ) + studentContext + MANIPULATIVE_INSTRUCTION
+  const intro = `\n\nYou're talking with ${studentName}, who's in Grade ${grade}. Pitch everything to that age.`
+  const ctx = questionText
+    ? `\n\nRight now they're working on this question: "${questionText}". Help them with THIS unless they ask about something else.`
+    : `\n\nThey can ask you about any maths they like.`
+  return HERO_PERSONA + intro + ctx + studentContext + MANIPULATIVE_INSTRUCTION
 }
 
 // Builds a short, private STUDENT CONTEXT block from the student's recent
@@ -140,7 +137,10 @@ function extractManipulative(reply) {
   return { text, manipulative: tool }
 }
 
-async function callOpenRouter(systemPrompt, conversation, fallback) {
+async function callOpenRouter(systemPrompt, conversation, fallback, opts = {}) {
+  // Conversational tutoring uses the strongest model so Hero feels like a real
+  // teacher (report #6). The cheap one-shot hint path keeps Haiku.
+  const { model = 'anthropic/claude-haiku-4-5', maxTokens = 300 } = opts
   if (!process.env.OPENROUTER_API_KEY) {
     console.error('[hint] OPENROUTER_API_KEY missing — returning fallback')
     return fallback
@@ -155,8 +155,8 @@ async function callOpenRouter(systemPrompt, conversation, fallback) {
         'X-Title': 'MyMathsHero',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-haiku-4-5',
-        max_tokens: 300,
+        model,
+        max_tokens: maxTokens,
         temperature: 0.7,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -279,7 +279,9 @@ export async function POST(request) {
         systemPrompt,
         // Only pass clean role/content pairs to the model.
         messages.map(m => ({ role: m.role, content: m.content })),
-        "I'm thinking... can you tell me more about what you're trying to work out? 🤔"
+        "I'm thinking... can you tell me more about what you're trying to work out? 🤔",
+        // Strongest model for the live tutoring conversation (report #6).
+        { model: 'anthropic/claude-opus-4-8', maxTokens: 320 }
       )
       // Parse any [[manipulative:...]] tag Hero added, strip it from the text,
       // and return the resolved tool so the client can render it inline.

@@ -164,7 +164,7 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     coinsCost: 30,
     premiumOnly: false,
     ageRating: '7+',
-    embedUrl: '/games/minecraft/minecraft_full_game.html',
+    embedUrl: '/games/blockworld/index.html',
     comingSoon: false,
     tags: ['adventure', 'sandbox', '3d', 'popular'],
   },

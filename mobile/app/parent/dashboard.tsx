@@ -14,6 +14,7 @@ import ThemeToggle from '../../components/ThemeToggle'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import NotificationBell from '../../components/NotificationBell'
 import SupportSheet from '../../components/SupportSheet'
+import ReviewSurvey from '../../components/ReviewSurvey'
 import { isCharacterId } from '../../lib/characterAvatars'
 
 export default function ParentDashboard() {
@@ -30,12 +31,32 @@ export default function ParentDashboard() {
   const [insightLoading, setInsightLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [showReview, setShowReview] = useState(false) // pre-launch parent review (#8)
 
   useEffect(() => { loadParent() }, [])
 
   useEffect(() => {
     if (activeChild?.id && parentId) loadChildData(activeChild.id)
   }, [activeChild?.id, parentId])
+
+  // Pre-launch parent review survey (report #8) — at most once a week, deduped.
+  useEffect(() => {
+    if (!parentId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const key = `mmh_parentReviewAt_${parentId}`
+        const last = parseInt((await SecureStore.getItemAsync(key)) || '0', 10)
+        if (Date.now() - last < 7 * 24 * 60 * 60 * 1000) return
+        setTimeout(async () => {
+          if (cancelled) return
+          setShowReview(true)
+          await SecureStore.setItemAsync(key, String(Date.now()))
+        }, 4000)
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [parentId])
 
   async function loadParent() {
     try {
@@ -374,6 +395,7 @@ export default function ParentDashboard() {
       )}
 
       <SupportSheet visible={showSupport} onClose={() => setShowSupport(false)} />
+      <ReviewSurvey visible={showReview} variant="parent" userId={parentId} onClose={() => setShowReview(false)} />
       <ParentTabBar />
     </SafeAreaView>
     </ScreenBackground>

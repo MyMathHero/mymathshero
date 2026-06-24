@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import RewardBurst, { comboMessage } from '@/components/RewardBurst'
+import ReviewSurvey from '@/components/ReviewSurvey'
 import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
@@ -214,6 +216,11 @@ export default function StudentDashboard() {
   const [aiHint, setAiHint] = useState(null) // { text, source }
   const [showSteps, setShowSteps] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
+  // Reward animation + combo streak (feedback report #2/#3).
+  const [rewardBurst, setRewardBurst] = useState(null)   // { id, xp, coins, message } | null
+  const [counterPulse, setCounterPulse] = useState(false) // pulse header coins/XP when reward lands
+  const comboRef = useRef(0)        // consecutive correct in this practice run
+  const bestComboRef = useRef(0)    // best run this session (for "new best")
   const [totalXp, setTotalXp] = useState(0)
   const [coins, setCoins] = useState(0)
   const [showShop, setShowShop] = useState(false)
@@ -257,6 +264,7 @@ export default function StudentDashboard() {
   const [feedbackRating, setFeedbackRating] = useState(0)
   const [feedbackMsg, setFeedbackMsg] = useState('')
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [showReview, setShowReview] = useState(false) // pre-launch review survey (#8)
 
   // Hero Missions category filter (null = show all)
   const [selectedCategory, setSelectedCategory] = useState(null)
@@ -385,6 +393,25 @@ export default function StudentDashboard() {
     } catch {
       // localStorage blocked (private window) — silently skip the dedupe.
     }
+  }, [student?.sessions_completed, authStudentId])
+
+  // Pre-launch review survey (report #8) — gentler cadence than the Hero rating
+  // above so the two don't collide: after the FIRST session, then every 10th.
+  // Deduped per boundary via localStorage; skipped if the Hero-rating popup is up.
+  useEffect(() => {
+    const sessions = student?.sessions_completed
+    if (!sessions || sessions <= 0) return
+    if (sessions !== 1 && sessions % 10 !== 0) return
+    if (sessions % 5 === 0) return // let the Hero-rating popup take this boundary
+    try {
+      const key = `mmh_lastReviewAt_${authStudentId}`
+      if (parseInt(localStorage.getItem(key) || '0', 10) === sessions) return
+      const timer = setTimeout(() => {
+        setShowReview(true)
+        localStorage.setItem(key, String(sessions))
+      }, 2500)
+      return () => clearTimeout(timer)
+    } catch { /* private window — skip dedupe */ }
   }, [student?.sessions_completed, authStudentId])
 
   async function submitFeedback() {
@@ -671,6 +698,24 @@ export default function StudentDashboard() {
         setShowCelebration(true)
         setTotalXp(prev => prev + (result.xpGained || 10))
         setCoins(prev => prev + (result.coinsGained || 5))
+        // Combo streak + reward burst (feedback #2/#3).
+        comboRef.current += 1
+        const combo = comboRef.current
+        const newBest = combo > bestComboRef.current
+        if (newBest) bestComboRef.current = combo
+        const fast = timeTakenMs > 0 && timeTakenMs < 5000
+        setRewardBurst({
+          id: Date.now(),
+          xp: result.xpGained || 10,
+          coins: result.coinsGained || 5,
+          message: comboMessage(combo, { fast, newBest }),
+        })
+        // Pulse the header coins/Hero-Points counters as the reward "lands".
+        setCounterPulse(false)
+        setTimeout(() => setCounterPulse(true), 700)
+        setTimeout(() => setCounterPulse(false), 1500)
+      } else {
+        comboRef.current = 0 // a wrong answer breaks the streak
       }
       if (result.newBadges?.length) {
         setBadgeCelebration(result.newBadges)
@@ -727,6 +772,8 @@ export default function StudentDashboard() {
     setSpeedRound(null)
     setDifficultyPrompt(false)
     practiceAnsweredRef.current = 0
+    comboRef.current = 0
+    setRewardBurst(null)
   }
 
   // Mandatory difficulty feedback (report §4). Records the signal (which the
@@ -958,19 +1005,38 @@ export default function StudentDashboard() {
         setTimeout(() => setStreakToast(null), 4000)
         return
       }
+      // Resume support: if the server handed back an in-progress attempt, restore
+      // saved answers + remaining time and jump straight into the exam so the
+      // student picks up exactly where they left off (no lost progress).
+      const savedAnswers = Array.isArray(data.answers) ? data.answers : []
+      const resuming = data.resumed && savedAnswers.length > 0
       setExamModal({
         skill,
+        attemptId: data.attemptId,
         questions: data.questions,
         timeLimit: data.timeLimit,
-        timeLeft: data.timeLimit,
-        currentIndex: 0,
-        answers: [],
-        phase: 'intro',
+        timeLeft: data.timeLeft ?? data.timeLimit,
+        currentIndex: resuming ? Math.min(savedAnswers.length, data.questions.length - 1) : 0,
+        answers: savedAnswers,
+        phase: resuming ? 'exam' : 'intro',
         passMark: data.passMark,
       })
+      if (resuming) startExamTimer()
     } catch {
       setExamModal(null)
     }
+  }
+
+  // Persist one exam answer to the in-progress attempt (fire-and-forget) so
+  // leaving mid-exam keeps it. Failure never blocks the student.
+  function saveExamAnswer(skill, questionId, answer) {
+    const skillId = skill?.id || skill?.skillId
+    if (!skillId || !questionId) return
+    fetch('/api/student/skill-exam', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentId: authStudentId, skillId, questionId, answer }),
+    }).catch(() => {})
   }
 
   function startExamTimer() {
@@ -1205,7 +1271,11 @@ export default function StudentDashboard() {
             style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'center' }}
             title="Open Avatar Shop"
           >
-            <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 14, margin: 0 }}>
+            <p style={{
+              color: 'var(--accent-gold)', fontWeight: 800, fontSize: 14, margin: 0,
+              transition: 'transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275)',
+              transform: counterPulse ? 'scale(1.35)' : 'scale(1)',
+            }}>
               🪙 {coins}
             </p>
           </button>
@@ -1257,6 +1327,9 @@ export default function StudentDashboard() {
             border: '1px solid rgba(255,255,255,0.12)',
             boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
             flexShrink: 0,
+            // Pulse the two currency cards when a reward lands (feedback #3).
+            transition: 'transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275)',
+            transform: counterPulse && (s.label === 'Hero Points' || s.label === 'Coins') ? 'scale(1.08)' : 'scale(1)',
           }}>
             <div style={{
               width: 40, height: 40, borderRadius: 12, flexShrink: 0,
@@ -2062,6 +2135,15 @@ export default function StudentDashboard() {
         </div>
       )}
 
+      {/* Reward-collection animation (feedback #2/#3) — coins/XP fly to the wallet
+          + combo message on a correct answer. Fixed overlay, non-interactive. */}
+      <RewardBurst burst={rewardBurst} />
+
+      {/* Pre-launch review survey (feedback #8). */}
+      {showReview && (
+        <ReviewSurvey variant="student" userId={authStudentId} onClose={() => setShowReview(false)} />
+      )}
+
       {/* Mandatory difficulty check (report §4) — blocks until the student picks
           one of three. No backdrop dismiss, no skip; feeds difficulty calibration. */}
       {difficultyPrompt && (
@@ -2757,10 +2839,10 @@ export default function StudentDashboard() {
                   {examModal.questions[examModal.currentIndex]?.options?.map((opt, i) => (
                     <button key={i}
                       onClick={() => {
-                        const newAnswers = [...examModal.answers, {
-                          questionId: examModal.questions[examModal.currentIndex].questionId,
-                          answer: opt,
-                        }]
+                        const qid = examModal.questions[examModal.currentIndex].questionId
+                        const newAnswers = [...examModal.answers, { questionId: qid, answer: opt }]
+                        // Persist this answer immediately so leaving doesn't lose it.
+                        saveExamAnswer(examModal.skill, qid, opt)
                         if (examModal.currentIndex < examModal.questions.length - 1) {
                           setExamModal(prev => prev ? ({
                             ...prev,

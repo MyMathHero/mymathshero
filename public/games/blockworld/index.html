@@ -652,14 +652,14 @@ function placeBlock(){
 let mobs=[];
 function spawnMob(forceHostile){
   const day=(dayCycle%DAY_LENGTH)/DAY_LENGTH<0.5;
-  const passive=['pig','cow','sheep'], hostileT=['zombie','skeleton','creeper'];
+  const passive=['pig','cow','sheep'], hostileT=['zombie','skeleton','bomber'];
   const t = forceHostile||(!day&&Math.random()<0.6) ? hostileT[Math.floor(Math.random()*3)] : passive[Math.floor(Math.random()*3)];
   const a=Math.random()*Math.PI*2, d=9+Math.random()*7;
   const mx=player.x+Math.cos(a)*d, mz=player.z+Math.sin(a)*d;
   const my=getHeight(Math.floor(mx),Math.floor(mz))+1;
   const hostile=hostileT.includes(t);
   mobs.push({x:mx,y:my,z:mz,type:t,health:hostile?20:10,maxHealth:hostile?20:10,hostile,
-    vx:0,vy:0,vz:0,timer:0,icon:{zombie:'🧟',skeleton:'💀',creeper:'👾',pig:'🐷',cow:'🐄',sheep:'🐑'}[t]});
+    vx:0,vy:0,vz:0,timer:0,icon:{zombie:'🧟',skeleton:'💀',bomber:'💣',pig:'🐷',cow:'🐄',sheep:'🐑'}[t]});
 }
 function updateMobs(dt){
   if(mobs.length<10&&Math.random()<0.004)spawnMob();
@@ -667,12 +667,12 @@ function updateMobs(dt){
     const m=mobs[i]; m.timer+=dt;
     const dx=player.x-m.x,dz=player.z-m.z; const dist=Math.hypot(dx,dz)||1;
     if(m.hostile&&dist<18){
-      const spd=m.type==='creeper'?2.6:3.2;
+      const spd=m.type==='bomber'?2.6:3.2;
       m.vx+=(dx/dist)*spd*dt; m.vz+=(dz/dist)*spd*dt;
       // jump obstacles
       if(solidAt(m.x+Math.sign(dx)*0.5,m.y,m.z)&&m.vy===0)m.vy=7;
       if(dist<1.6&&m.timer>1){
-        if(m.type==='creeper'){addParticles(m.x,m.y,m.z,BLOCKS.TNT,24);takeDamage(9);mobs.splice(i,1);showMsg('💥 Creeper exploded!');continue;}
+        if(m.type==='bomber'){addParticles(m.x,m.y,m.z,BLOCKS.TNT,24);takeDamage(9);mobs.splice(i,1);showMsg('💥 Bomber exploded!');continue;}
         takeDamage(2); m.timer=0;
       }
     } else if(m.timer%4<0.05){m.vx=(Math.random()-0.5)*2;m.vz=(Math.random()-0.5)*2;}

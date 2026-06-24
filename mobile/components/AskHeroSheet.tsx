@@ -6,7 +6,10 @@ import {
 } from 'react-native'
 import * as Speech from 'expo-speech'
 import * as SecureStore from 'expo-secure-store'
-import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
+import {
+  createAudioPlayer, setAudioModeAsync, type AudioPlayer,
+  useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync,
+} from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
 import { fetch as expoFetch } from 'expo/fetch'
 import api, { API_URL } from '../lib/api'
@@ -60,6 +63,9 @@ export default function AskHeroSheet({
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
   const playerRef = useRef<AudioPlayer | null>(null)
+  // Voice input — talk to Hero (speech-to-speech, report #6).
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'transcribing'>('idle')
 
   // Open/close animation + fresh conversation each time the sheet opens.
   useEffect(() => {
@@ -248,9 +254,10 @@ export default function AskHeroSheet({
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
   }
 
-  async function sendHeroMessage() {
-    if (!input.trim() || loading || speaking) return
-    const userMsg = input.trim()
+  async function sendHeroMessage(explicitMsg?: string) {
+    // explicitMsg lets voice input send a transcript directly (state is async).
+    const userMsg = (typeof explicitMsg === 'string' ? explicitMsg : input).trim()
+    if (!userMsg || loading || speaking) return
     setInput('')
     setMessages(prev => [...prev, { role: 'student', text: userMsg }])
     const updatedConversation = [...conversation, { role: 'user' as const, content: userMsg }]
@@ -286,8 +293,59 @@ export default function AskHeroSheet({
     }
   }
 
+  // Mic tap (speech-to-speech, report #6): tap to record, tap to stop →
+  // transcribe (Whisper) → auto-send → Hero speaks the reply.
+  async function handleMicTap() {
+    if (loading || speaking) return
+    if (voiceState === 'recording') {
+      setVoiceState('transcribing')
+      try {
+        await audioRecorder.stop()
+        const uri = audioRecorder.uri
+        if (!uri) { setVoiceState('idle'); return }
+        const token = await SecureStore.getItemAsync('auth_token')
+        const studentId = (await SecureStore.getItemAsync('user_id')) || ''
+        const form = new FormData()
+        // React Native FormData file shape.
+        form.append('audio', { uri, name: 'speech.m4a', type: 'audio/m4a' } as any)
+        if (studentId) form.append('studentId', studentId)
+        const res = await expoFetch(`${API_URL}/api/student/voice-transcribe`, {
+          method: 'POST',
+          headers: token ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` } : {},
+          body: form as any,
+        })
+        setVoiceState('idle')
+        if (res.status === 403) {
+          addHeroMessage('Talking to me is a Premium feature 💎 You can still type your question!')
+          return
+        }
+        if (!res.ok) return
+        const data = await res.json()
+        const text = (data.text || '').trim()
+        if (text) sendHeroMessage(text)
+      } catch {
+        setVoiceState('idle')
+      }
+      return
+    }
+    // Start recording.
+    if (speaking) await stopAllAudio()
+    try {
+      const perm = await requestRecordingPermissionsAsync()
+      if (!perm.granted) return
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await audioRecorder.prepareToRecordAsync()
+      audioRecorder.record()
+      setVoiceState('recording')
+    } catch {
+      setVoiceState('idle')
+    }
+  }
+
   async function handleClose() {
     lessonPlayingRef.current = false
+    if (voiceState === 'recording') { try { await audioRecorder.stop() } catch {} }
+    setVoiceState('idle')
     await stopAllAudio()
     onClose()
   }
@@ -460,20 +518,30 @@ export default function AskHeroSheet({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={s.inputRow}>
+            {/* Mic — talk to Hero (speech-to-speech). Tap to record, tap to send. */}
+            <TouchableOpacity
+              style={[s.micBtn, voiceState === 'recording' && s.micBtnRecording]}
+              onPress={handleMicTap}
+              disabled={loading || speaking || voiceState === 'transcribing'}
+            >
+              <Text style={s.micBtnText}>
+                {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
+              </Text>
+            </TouchableOpacity>
             <TextInput
               style={s.input}
-              placeholder="Ask Hero anything about Maths..."
+              placeholder={voiceState === 'recording' ? 'Listening… tap ⏺ to send' : 'Ask Hero anything about Maths...'}
               placeholderTextColor="#94A3B8"
               value={input}
               onChangeText={setInput}
-              onSubmitEditing={sendHeroMessage}
-              editable={!loading && !speaking}
+              onSubmitEditing={() => sendHeroMessage()}
+              editable={!loading && !speaking && voiceState === 'idle'}
               returnKeyType="send"
               multiline={false}
             />
             <TouchableOpacity
               style={[s.sendBtn, (!input.trim() || loading || speaking) && s.sendBtnOff]}
-              onPress={sendHeroMessage}
+              onPress={() => sendHeroMessage()}
               disabled={!input.trim() || loading || speaking}
             >
               <Text style={s.sendBtnText}>→</Text>
@@ -614,4 +682,7 @@ const s = StyleSheet.create({
   },
   sendBtnOff: { backgroundColor: '#E2E8F0' },
   sendBtnText: { color: 'white', fontSize: 22, fontWeight: '800' },
+  micBtn: { backgroundColor: '#1B2B4B', borderRadius: 12, width: 48, alignItems: 'center', justifyContent: 'center' },
+  micBtnRecording: { backgroundColor: '#EF4444' },
+  micBtnText: { fontSize: 20 },
 })

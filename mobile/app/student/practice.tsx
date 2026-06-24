@@ -13,6 +13,7 @@ import { ScreenBackground } from '../../lib/ui'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
+import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function Practice() {
@@ -38,6 +39,10 @@ export default function Practice() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selected, setSelected] = useState<string | null>(null)
   const [result, setResult] = useState<any>(null)
+  // Reward animation + combo streak (feedback #2/#3).
+  const [reward, setReward] = useState<Burst>(null)
+  const comboRef = useRef(0)
+  const bestComboRef = useRef(0)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [timer, setTimer] = useState(0)
@@ -216,6 +221,23 @@ export default function Practice() {
       setResult(res.data)
       if (res.data.correct && isSpeedRound) {
         setSpeedCorrect(c => c + 1)
+      }
+
+      // Combo streak + reward burst (feedback #2/#3).
+      if (res.data.correct) {
+        comboRef.current += 1
+        const combo = comboRef.current
+        const newBest = combo > bestComboRef.current
+        if (newBest) bestComboRef.current = combo
+        const fast = timer > 0 && timer < 5
+        setReward({
+          id: Date.now(),
+          xp: res.data.xpGained ?? 10,
+          coins: res.data.coinsGained ?? 5,
+          message: comboMessage(combo, { fast, newBest }),
+        })
+      } else {
+        comboRef.current = 0
       }
 
       // Local achievement notifications — fire-and-forget, never block.
@@ -516,6 +538,10 @@ export default function Practice() {
         questionId={q?.questionId || ''}
         grade={parseInt(grade || '3', 10)}
       />
+
+      {/* Reward-collection animation (feedback #2/#3) — coins/XP fly up + combo
+          message on a correct answer. Absolute overlay, non-interactive. */}
+      <RewardBurst burst={reward} />
     </SafeAreaView>
     </ScreenBackground>
   )

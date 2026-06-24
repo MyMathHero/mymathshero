@@ -10,6 +10,7 @@ import api, { studentAPI } from '../../lib/api'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
 import FloatingTabBar from '../../components/FloatingTabBar'
+import ReviewSurvey from '../../components/ReviewSurvey'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -124,6 +125,7 @@ export default function StudentDashboard() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const [student, setStudent] = useState<any>(null)
+  const [showReview, setShowReview] = useState(false) // pre-launch review survey (#8)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -140,6 +142,27 @@ export default function StudentDashboard() {
   const [showHeroSheet, setShowHeroSheet] = useState(false)
 
   useEffect(() => { loadData() }, [])
+
+  // Pre-launch review survey (report #8) — after the first session, then every
+  // 10th, deduped per boundary via SecureStore.
+  useEffect(() => {
+    const sessions = student?.sessions_completed
+    const sid = student?.id
+    if (!sessions || !sid || (sessions !== 1 && sessions % 10 !== 0)) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const key = `mmh_studentReviewAt_${sid}`
+        if (parseInt((await SecureStore.getItemAsync(key)) || '0', 10) === sessions) return
+        setTimeout(async () => {
+          if (cancelled) return
+          setShowReview(true)
+          await SecureStore.setItemAsync(key, String(sessions))
+        }, 3000)
+      } catch { /* ignore */ }
+    })()
+    return () => { cancelled = true }
+  }, [student?.sessions_completed, student?.id])
 
   // Floating-button entry point — checks the plan/daily gate, then opens the
   // general-mode Ask Hero sheet. Fails open so Hero still works if the check
@@ -640,6 +663,7 @@ export default function StudentDashboard() {
       />
 
       {/* Floating glassy bottom navigation */}
+      <ReviewSurvey visible={showReview} variant="student" userId={student?.id} onClose={() => setShowReview(false)} />
       <FloatingTabBar />
     </SafeAreaView>
     </ScreenBackground>
