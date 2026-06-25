@@ -11,6 +11,7 @@ import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
 import FloatingTabBar from '../../components/FloatingTabBar'
 import ReviewSurvey from '../../components/ReviewSurvey'
+import { isJuniorGrade } from '../../lib/juniorMode'
 import CharacterAvatar from '../../components/CharacterAvatar'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -142,6 +143,14 @@ export default function StudentDashboard() {
   const [showHeroSheet, setShowHeroSheet] = useState(false)
 
   useEffect(() => { loadData() }, [])
+
+  // Junior Mode (Prep–3): the Standard dashboard isn't age-appropriate — send the
+  // youngest students to the Hero-first Junior home instead.
+  useEffect(() => {
+    if (student && isJuniorGrade(student.grade)) {
+      router.replace('/student/junior')
+    }
+  }, [student?.grade])
 
   // Pre-launch review survey (report #8) — after the first session, then every
   // 10th, deduped per boundary via SecureStore.

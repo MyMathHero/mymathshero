@@ -475,10 +475,9 @@ export default function ParentDashboard() {
       return
     }
     const existingChildren = children?.length || 0
-    // Allowance = 1 base + any admin-granted free extra slots (testers/support).
-    // A paid sibling add-on means unlimited additions.
-    const allowedWithoutAddon = subStatus?.allowedWithoutAddon ?? 1
-    if (existingChildren >= allowedWithoutAddon && !subStatus?.siblingAddonActive) {
+    // An admin-granted free slot lets them add the next child with no charge.
+    const hasFreeGrant = (subStatus?.freeChildGrants || 0) > 0
+    if (existingChildren >= 1 && !subStatus?.siblingAddonActive && !hasFreeGrant) {
       const ok = confirm(
         'Adding another child costs $10/month (sibling add-on).\n\nYou\'ll be sent to checkout. Once paid, come back here and tap "Add Another Child" again to enter their details.\n\nContinue?'
       )
@@ -887,7 +886,7 @@ export default function ParentDashboard() {
               <Users size={15} className="text-electric" />
               <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">My Child</h2>
             </div>
-            <button onClick={() => setStep('addChild')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1B2B4B] text-white text-xs font-medium hover:bg-[#C49A1A] transition-colors">
+            <button onClick={handleAddChildClick} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1B2B4B] text-white text-xs font-medium hover:bg-[#C49A1A] transition-colors">
               <Plus size={12} /> Add Child
             </button>
           </div>
@@ -1567,8 +1566,7 @@ export default function ParentDashboard() {
                   )}
                   {(() => {
                     const existingCount = children?.length || 0
-                    const allowedWithoutAddon = subStatus?.allowedWithoutAddon ?? 1
-                    const needsSiblingPayment = existingCount >= allowedWithoutAddon && !subStatus?.siblingAddonActive
+                    const needsSiblingPayment = existingCount >= 1 && !subStatus?.siblingAddonActive
                     return (
                       <button
                         onClick={handleAddChildClick}

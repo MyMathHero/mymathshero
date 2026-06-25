@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import RewardBurst, { comboMessage } from '@/components/RewardBurst'
 import ReviewSurvey from '@/components/ReviewSurvey'
+import MathText from '@/components/MathText'
+import JuniorHome from '@/components/junior/JuniorHome'
+import { isJuniorGrade } from '@/lib/juniorMode'
 import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
@@ -1220,6 +1223,19 @@ export default function StudentDashboard() {
     )
   }
 
+  // Junior Mode (Prep–Grade 3): a completely different, reading-light, Hero-first
+  // experience instead of the Standard dashboard. Same student/engine underneath.
+  if (isJuniorGrade(student?.grade)) {
+    return (
+      <JuniorHome
+        studentId={authStudentId}
+        studentName={student?.name}
+        grade={student?.grade ?? 0}
+        avatar={student?.avatar}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50" style={{ background: 'var(--bg-primary)' }}>
       <style jsx global>{`
@@ -2276,7 +2292,7 @@ export default function StudentDashboard() {
                         >dismiss</button>
                       </div>
                     )}
-                    <h3 className="text-xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{practiceModal.question}</h3>
+                    <h3 className="text-xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]"><MathText>{practiceModal.question}</MathText></h3>
                   </div>
 
                   {!showSteps && (
@@ -2337,7 +2353,7 @@ export default function StudentDashboard() {
                                 >
                                   {answerState?.loading && isSelected ? '⏳' : letters[i]}
                                 </span>
-                                <span className="flex-1">{stripLetterPrefix(opt)}</span>
+                                <span className="flex-1"><MathText>{stripLetterPrefix(opt)}</MathText></span>
                                 {showResult && isAnswerCorrect && <span className="text-lg celebrate-bounce">✅</span>}
                                 {showResult && isAnswerWrong && <span className="text-lg">❌</span>}
                               </span>
@@ -2831,7 +2847,7 @@ export default function StudentDashboard() {
                   border: '1px solid var(--border-color)' }}>
                   <p style={{ fontSize: 18, fontWeight: 700,
                     color: 'var(--text-primary)', lineHeight: 1.5, margin: 0 }}>
-                    {examModal.questions[examModal.currentIndex]?.question}
+                    <MathText>{examModal.questions[examModal.currentIndex]?.question}</MathText>
                   </p>
                 </div>
 
@@ -2869,7 +2885,7 @@ export default function StudentDashboard() {
                         fontSize: 13, flexShrink: 0 }}>
                         {String.fromCharCode(65 + i)}
                       </span>
-                      {stripLetterPrefix(opt)}
+                      <MathText>{stripLetterPrefix(opt)}</MathText>
                     </button>
                   ))}
                 </div>

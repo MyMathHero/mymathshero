@@ -3,6 +3,7 @@ import { MongoClient } from 'mongodb'
 import bcrypt from 'bcryptjs'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 import { normaliseGrade } from '@/lib/normaliseGrade'
+import { resolveEffectivePlan } from '@/lib/freeTrial'
 
 let client
 async function connectDB() {
@@ -70,13 +71,13 @@ export async function POST(request) {
     const existingCount = await db.collection('children').countDocuments({
       $or: [{ parentId }, { parent_id: parentId }],
     })
-    // Allowance = 1 base child + any admin-granted extra slots (testers, support).
-    // adminExtraStudents is set ONLY by the admin grant endpoint and is kept
-    // separate from the paid siblingAddonActive flag so Stripe events never
-    // clobber it. A paid sibling add-on still means unlimited additions.
-    const adminExtra = Math.max(0, Number(parent.adminExtraStudents) || 0)
-    const allowedWithoutAddon = 1 + adminExtra
-    if (existingCount >= allowedWithoutAddon && !parent.siblingAddonActive) {
+    // The first child is included. Additional children need EITHER the paid
+    // sibling add-on (siblingAddonActive, unlimited) OR an admin-granted free
+    // slot (freeChildGrants, consumed one-per-child below). Otherwise the parent
+    // must pay for the $10/mo sibling add-on.
+    const freeChildGrants = Math.max(0, Number(parent.freeChildGrants) || 0)
+    const usingFreeGrant = existingCount >= 1 && !parent.siblingAddonActive && freeChildGrants > 0
+    if (existingCount >= 1 && !parent.siblingAddonActive && freeChildGrants <= 0) {
       return NextResponse.json({
         error: 'Sibling add-on required for additional children',
         requiresSiblingAddon: true,
@@ -84,6 +85,11 @@ export async function POST(request) {
     }
 
     const gradeNum = normaliseGrade(grade)
+
+    // New children inherit the parent's CURRENT effective plan, so a child added
+    // while the parent is premium (paid or free-month) is premium immediately —
+    // not stuck on 'free' waiting for a cascade that only touches existing kids.
+    const inheritedPlan = resolveEffectivePlan(parent)
 
     const hashedPin = await bcrypt.hash(String(pin), 10)
     const studentId = generateId()
@@ -107,11 +113,20 @@ export async function POST(request) {
       coins: 0,
       streak: 0,
       type: 'private',
+      plan: inheritedPlan,
       diagnosticComplete: false,
       unlockedGames: [],
       accessBlocked: false,
       createdAt: new Date(),
     })
+
+    // Consume one admin-granted free slot if that's what authorised this child.
+    if (usingFreeGrant) {
+      await db.collection('parents').updateOne(
+        { id: parentId },
+        { $inc: { freeChildGrants: -1 } }
+      )
+    }
 
     return NextResponse.json({
       success: true,

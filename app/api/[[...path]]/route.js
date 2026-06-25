@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
 import { sendWelcomeEmail, sendEmail } from '@/lib/email'
 import { normaliseGrade } from '@/lib/normaliseGrade'
+import { resolveEffectivePlan } from '@/lib/freeTrial'
 
 let client
 let db
@@ -264,6 +265,25 @@ async function handleRoute(request, { params }) {
       if (!child_name || !child_name.trim()) return handleCORS(NextResponse.json({ error: 'Child name is required' }, { status: 400 }))
       if (grade === undefined || grade === null || grade === '') return handleCORS(NextResponse.json({ error: 'Grade is required' }, { status: 400 }))
 
+      // Same sibling gate as /api/parent/add-child so this route can't be used
+      // to slip in a free 2nd child. First child is included; additional children
+      // need the paid add-on (siblingAddonActive) OR an admin-granted free slot
+      // (freeChildGrants, consumed one-per-child below).
+      const parentDoc = await db.collection('parents').findOne({ id: parent_id })
+      if (!parentDoc) return handleCORS(NextResponse.json({ error: 'Parent not found' }, { status: 404 }))
+      const existingCount = await db.collection('children').countDocuments({
+        $or: [{ parentId: parent_id }, { parent_id }],
+      })
+      const freeChildGrants = Math.max(0, Number(parentDoc.freeChildGrants) || 0)
+      const usingFreeGrant = existingCount >= 1 && !parentDoc.siblingAddonActive && freeChildGrants > 0
+      if (existingCount >= 1 && !parentDoc.siblingAddonActive && freeChildGrants <= 0) {
+        return handleCORS(NextResponse.json({
+          error: 'Sibling add-on required for additional children',
+          requiresSiblingAddon: true,
+        }, { status: 403 }))
+      }
+      const inheritedPlan = resolveEffectivePlan(parentDoc)
+
       // Normalise the grade to an integer (0–6). Historically this route
       // stored whatever string the client sent ("Year 4" etc.) which broke
       // every numeric query downstream.
@@ -296,12 +316,21 @@ async function handleRoute(request, { params }) {
         xp: 0,
         level: 1,
         streak: 0,
+        plan: inheritedPlan,
         sessions_completed: 0,
         created_at: new Date(),
       }
 
       await db.collection('children').insertOne(child)
       await db.collection('parents').updateOne({ id: parent_id }, { $push: { children: child.id } })
+
+      // Consume one admin-granted free slot if that's what authorised this child.
+      if (usingFreeGrant) {
+        await db.collection('parents').updateOne(
+          { id: parent_id },
+          { $inc: { freeChildGrants: -1 } }
+        )
+      }
 
       // Fire-and-forget welcome email (don't block the response on email).
       ;(async () => {

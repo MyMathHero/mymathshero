@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { summariseDiagnostic, estimateLevel, nudgeSkillScore, MAX_DIAGNOSTIC_GRADE } from '@/lib/placement'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
+import { JUNIOR_DIAGNOSTIC_LENGTH } from '@/lib/juniorMode'
 
 let client
 async function connectDB() {
@@ -65,6 +66,21 @@ export async function GET(request) {
     const tagQ = (arr, level) => arr.map(({ correctAnswer, _id, ...q }) => ({
       ...q, questionId: q.id || _id?.toString(), level, correctAnswer,
     }))
+
+    // ── Junior diagnostic (Prep–2): a short 10-question VISUAL assessment that
+    // needs no reading. Samples junior questions across the Prep/Grade-1 skills,
+    // tagged 'at' so it feeds the same placement engine as the big diagnostic.
+    if (searchParams.get('junior') === '1') {
+      const juniorSkillIds = Object.keys(SKILL_ID_MAP).filter(id => /^m_0_/.test(id))
+      const sampled = await db.collection('questions').aggregate([
+        { $match: { mode: 'junior', skillId: { $in: juniorSkillIds }, active: { $ne: false } } },
+        { $sample: { size: JUNIOR_DIAGNOSTIC_LENGTH } },
+      ]).toArray()
+      const questions = sampled.map(({ _id, ...q }) => ({
+        ...q, questionId: q.id || _id?.toString(), level: 'at', // keep correctAnswer for client self-grade
+      }))
+      return NextResponse.json({ junior: true, questions, total: questions.length })
+    }
 
     // ── Adaptive stage: a small batch at exactly `stageGrade` ────────────────
     if (stageGrade != null && stageGrade >= 0 && stageGrade <= MAX_DIAGNOSTIC_GRADE) {

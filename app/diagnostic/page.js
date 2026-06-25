@@ -3,7 +3,11 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
+import MathText from '@/components/MathText'
+import VisualRender from '@/components/junior/VisualRender'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
+import { usesJuniorDiagnostic } from '@/lib/juniorMode'
+import { heroSpeak, heroStop } from '@/lib/heroVoice'
 
 const BRAND_DARK = '#1B2B4B'
 const BRAND_GOLD = 'var(--accent-gold)'
@@ -27,6 +31,7 @@ export default function DiagnosticPage() {
   const [answerLocked, setAnswerLocked] = useState(null) // selected index for current Q
   const [timer, setTimer] = useState(0)
   const [error, setError] = useState('')
+  const [juniorDiag, setJuniorDiag] = useState(false) // Prep–2 visual 10-Q diagnostic
   const [skillsSet, setSkillsSet] = useState(0)
   const [placement, setPlacement] = useState(null)
   // Adaptive climb: next harder stage's grade, and the running results of the
@@ -60,12 +65,28 @@ export default function DiagnosticPage() {
     return () => clearInterval(t)
   }, [stage, index])
 
+  // Junior diagnostic: read each question aloud as it appears (no reading needed).
+  useEffect(() => {
+    if (stage !== 'quiz' || !juniorDiag) return
+    const q = questions[index]
+    if (q) heroSpeak(q.narration || q.question || '', undefined, undefined, me?.userId)
+    return () => heroStop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, index, juniorDiag])
+
   async function startQuiz() {
     setError('')
     if (!me) return
     try {
       const grade = me.grade ?? 3
-      const res = await fetch(`/api/student/diagnostic?grade=${grade}&subject=Maths`)
+      // Prep–Grade 2 get a short 10-question VISUAL diagnostic (no reading); Grade
+      // 3+ get the adaptive text diagnostic (the one used from Grade 4).
+      const junior = usesJuniorDiagnostic(grade)
+      setJuniorDiag(junior)
+      const url = junior
+        ? `/api/student/diagnostic?junior=1`
+        : `/api/student/diagnostic?grade=${grade}&subject=Maths`
+      const res = await fetch(url)
       const data = await res.json()
       if (!res.ok || !data.questions?.length) {
         setError('No diagnostic questions available yet. Please ask an admin to seed questions.')
@@ -231,7 +252,50 @@ export default function DiagnosticPage() {
       )}
 
       {/* Quiz */}
-      {stage === 'quiz' && questions.length > 0 && (() => {
+      {/* Junior (Prep–2) visual diagnostic — big pictures, Hero reads it, tap to
+          answer. Shares submitAnswer/results/finishQuiz with the text path. */}
+      {stage === 'quiz' && juniorDiag && questions.length > 0 && (() => {
+        const q = questions[index]
+        return (
+          <div style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 14 }}>
+              {questions.map((_, i) => (
+                <span key={i} style={{ width: 12, height: 12, borderRadius: 99, background: i < index ? BRAND_GOLD : i === index ? BRAND_DARK : '#CBD5E1' }} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', marginBottom: 8 }}>
+              <h2 style={{ color: BRAND_DARK, fontSize: 22, fontWeight: 900, margin: 0 }}>{q.question}</h2>
+              <button onClick={() => heroSpeak(q.narration || q.question, undefined, undefined, me?.userId)}
+                aria-label="Hear it again"
+                style={{ background: 'white', border: '2px solid var(--border-color)', borderRadius: 14, width: 40, height: 40, fontSize: 18, cursor: 'pointer' }}>🔊</button>
+            </div>
+            {q.visual && (
+              <div style={{ background: 'white', borderRadius: 22, border: '3px solid var(--border-color)', padding: 18, margin: '8px auto 18px', maxWidth: 440 }}>
+                <VisualRender visual={q.visual} />
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: (q.options || []).length > 3 ? '1fr 1fr' : `repeat(${(q.options || []).length}, 1fr)`, gap: 12 }}>
+              {(q.options || []).map((opt, i) => {
+                const isSel = answerLocked === i
+                const isRight = answerLocked !== null && opt === q.correctAnswer
+                let bg = 'white', bd = '#E2E8F0', col = BRAND_DARK
+                if (answerLocked !== null) {
+                  if (isRight) { bg = '#ECFDF5'; bd = '#22C55E'; col = '#15803D' }
+                  else if (isSel) { bg = '#FEF2F2'; bd = '#FCA5A5'; col = '#B91C1C' }
+                }
+                return (
+                  <button key={i} onClick={() => submitAnswer(i)} disabled={answerLocked !== null}
+                    style={{ background: bg, border: `3px solid ${bd}`, color: col, borderRadius: 20, padding: '20px 10px', fontSize: 30, fontWeight: 900, cursor: answerLocked !== null ? 'default' : 'pointer' }}>
+                    {opt}{isRight ? ' ✅' : isSel ? ' ❌' : ''}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {stage === 'quiz' && !juniorDiag && questions.length > 0 && (() => {
         const q = questions[index]
         return (
           <div style={{
@@ -269,7 +333,7 @@ export default function DiagnosticPage() {
               }} />
             </div>
             <h2 style={{ color: BRAND_DARK, fontSize: 18, fontWeight: 800, margin: '0 0 18px' }}>
-              {q.question}
+              <MathText>{q.question}</MathText>
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(q.options || []).map((opt, i) => {
@@ -293,7 +357,7 @@ export default function DiagnosticPage() {
                       cursor: answerLocked !== null ? 'default' : 'pointer',
                     }}
                   >
-                    {stripLetterPrefix(opt)}
+                    <MathText>{stripLetterPrefix(opt)}</MathText>
                   </button>
                 )
               })}

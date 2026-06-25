@@ -14,6 +14,7 @@ import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
 import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
+import { formatMath } from '../../components/MathText'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function Practice() {
@@ -443,7 +444,7 @@ export default function Practice() {
 
         {/* Question */}
         <View style={styles.questionCard}>
-          <Text style={styles.questionText}>{q.question}</Text>
+          <Text style={styles.questionText}>{formatMath(q.question)}</Text>
         </View>
 
         {/* Result */}
@@ -494,7 +495,7 @@ export default function Practice() {
               <Text style={styles.optionLetter}>
                 {isCorrect ? '✓' : String.fromCharCode(65 + i)}
               </Text>
-              <Text style={styles.optionText}>{stripLetterPrefix(opt)}</Text>
+              <Text style={styles.optionText}>{formatMath(stripLetterPrefix(opt))}</Text>
             </TouchableOpacity>
           )
         })}

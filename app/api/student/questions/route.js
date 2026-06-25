@@ -19,6 +19,9 @@ export async function GET(request) {
     const studentId = searchParams.get('studentId')
     const gradeParam = searchParams.get('grade')
     const limit = Math.min(parseInt(searchParams.get('limit') || '5', 10), 20)
+    // Junior Mode (Prep–3) serves VISUAL questions (mode:'junior'); Standard
+    // mode serves the normal text questions. Keeps the two pools from mixing.
+    const junior = searchParams.get('mode') === 'junior'
 
     if (!skillId) {
       return NextResponse.json({ error: 'skillId is required' }, { status: 400 })
@@ -64,6 +67,8 @@ export async function GET(request) {
     const baseMatch = {
       skillId,
       active: { $ne: false },
+      // Junior serves only visual junior questions; Standard excludes them.
+      mode: junior ? 'junior' : { $ne: 'junior' },
       // Spec: enforce Maths subject in the query so a mistyped/legacy question
       // doc with the wrong subject can't slip through.
       $or: [
@@ -123,20 +128,23 @@ export async function GET(request) {
         .toArray()
     }
 
-    // Still thin — generate more via AI, then re-sample.
-    if (questions.length < 3) {
+    // Still thin — generate more via AI, then re-sample. The AI generator makes
+    // TEXT questions, so skip it for Junior (visual) requests — Junior content is
+    // pre-seeded (mode:'junior') and must never mix with text questions.
+    if (!junior && questions.length < 3) {
       await generateMoreQuestions(skillId, gradeNum, subject, db)
       questions = await db.collection('questions')
         .aggregate([{ $match: baseMatch }, { $sample: { size: limit * 3 } }])
         .toArray()
     }
 
-    // Last resort — skill has no questions at all: sample same subject + grade.
+    // Last resort — skill has no questions at all: sample same subject + grade
+    // (respecting the junior/standard split so the pools never cross).
     let fallbackUsed = false
     if (questions.length === 0) {
       questions = await db.collection('questions')
         .aggregate([
-          { $match: { subject, grade: gradeNum, active: { $ne: false } } },
+          { $match: { subject, grade: gradeNum, active: { $ne: false }, mode: junior ? 'junior' : { $ne: 'junior' } } },
           { $sample: { size: limit } },
         ])
         .toArray()

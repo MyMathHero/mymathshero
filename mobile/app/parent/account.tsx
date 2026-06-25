@@ -218,10 +218,10 @@ export default function ParentAccountScreen() {
       return
     }
 
-    // Check if sibling add-on needed. Allowance = 1 base + admin-granted free
-    // extra slots (testers/support). A paid sibling add-on means unlimited.
-    const allowedWithoutAddon = subStatus?.allowedWithoutAddon ?? 1
-    if (children.length >= allowedWithoutAddon && !subStatus?.siblingAddonActive) {
+    // Additional children need the paid sibling add-on OR an admin-granted free
+    // slot. Otherwise send them to pay the $10/mo add-on.
+    const hasFreeGrant = (subStatus?.freeChildGrants || 0) > 0
+    if (children.length >= 1 && !subStatus?.siblingAddonActive && !hasFreeGrant) {
       Alert.alert(
         'Sibling Add-on Required',
         'Adding another child costs $10/month. This will open the payment page.',
@@ -628,7 +628,7 @@ export default function ParentAccountScreen() {
               onPress={() => setShowAddChild(!showAddChild)}
             >
               <Text style={s.actionText}>
-                ➕ Add Child{children.length >= (subStatus?.allowedWithoutAddon ?? 1) && !subStatus?.siblingAddonActive
+                ➕ Add Child{children.length >= 1 && !subStatus?.siblingAddonActive && !((subStatus?.freeChildGrants || 0) > 0)
                   ? ' — $10/month' : ''}
               </Text>
               <Text style={{ color: '#94A3B8' }}>

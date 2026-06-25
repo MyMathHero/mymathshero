@@ -47,6 +47,11 @@ export const studentAPI = {
   // Without it the server falls back to the easy band.
   questions: (skillId: string, grade: number = 3, studentId?: string) =>
     api.get(`/api/student/questions?skillId=${skillId}&grade=${grade}&limit=10&subject=Maths${studentId ? `&studentId=${studentId}` : ''}`),
+  // Junior Mode visual questions for a skill (mode:'junior').
+  juniorQuestions: (skillId: string, studentId?: string) =>
+    api.get(`/api/student/questions?skillId=${skillId}&mode=junior&limit=8${studentId ? `&studentId=${studentId}` : ''}`),
+  recommendations: (studentId: string) =>
+    api.get(`/api/student/recommendations?studentId=${studentId}`),
   answer: (data: any) =>
     api.post('/api/student/answer', data),
   hint: (data: any) =>
@@ -61,6 +66,9 @@ export const studentAPI = {
   // Adaptive climb: one harder batch at exactly `stageGrade`.
   diagnosticStage: (stageGrade: number) =>
     api.get(`/api/student/diagnostic?stageGrade=${stageGrade}&subject=Maths`),
+  // Junior (Prep–2) 10-question visual diagnostic.
+  diagnosticJunior: () =>
+    api.get(`/api/student/diagnostic?junior=1`),
   submitDiagnostic: (data: any) =>
     api.post('/api/student/diagnostic', data),
   changePin: (studentId: string, newPin: string) =>

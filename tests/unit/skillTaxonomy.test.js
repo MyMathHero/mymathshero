@@ -19,10 +19,9 @@ describe('SKILL_ID_MAP taxonomy', () => {
     }
   })
 
-  // NOTE: Prep (grade 0) skills live in SKILL_GRAPH (m_prep_*), not in
-  // SKILL_ID_MAP — this map starts at Year 1.
-  it('covers every grade from Year 1 through Year 12', () => {
-    for (let g = 1; g <= 12; g++) {
+  // Prep (grade 0) now has m_0_* skills in SKILL_ID_MAP for Junior Mode.
+  it('covers every grade from Prep (0) through Year 12', () => {
+    for (let g = 0; g <= 12; g++) {
       const count = ids.filter(id => gradeOf(id) === g).length
       expect(count, `grade ${g} should have skills`).toBeGreaterThan(0)
     }

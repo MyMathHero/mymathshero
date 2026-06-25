@@ -8,6 +8,9 @@ import { studentAPI } from '../../lib/api'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScreenBackground } from '../../lib/ui'
 import HeroRobot from '../../components/HeroRobot'
+import VisualRender from '../../components/junior/VisualRender'
+import { usesJuniorDiagnostic } from '../../lib/juniorMode'
+import { speak, stopSpeaking } from '../../lib/heroVoice'
 
 // Older questions baked the letter into each option ("A) 3 rows of 5"). We
 // render our own letter badge, so strip any leading "A) "/"A. "/"A " for display
@@ -26,6 +29,7 @@ export default function Diagnostic() {
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [placement, setPlacement] = useState<any>(null)
+  const [juniorDiag, setJuniorDiag] = useState(false) // Prep–2 visual 10-Q diagnostic
   // Real per-question timing — feeds the placement speed signal. Previously
   // hardcoded to 5000ms, which hid the "fast + correct = too easy" signal.
   const questionStartRef = useRef<number>(Date.now())
@@ -38,13 +42,24 @@ export default function Diagnostic() {
     if (stage === 'quiz') questionStartRef.current = Date.now()
   }, [current, stage])
 
+  // Junior diagnostic: read each question aloud (no reading needed).
+  useEffect(() => {
+    if (stage !== 'quiz' || !juniorDiag) return
+    const q = questions[current]
+    if (q) void speak(q.narration || q.question || '')
+    return () => { void stopSpeaking() }
+  }, [stage, current, juniorDiag])
+
   async function startDiagnostic() {
     setLoading(true)
     try {
       const grade = parseInt(
         await SecureStore.getItemAsync('user_grade') || '3'
       )
-      const res = await studentAPI.diagnostic(grade)
+      // Prep–2 get the short visual diagnostic; Grade 3+ the adaptive text one.
+      const junior = usesJuniorDiagnostic(grade)
+      setJuniorDiag(junior)
+      const res = junior ? await studentAPI.diagnosticJunior() : await studentAPI.diagnostic(grade)
       setQuestions(res.data.questions || [])
       setNextStageGrade(res.data.nextStageGrade ?? null)
       stageResultsRef.current = []
@@ -219,27 +234,58 @@ export default function Diagnostic() {
         </View>
       </View>
 
-      <ScrollView style={styles.scroll}>
-        <View style={styles.questionCard}>
-          <Text style={styles.questionText}>{q.question}</Text>
-        </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={juniorDiag ? { alignItems: 'center' } : undefined}>
+        {juniorDiag ? (
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Text style={[styles.questionText, { textAlign: 'center' }]}>{q.question}</Text>
+              <TouchableOpacity onPress={() => void speak(q.narration || q.question)}
+                style={{ backgroundColor: 'white', borderColor: '#E2E8F0', borderWidth: 2, borderRadius: 14, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>🔊</Text>
+              </TouchableOpacity>
+            </View>
+            {q.visual && (
+              <View style={{ backgroundColor: 'white', borderColor: '#E2E8F0', borderWidth: 3, borderRadius: 22, padding: 16, marginBottom: 16, width: '94%', alignItems: 'center' }}>
+                <VisualRender visual={q.visual} />
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, width: '94%' }}>
+              {(q.options || []).map((opt: string, i: number) => {
+                const isSel = selected === opt
+                return (
+                  <TouchableOpacity key={i} disabled={!!selected} onPress={() => handleAnswer(opt)}
+                    style={{ borderWidth: 3, borderColor: isSel ? '#C49A1A' : '#E2E8F0', backgroundColor: isSel ? '#FFFBEB' : 'white', borderRadius: 18, paddingVertical: 18, minWidth: 120, flexGrow: 1, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 28, fontWeight: '900', color: '#1B2B4B' }}>{opt}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+            <View style={{ height: 40 }} />
+          </>
+        ) : (
+          <>
+            <View style={styles.questionCard}>
+              <Text style={styles.questionText}>{q.question}</Text>
+            </View>
 
-        {(q.options || []).map((opt: string, i: number) => {
-          const isSelected = selected === opt
-          return (
-            <TouchableOpacity
-              key={i}
-              style={[styles.option, isSelected && styles.optionSelected]}
-              onPress={() => handleAnswer(opt)}
-              disabled={!!selected}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.optionLetter}>{String.fromCharCode(65 + i)}</Text>
-              <Text style={styles.optionText}>{stripLetterPrefix(opt)}</Text>
-            </TouchableOpacity>
-          )
-        })}
-        <View style={{ height: 40 }} />
+            {(q.options || []).map((opt: string, i: number) => {
+              const isSelected = selected === opt
+              return (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.option, isSelected && styles.optionSelected]}
+                  onPress={() => handleAnswer(opt)}
+                  disabled={!!selected}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.optionLetter}>{String.fromCharCode(65 + i)}</Text>
+                  <Text style={styles.optionText}>{stripLetterPrefix(opt)}</Text>
+                </TouchableOpacity>
+              )
+            })}
+            <View style={{ height: 40 }} />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
     </ScreenBackground>
