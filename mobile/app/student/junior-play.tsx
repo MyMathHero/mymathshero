@@ -82,6 +82,9 @@ export default function JuniorPlay() {
       })
       const ok = !!res.data?.correct
       setCorrect(ok)
+      // Wait for Hero to finish speaking before advancing (no cut-off). speak()
+      // resolves when playback ends; a timeout race guards a silent/failed TTS.
+      let line: string
       if (ok) {
         combo.current += 1
         const newBest = combo.current > best.current
@@ -89,13 +92,14 @@ export default function JuniorPlay() {
         setMood('happy')
         const msg = comboMessage(combo.current, { newBest })
         setReward({ id: Date.now(), xp: res.data?.xpGained ?? 10, coins: res.data?.coinsGained ?? 5, message: msg })
-        void speak(msg.replace(/[^\w !?,'-]/g, ''))
+        line = msg.replace(/[^\w !?,'-]/g, '')
       } else {
         combo.current = 0
         setMood('sad')
-        void speak(`Good try! The answer is ${res.data?.correctAnswer}. Let's keep going!`)
+        line = `Good try! The answer is ${res.data?.correctAnswer}. Let's keep going!`
       }
-      setTimeout(() => next(), 2200)
+      await Promise.race([speak(line), new Promise(r => setTimeout(r, 7000))])
+      setTimeout(() => next(), 500)
     } catch {
       setTimeout(() => next(), 800)
     } finally {

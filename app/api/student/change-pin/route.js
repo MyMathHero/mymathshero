@@ -1,5 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 
 let client
@@ -40,9 +41,12 @@ export async function POST(request) {
     }
 
     const db = await connectDB()
+    // Hash the PIN, consistent with the parent/admin reset paths. Login accepts
+    // both hashed and legacy-plaintext PINs.
+    const hashedPin = await bcrypt.hash(newPin, 10)
     const result = await db.collection('children').updateOne(
       { id: studentId },
-      { $set: { pin: newPin, pinUpdatedAt: new Date() } }
+      { $set: { pin: hashedPin, pinUpdatedAt: new Date() } }
     )
 
     if (result.matchedCount === 0) {

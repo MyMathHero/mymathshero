@@ -107,21 +107,29 @@ function JuniorPlayInner() {
       const result = await res.json()
       const isCorrect = !!result.correct
       setCorrect(isCorrect)
+      // Advance only AFTER Hero finishes speaking (so the praise isn't cut off).
+      // onEnd fires when TTS completes; a safety timeout covers a silent/failed
+      // TTS so the game never stalls. advanceOnce guards against double-firing.
+      let advanced = false
+      const advance = () => { if (advanced) return; advanced = true; next() }
+      const speakThenAdvance = (text) =>
+        heroSpeak(text, undefined, () => setTimeout(advance, 600), me.userId)
+
       if (isCorrect) {
         comboRef.current += 1
         const newBest = comboRef.current > bestRef.current
         if (newBest) bestRef.current = comboRef.current
         setRobot('happy')
-        setReward({ id: Date.now(), xp: result.xpGained || 10, coins: result.coinsGained || 5, message: comboMessage(comboRef.current, { newBest }) })
-        heroSpeak(comboMessage(comboRef.current, { newBest }).replace(/[^\w !?,'-]/g, ''), undefined, undefined, me.userId)
+        const msg = comboMessage(comboRef.current, { newBest })
+        setReward({ id: Date.now(), xp: result.xpGained || 10, coins: result.coinsGained || 5, message: msg })
+        speakThenAdvance(msg.replace(/[^\w !?,'-]/g, ''))
       } else {
         comboRef.current = 0
         setRobot('sad')
-        const ans = result.correctAnswer
-        heroSpeak(`Good try! The answer is ${ans}. Let's keep going!`, undefined, undefined, me.userId)
+        speakThenAdvance(`Good try! The answer is ${result.correctAnswer}. Let's keep going!`)
       }
-      // Advance after a beat.
-      setTimeout(() => next(), 2200)
+      // Safety net: if speech never ends (no key / blocked), advance anyway.
+      setTimeout(advance, 7000)
     } catch {
       setTimeout(() => next(), 800)
     } finally {

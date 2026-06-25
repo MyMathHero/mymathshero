@@ -1,9 +1,12 @@
 // Junior Mode helpers (Prep–3), mobile copy of web lib/juniorMode.js. Keep in
 // sync with the web version. Pure, no deps.
 
-export const JUNIOR_MODE_MAX_GRADE = 3
+// Junior VISUAL experience (worlds, visual questions) = Prep–2. Grade 3 uses the
+// Standard UI but keeps narration (NARRATE_MAX_GRADE). Keep in sync with web.
+export const JUNIOR_MODE_MAX_GRADE = 2
 export const JUNIOR_DIAGNOSTIC_MAX_GRADE = 2
 export const JUNIOR_DIAGNOSTIC_LENGTH = 10
+export const NARRATE_MAX_GRADE = 3
 
 function toGrade(grade: unknown): number {
   if (typeof grade === 'number' && Number.isFinite(grade)) return grade
@@ -22,7 +25,7 @@ export function usesJuniorDiagnostic(grade: unknown): boolean {
   return toGrade(grade) <= JUNIOR_DIAGNOSTIC_MAX_GRADE
 }
 export function shouldAutoNarrate(grade: unknown): boolean {
-  return isJuniorGrade(grade)
+  return toGrade(grade) <= NARRATE_MAX_GRADE
 }
 
 export type JuniorWorld = { id: string; name: string; emoji: string; categories: string[] }

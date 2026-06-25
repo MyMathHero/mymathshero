@@ -15,6 +15,8 @@ import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
 import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
 import { formatMath } from '../../components/MathText'
+import { shouldAutoNarrate } from '../../lib/juniorMode'
+import { speak, stopSpeaking } from '../../lib/heroVoice'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 
 export default function Practice() {
@@ -120,6 +122,16 @@ export default function Practice() {
     return () => sub.remove()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, currentIndex, result])
+
+  // Voice-guided Standard mode (Prep–Grade 3): read each question aloud as it
+  // appears. Grade 4+ silent. Don't re-read after answering.
+  useEffect(() => {
+    if (!shouldAutoNarrate(grade)) return
+    const q = questions[currentIndex]
+    if (q && !result && !selected) void speak(q.question || '')
+    return () => { void stopSpeaking() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, questions.length])
 
   function handleAppStateChange(nextState: AppStateStatus) {
     const prev = appStateRef.current

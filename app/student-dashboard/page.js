@@ -7,7 +7,8 @@ import RewardBurst, { comboMessage } from '@/components/RewardBurst'
 import ReviewSurvey from '@/components/ReviewSurvey'
 import MathText from '@/components/MathText'
 import JuniorHome from '@/components/junior/JuniorHome'
-import { isJuniorGrade } from '@/lib/juniorMode'
+import { isJuniorGrade, shouldAutoNarrate } from '@/lib/juniorMode'
+import { heroSpeak, heroStop } from '@/lib/heroVoice'
 import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
@@ -483,6 +484,17 @@ export default function StudentDashboard() {
     }
   }, [practiceModal?.questionId, answerState])
 
+  // Voice-guided Standard mode (Prep–Grade 3): Hero reads each question aloud as
+  // it appears. Grade 4+ stays silent unless they tap. Speak only the question
+  // text (options are short numbers/words the child can see).
+  useEffect(() => {
+    if (!practiceModal?.questionId || practiceModal.empty) return
+    if (!shouldAutoNarrate(student?.grade)) return
+    if (answerState) return // don't re-read after they've answered
+    heroSpeak(practiceModal.question || '', undefined, undefined, authStudentId)
+    return () => heroStop()
+  }, [practiceModal?.questionId, student?.grade, authStudentId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // When the student comes back from a tab switch, swap in a fresh question for the same skill.
   useEffect(() => {
     if (!questionSwitched || !practiceModal?.skillId || answerState) return
@@ -761,6 +773,7 @@ export default function StudentDashboard() {
   }
 
   const closePractice = () => {
+    heroStop() // stop any in-progress narration
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     setQuestionTimer(0)
     setCheatWarning(false)

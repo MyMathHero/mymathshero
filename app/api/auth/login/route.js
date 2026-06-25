@@ -26,7 +26,16 @@ export async function POST(request) {
       if (!student) {
         return NextResponse.json({ error: 'Student not found' }, { status: 404 })
       }
-      if (student.pin !== pin) {
+      // PINs are stored inconsistently across the codebase: onboarding +
+      // change-pin store PLAINTEXT, while parent/admin reset-child-pin + the
+      // authed add-child store a BCRYPT HASH. Accept both so a reset PIN actually
+      // works (the bug: hashed pin compared !== plaintext = always "incorrect").
+      const stored = String(student.pin ?? '')
+      const looksHashed = /^\$2[aby]\$/.test(stored)
+      const pinOk = looksHashed
+        ? await bcrypt.compare(String(pin ?? ''), stored)
+        : stored === String(pin ?? '')
+      if (!pinOk) {
         return NextResponse.json({ error: 'Incorrect PIN' }, { status: 401 })
       }
 

@@ -6,16 +6,16 @@ import {
 } from '../../lib/juniorMode.js'
 import { SKILL_CATEGORIES } from '../../lib/skillNames.js'
 
-describe('isJuniorGrade (Prep–3)', () => {
-  it('Prep–3 are junior, 4+ are standard', () => {
-    [0, 1, 2, 3].forEach(g => expect(isJuniorGrade(g)).toBe(true))
-    ;[4, 5, 6, 9, 12].forEach(g => expect(isJuniorGrade(g)).toBe(false))
+describe('isJuniorGrade (visual UI = Prep–2)', () => {
+  it('Prep–2 are junior; Grade 3+ are standard', () => {
+    [0, 1, 2].forEach(g => expect(isJuniorGrade(g)).toBe(true))
+    ;[3, 4, 5, 6, 9, 12].forEach(g => expect(isJuniorGrade(g)).toBe(false))
   })
   it('accepts string/label grades', () => {
     expect(isJuniorGrade('Prep')).toBe(true)
     expect(isJuniorGrade('Year 2')).toBe(true)
-    expect(isJuniorGrade('Year 4')).toBe(false)
-    expect(isJuniorGrade('3')).toBe(true)
+    expect(isJuniorGrade('Year 3')).toBe(false)
+    expect(isJuniorGrade('2')).toBe(true)
   })
   it('defaults unknown to standard', () => {
     expect(isJuniorGrade(undefined)).toBe(false)
@@ -34,10 +34,11 @@ describe('usesJuniorDiagnostic (Prep–2)', () => {
   })
 })
 
-describe('shouldAutoNarrate', () => {
-  it('matches junior mode boundary', () => {
+describe('shouldAutoNarrate (Prep–3, incl. Grade 3 on Standard UI)', () => {
+  it('reads aloud Prep–3, silent from Grade 4', () => {
     expect(shouldAutoNarrate(0)).toBe(true)
-    expect(shouldAutoNarrate(3)).toBe(true)
+    expect(shouldAutoNarrate(2)).toBe(true)
+    expect(shouldAutoNarrate(3)).toBe(true)   // Grade 3 keeps narration on Standard UI
     expect(shouldAutoNarrate(4)).toBe(false)
   })
 })
