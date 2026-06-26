@@ -8,6 +8,11 @@ export default function RoboVideo({
   loop = false,
   width = 200,
   onEnded = null,
+  // The robot videos have a near-WHITE background. On LIGHT surfaces 'multiply'
+  // blends that white away. On a DARK surface 'multiply' multiplies the robot
+  // toward black → it disappears; use 'screen' there (drops the dark, keeps the
+  // bright robot). Callers on dark headers should pass blend="screen".
+  blend = 'multiply',
 }) {
   const videoRef = useRef(null)
   const [mounted, setMounted] = useState(false)
@@ -34,7 +39,7 @@ export default function RoboVideo({
       playsInline
       onEnded={onEnded}
       style={{
-        mixBlendMode: 'multiply',
+        mixBlendMode: blend,
         width,
         height: 'auto',
       }}

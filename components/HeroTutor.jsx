@@ -16,6 +16,14 @@ const ROBOT = {
 
 const NAVY = '#1B2B4B'
 const GOLD = '#C49A1A'
+// Whiteboard → dark "chalkboard" surface so it sits in the navy tutor chrome
+// instead of a harsh bright-white panel. Chalk-coloured text reads on it.
+const BOARD_BG = '#10243F'        // deep slate board
+const BOARD_TEXT = '#EAF2FF'      // chalk white (say)
+const BOARD_WRITE = '#BFD8FF'     // light blue chalk (working)
+const BOARD_RESULT = '#5EE6A8'    // green chalk (answer)
+const BOARD_RESULT_BG = 'rgba(94,230,168,0.14)'
+const BOARD_MUTED = '#9DB4D4'     // hints/labels
 
 /**
  * Full-screen, voice-guided AI tutor. Two tabs:
@@ -194,11 +202,16 @@ export default function HeroTutor({
 
       {/* Top band: robot + title + controls + X (compact in the small widget) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: general ? 10 : 14, padding: general ? '12px 14px' : '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ position: 'relative', width: general ? 44 : 72, height: general ? 44 : 72, flexShrink: 0 }}>
+        <div style={{
+          position: 'relative', width: general ? 44 : 72, height: general ? 44 : 72, flexShrink: 0,
+          borderRadius: '50%', overflow: 'hidden', border: `2px solid ${GOLD}`,
+          background: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
           {speaking && <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `3px solid ${GOLD}`, animation: 'htPulse 1s infinite' }} />}
+          {/* Header is dark navy → use 'screen' blend so the robot isn't crushed to black. */}
           {robot.type === 'video'
-            ? <RoboVideo src={robot.src} width={general ? 44 : 72} loop={robot.loop} />
-            : <img src={robot.src} alt="Hero" style={{ width: general ? 44 : 72, mixBlendMode: 'multiply' }} />}
+            ? <RoboVideo src={robot.src} width={(general ? 44 : 72) * 1.15} loop={robot.loop} blend="screen" />
+            : <img src={robot.src} alt="Hero" style={{ width: (general ? 44 : 72) * 1.15, mixBlendMode: 'screen' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ color: 'white', fontWeight: 800, fontSize: general ? 15 : 18, margin: 0 }}>
@@ -237,16 +250,16 @@ export default function HeroTutor({
             {phase === 'practice' && lesson?.example ? (
               /* ── Practice example (tap to answer) ─────────────────────────── */
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ background: '#FCFBF7', borderRadius: 16, border: `3px solid ${GOLD}`, padding: 22 }}>
-                  <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 6px', fontWeight: 700 }}>✏️ Your turn — try this one:</p>
-                  <p style={{ color: NAVY, fontSize: 22, fontWeight: 800, margin: 0 }}>{lesson.example.question}</p>
+                <div style={{ background: BOARD_BG, borderRadius: 16, border: `3px solid ${GOLD}`, padding: 22 }}>
+                  <p style={{ color: BOARD_MUTED, fontSize: 13, margin: '0 0 6px', fontWeight: 700 }}>✏️ Your turn — try this one:</p>
+                  <p style={{ color: BOARD_TEXT, fontSize: 22, fontWeight: 800, margin: 0 }}>{lesson.example.question}</p>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {lesson.example.options.map((opt, i) => (
                     <button key={i} onClick={() => answerPractice(opt)}
                       style={{
-                        background: 'white', border: `2px solid ${GOLD}`, borderRadius: 14,
-                        padding: '16px 12px', fontSize: 20, fontWeight: 800, color: NAVY, cursor: 'pointer',
+                        background: 'rgba(255,255,255,0.06)', border: `2px solid ${GOLD}`, borderRadius: 14,
+                        padding: '16px 12px', fontSize: 20, fontWeight: 800, color: BOARD_TEXT, cursor: 'pointer',
                       }}>
                       {opt}
                     </button>
@@ -279,26 +292,26 @@ export default function HeroTutor({
               <>
                 <div style={{
                   flex: 1, minHeight: 0, overflowY: 'auto',
-                  background: '#FCFBF7', borderRadius: 16, border: `3px solid ${GOLD}`,
+                  background: BOARD_BG, borderRadius: 16, border: `3px solid ${GOLD}`,
                   padding: 22, fontFamily: "'Patrick Hand', cursive",
                 }}>
-                  {loadingLesson && <p style={{ color: '#64748B', fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
-                  {lessonError && <p style={{ color: '#B91C1C', fontSize: 18 }}>{lessonError}</p>}
+                  {loadingLesson && <p style={{ color: BOARD_MUTED, fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
+                  {lessonError && <p style={{ color: '#FCA5A5', fontSize: 18 }}>{lessonError}</p>}
                   {!loadingLesson && !lessonError && lesson && (
-                    <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 10px', fontWeight: 700 }}>
+                    <p style={{ color: BOARD_MUTED, fontSize: 13, margin: '0 0 10px', fontWeight: 700 }}>
                       📘 Here’s a similar example (not your question):
                     </p>
                   )}
                   {visibleSteps.map((s, i) => (
                     <div key={i} style={{ marginBottom: 18, animation: 'htFade 0.3s ease' }}>
-                      {s.say && <p style={{ color: NAVY, fontSize: 20, margin: '0 0 6px', lineHeight: 1.4 }}>{s.say}</p>}
+                      {s.say && <p style={{ color: BOARD_TEXT, fontSize: 20, margin: '0 0 6px', lineHeight: 1.4 }}>{s.say}</p>}
                       {s.write && (
                         <div style={{
                           display: 'inline-block',
                           fontSize: s.emphasis === 'result' ? 30 : 24,
                           fontWeight: s.emphasis === 'result' ? 700 : 400,
-                          color: s.emphasis === 'result' ? '#15803d' : '#0f3d6e',
-                          background: s.emphasis === 'result' ? '#ECFDF5' : 'transparent',
+                          color: s.emphasis === 'result' ? BOARD_RESULT : BOARD_WRITE,
+                          background: s.emphasis === 'result' ? BOARD_RESULT_BG : 'transparent',
                           padding: s.emphasis === 'result' ? '4px 12px' : 0,
                           borderRadius: 8,
                           animation: i === stepIndex ? 'htWrite 0.7s ease forwards' : undefined,
