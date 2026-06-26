@@ -14,26 +14,35 @@ async function connectDB() {
   return client.db(process.env.DB_NAME || 'mymathshero')
 }
 
-// Build the structured-lesson prompt. Unlike chat hints (which never give the
-// answer), the full-screen "Teach Me" lesson DEMONSTRATES the method on the
-// exact question the student is stuck on — the last step's `write` is the answer.
+// Build the structured-lesson prompt. The "Teach Me" lesson teaches the METHOD on
+// a DIFFERENT but similar example — it must NOT solve or reveal the student's
+// actual question (that would hand them the answer). It also returns a separate
+// multiple-choice PRACTICE example for the student to attempt afterwards.
 function buildLessonPrompt({ studentName, grade, questionText, skillId }) {
   return [
     `You are Hero, a warm Australian primary maths teacher creating a short animated whiteboard lesson for ${studentName} (Year ${grade}).`,
-    `The student is stuck on this question and tapped "Teach Me":`,
+    `The student is stuck on THIS question (their real homework — do NOT solve it for them):`,
     `"${questionText}"`,
     ``,
-    `Produce a step-by-step worked solution to teach the METHOD, building up to the answer.`,
-    `Return ONLY JSON (no prose, no code fences) in this exact shape:`,
-    `{"steps":[{"say":"<one short spoken sentence>","write":"<one line of working to show on the board>","emphasis":"step"}, ...],"manipulative":null}`,
+    `Your job is to teach the METHOD using a DIFFERENT, SIMILAR example, then give them a fresh example to try.`,
+    `CRITICAL: never use the same numbers as the student's question, and never state or compute the student's actual answer. Pick your own similar numbers.`,
     ``,
-    `Rules:`,
+    `Return ONLY JSON (no prose, no code fences) in this exact shape:`,
+    `{"steps":[{"say":"<one short spoken sentence>","write":"<one line of working on the board>","emphasis":"step"}, ...],"manipulative":null,"example":{"question":"<a new similar question>","options":["<opt>","<opt>","<opt>","<opt>"],"correctAnswer":"<the exactly-correct option text>","hint":"<one encouraging hint>"}}`,
+    ``,
+    `Rules for "steps" (the worked lesson — on YOUR similar example, NOT the student's):`,
     `- 3 to 6 steps. Each step adds ONE idea or line of working.`,
     `- "say" is what Hero speaks aloud: short, warm, age-appropriate, one sentence. Occasional emoji ok.`,
-    `- "write" is the maths line that appears on the whiteboard for that step (plain text, e.g. "5 × 9 = 45"). It may be empty for a purely spoken step.`,
-    `- Build up the working; the FINAL step's "write" must be the answer, with "emphasis":"result".`,
-    `- Optionally set "manipulative" to "pizza" (fractions), "numberline" (add/subtract), or "tenframe" (counting) if a visual would help, else null.`,
-    `- Do NOT restate these instructions. Output JSON only.`,
+    `- "write" is the maths line shown on the whiteboard (plain text, e.g. "7 × 7 = 49"). May be empty for a purely spoken step.`,
+    `- Build up the working; the FINAL step's "write" is the answer TO YOUR EXAMPLE, with "emphasis":"result".`,
+    `- Optionally set "manipulative" to "pizza" (fractions), "numberline" (add/subtract), or "tenframe" (counting), else null.`,
+    ``,
+    `Rules for "example" (a SECOND similar question for the student to try — different numbers again):`,
+    `- Same skill and difficulty as the student's question, but different numbers from BOTH the question and your worked example.`,
+    `- Exactly 4 plain-text options; "correctAnswer" must be one of them, byte-for-byte.`,
+    `- Keep it genuinely at the student's level. "hint" is one short encouraging sentence (do not reveal the answer).`,
+    ``,
+    `Do NOT restate these instructions. Output JSON only.`,
   ].join('\n')
 }
 
@@ -111,7 +120,7 @@ export async function POST(request) {
       skillId,
     })
     const raw = await callOpenRouter(prompt)
-    const lesson = (raw && parseLesson(raw)) || fallbackLesson({
+    const lesson = (raw && parseLesson(raw, { questionText })) || fallbackLesson({
       questionText,
       hint: questionDoc?.hint,
       explanation: questionDoc?.explanation,

@@ -45,6 +45,13 @@ export default function HeroTutor({
   const playingRef = useRef(false)
   useEffect(() => { playingRef.current = playing }, [playing])
 
+  // ── Practice phase ────────────────────────────────────────────────────────
+  // After the lesson, the student tries a SIMILAR example before going back to
+  // their real question. phase: 'lesson' → 'practice' → 'result'.
+  const [phase, setPhase] = useState('lesson')
+  const [practicePick, setPracticePick] = useState(null)
+  const practiceCorrect = lesson?.example && practicePick === lesson.example.correctAnswer
+
   const fetchLesson = useCallback(async () => {
     if (general || lesson || loadingLesson) return
     setLoadingLesson(true); setLessonError(''); setRobotMood('thinking')
@@ -59,6 +66,7 @@ export default function HeroTutor({
       if (!data?.lesson?.steps?.length) { setLessonError("I couldn't build a lesson right now."); setRobotMood('idle'); return }
       setLesson(data.lesson)
       setStepIndex(0)
+      setPhase('lesson'); setPracticePick(null)
       setPlaying(true) // auto-start the lesson
     } catch {
       setLessonError("I had trouble connecting. Try again! 🤖")
@@ -124,6 +132,36 @@ export default function HeroTutor({
     setStepIndex(i => Math.max(0, i - 1))
   }
   function replay() { heroStop(); setStepIndex(0); setPlaying(true) }
+
+  // Move from the lesson into the practice example.
+  function startPractice() {
+    heroStop(); setPlaying(false)
+    setPracticePick(null); setPhase('practice')
+    setRobotMood('waving')
+    const ex = lesson?.example
+    if (ex) heroSpeak(`Now you try one! ${ex.question}`, () => setRobotMood('talking'), () => setRobotMood('idle'), studentId)
+  }
+
+  // Student answers the practice example.
+  function answerPractice(opt) {
+    if (practicePick != null || !lesson?.example) return
+    heroStop()
+    setPracticePick(opt)
+    const correct = opt === lesson.example.correctAnswer
+    setPhase('result')
+    setRobotMood(correct ? 'happy' : 'thinking')
+    if (correct) {
+      heroSpeak("Brilliant! You've got it — now head back and answer your real question. 🎉", () => setRobotMood('talking'), () => setRobotMood('idle'), studentId)
+    } else {
+      // Wrong → show the worked example again on the whiteboard, then send back.
+      heroSpeak(`Good try! Let's look at how it's done, then you'll be ready for your question.`, () => setRobotMood('talking'), () => setRobotMood('idle'), studentId)
+    }
+  }
+
+  // From a wrong answer, replay the worked lesson on the whiteboard.
+  function reviewWorked() {
+    setPhase('lesson'); heroStop(); setStepIndex(0); setPlaying(true)
+  }
 
   const robot = ROBOT[robotMood] || ROBOT.idle
   const speaking = robotMood === 'talking'
@@ -191,56 +229,118 @@ export default function HeroTutor({
             {/* Question reference */}
             {question && (
               <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
-                <p style={{ color: '#94A3B8', fontSize: 11, margin: '0 0 4px' }}>Question</p>
+                <p style={{ color: '#94A3B8', fontSize: 11, margin: '0 0 4px' }}>Your question</p>
                 <p style={{ color: 'white', fontWeight: 700, fontSize: 15, margin: 0 }}>{question}</p>
               </div>
             )}
 
-            {/* Whiteboard */}
-            <div style={{
-              flex: 1, minHeight: 0, overflowY: 'auto',
-              background: '#FCFBF7', borderRadius: 16, border: `3px solid ${GOLD}`,
-              padding: 22, fontFamily: "'Patrick Hand', cursive",
-            }}>
-              {loadingLesson && <p style={{ color: '#64748B', fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
-              {lessonError && <p style={{ color: '#B91C1C', fontSize: 18 }}>{lessonError}</p>}
-              {visibleSteps.map((s, i) => (
-                <div key={i} style={{ marginBottom: 18, animation: 'htFade 0.3s ease' }}>
-                  {s.say && <p style={{ color: NAVY, fontSize: 20, margin: '0 0 6px', lineHeight: 1.4 }}>{s.say}</p>}
-                  {s.write && (
-                    <div style={{
-                      display: 'inline-block',
-                      fontSize: s.emphasis === 'result' ? 30 : 24,
-                      fontWeight: s.emphasis === 'result' ? 700 : 400,
-                      color: s.emphasis === 'result' ? '#15803d' : '#0f3d6e',
-                      background: s.emphasis === 'result' ? '#ECFDF5' : 'transparent',
-                      padding: s.emphasis === 'result' ? '4px 12px' : 0,
-                      borderRadius: 8,
-                      animation: i === stepIndex ? 'htWrite 0.7s ease forwards' : undefined,
-                    }}>
-                      {s.write}
+            {phase === 'practice' && lesson?.example ? (
+              /* ── Practice example (tap to answer) ─────────────────────────── */
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: '#FCFBF7', borderRadius: 16, border: `3px solid ${GOLD}`, padding: 22 }}>
+                  <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 6px', fontWeight: 700 }}>✏️ Your turn — try this one:</p>
+                  <p style={{ color: NAVY, fontSize: 22, fontWeight: 800, margin: 0 }}>{lesson.example.question}</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {lesson.example.options.map((opt, i) => (
+                    <button key={i} onClick={() => answerPractice(opt)}
+                      style={{
+                        background: 'white', border: `2px solid ${GOLD}`, borderRadius: 14,
+                        padding: '16px 12px', fontSize: 20, fontWeight: 800, color: NAVY, cursor: 'pointer',
+                      }}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : phase === 'result' ? (
+              /* ── Result ───────────────────────────────────────────────────── */
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, textAlign: 'center', padding: 16 }}>
+                <div style={{ fontSize: 56 }}>{practiceCorrect ? '🎉' : '💪'}</div>
+                <p style={{ color: 'white', fontSize: 22, fontWeight: 800, margin: 0 }}>
+                  {practiceCorrect ? "You've got it!" : 'Good try — let’s review it'}
+                </p>
+                <p style={{ color: '#94A3B8', fontSize: 15, margin: 0, maxWidth: 420 }}>
+                  {practiceCorrect
+                    ? 'Now head back and answer your real question.'
+                    : (lesson?.example?.hint || 'Watch the worked example, then go back and try your question.')}
+                </p>
+                {!practiceCorrect && lesson?.steps?.length > 0 && (
+                  <button onClick={reviewWorked} style={ctaBtn('rgba(255,255,255,0.12)', 'white')}>
+                    👀 Show me worked out
+                  </button>
+                )}
+                <button onClick={handleClose} style={ctaBtn(GOLD, NAVY)}>
+                  ← Back to my question
+                </button>
+              </div>
+            ) : (
+              /* ── Lesson whiteboard ─────────────────────────────────────────── */
+              <>
+                <div style={{
+                  flex: 1, minHeight: 0, overflowY: 'auto',
+                  background: '#FCFBF7', borderRadius: 16, border: `3px solid ${GOLD}`,
+                  padding: 22, fontFamily: "'Patrick Hand', cursive",
+                }}>
+                  {loadingLesson && <p style={{ color: '#64748B', fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
+                  {lessonError && <p style={{ color: '#B91C1C', fontSize: 18 }}>{lessonError}</p>}
+                  {!loadingLesson && !lessonError && lesson && (
+                    <p style={{ color: '#64748B', fontSize: 13, margin: '0 0 10px', fontWeight: 700 }}>
+                      📘 Here’s a similar example (not your question):
+                    </p>
+                  )}
+                  {visibleSteps.map((s, i) => (
+                    <div key={i} style={{ marginBottom: 18, animation: 'htFade 0.3s ease' }}>
+                      {s.say && <p style={{ color: NAVY, fontSize: 20, margin: '0 0 6px', lineHeight: 1.4 }}>{s.say}</p>}
+                      {s.write && (
+                        <div style={{
+                          display: 'inline-block',
+                          fontSize: s.emphasis === 'result' ? 30 : 24,
+                          fontWeight: s.emphasis === 'result' ? 700 : 400,
+                          color: s.emphasis === 'result' ? '#15803d' : '#0f3d6e',
+                          background: s.emphasis === 'result' ? '#ECFDF5' : 'transparent',
+                          padding: s.emphasis === 'result' ? '4px 12px' : 0,
+                          borderRadius: 8,
+                          animation: i === stepIndex ? 'htWrite 0.7s ease forwards' : undefined,
+                        }}>
+                          {s.write}
+                        </div>
+                      )}
                     </div>
+                  ))}
+                  {lesson?.manipulative && stepIndex >= lesson.steps.length - 1 && (
+                    <div style={{ marginTop: 12 }}><Manipulative tool={lesson.manipulative} /></div>
                   )}
                 </div>
-              ))}
-              {lesson?.manipulative && stepIndex >= lesson.steps.length - 1 && (
-                <div style={{ marginTop: 12 }}><Manipulative tool={lesson.manipulative} /></div>
-              )}
-            </div>
 
-            {/* Lesson controls */}
-            {lesson && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, paddingTop: 12 }}>
-                <CtrlBtn onClick={replay} title="Restart">⏮</CtrlBtn>
-                <CtrlBtn onClick={prevStep} title="Previous step" disabled={stepIndex === 0}>◀</CtrlBtn>
-                {playing
-                  ? <CtrlBtn onClick={pause} title="Pause" big>⏸</CtrlBtn>
-                  : <CtrlBtn onClick={play} title="Play" big>▶</CtrlBtn>}
-                <CtrlBtn onClick={nextStep} title="Next step" disabled={stepIndex >= lesson.steps.length - 1}>▶</CtrlBtn>
-                <span style={{ color: '#94A3B8', fontSize: 13, marginLeft: 8 }}>
-                  Step {stepIndex + 1} / {lesson.steps.length}
-                </span>
-              </div>
+                {/* Lesson controls */}
+                {lesson && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, paddingTop: 12, flexWrap: 'wrap' }}>
+                    <CtrlBtn onClick={replay} title="Restart">⏮</CtrlBtn>
+                    <CtrlBtn onClick={prevStep} title="Previous step" disabled={stepIndex === 0}>◀</CtrlBtn>
+                    {playing
+                      ? <CtrlBtn onClick={pause} title="Pause" big>⏸</CtrlBtn>
+                      : <CtrlBtn onClick={play} title="Play" big>▶</CtrlBtn>}
+                    <CtrlBtn onClick={nextStep} title="Next step" disabled={stepIndex >= lesson.steps.length - 1}>▶</CtrlBtn>
+                    <span style={{ color: '#94A3B8', fontSize: 13, margin: '0 8px' }}>
+                      Step {stepIndex + 1} / {lesson.steps.length}
+                    </span>
+                    {/* When the lesson is finished and there's an example, invite a try. */}
+                    {lesson.example && stepIndex >= lesson.steps.length - 1 && !playing && (
+                      <button onClick={startPractice} style={ctaBtn(GOLD, NAVY)}>Let me try one →</button>
+                    )}
+                  </div>
+                )}
+
+                {/* Always-available escape back to the real question. */}
+                {lesson && (
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10 }}>
+                    <button onClick={handleClose} style={{ background: 'none', border: 'none', color: GOLD, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                      ← Back to my question
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -266,6 +366,10 @@ export default function HeroTutor({
 
 function iconBtn(bg) {
   return { background: bg, border: 'none', color: 'white', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', fontSize: 16, flexShrink: 0 }
+}
+
+function ctaBtn(bg, color) {
+  return { background: bg, color, border: 'none', borderRadius: 14, padding: '12px 22px', fontSize: 15, fontWeight: 800, cursor: 'pointer' }
 }
 
 function TabBtn({ active, onClick, children }) {

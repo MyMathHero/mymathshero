@@ -47,6 +47,11 @@ export default function AskHero({
   const recorderRef = useRef(null)
   const voiceSupported = isVoiceInputSupported()
   const chatEndRef = useRef(null)
+  // Caption sync (item 4): which Hero message is mid-speech + how many chars to
+  // show. We reveal text in time with the audio so they appear together, not
+  // text-first-then-voice-3s-later. -1 index = nothing speaking (show full text).
+  const [reveal, setReveal] = useState({ index: -1, chars: 0 })
+  const revealRaf = useRef(null)
   const mutedRef = useRef(false)
 
   useEffect(() => { mutedRef.current = isMuted }, [isMuted])
@@ -62,6 +67,7 @@ export default function AskHero({
     return () => {
       clearTimeout(greetTimer)
       heroStop()
+      if (revealRaf.current) cancelAnimationFrame(revealRaf.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -70,23 +76,46 @@ export default function AskHero({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatHistory, loading])
 
+  // Animate the visible character count from `chars`→full over `durationMs`, so
+  // the caption is revealed in time with Hero's voice (item 4).
+  function startReveal(index, total, durationMs) {
+    if (revealRaf.current) cancelAnimationFrame(revealRaf.current)
+    if (!durationMs || durationMs <= 0) { setReveal({ index, chars: total }); return }
+    const t0 = performance.now()
+    const tick = (now) => {
+      const frac = Math.min(1, (now - t0) / durationMs)
+      setReveal({ index, chars: Math.ceil(total * frac) })
+      if (frac < 1) revealRaf.current = requestAnimationFrame(tick)
+    }
+    revealRaf.current = requestAnimationFrame(tick)
+  }
+
   // Adds a Hero message to both the visible thread and the API conversation,
-  // and reads it aloud via heroSpeak (OpenAI TTS nova) unless muted.
+  // and reads it aloud via heroSpeak (OpenAI TTS) unless muted. When voice is on,
+  // the bubble text is revealed in sync with the audio rather than all at once.
   function addHeroMessage(message, state = 'talking', manipulative = null) {
-    setChatHistory(prev => [...prev, { role: 'hero', message, manipulative }])
+    let newIndex = -1
+    setChatHistory(prev => { newIndex = prev.length; return [...prev, { role: 'hero', message, manipulative }] })
     setConversation(prev => [...prev, { role: 'assistant', content: message }])
     setRobotState(state)
 
     if (!mutedRef.current) {
       setIsSpeaking(true)
+      // Start hidden; the real text reveals when audio begins (onAudioStart).
+      setReveal({ index: newIndex, chars: 0 })
       heroSpeak(
         message,
         () => setRobotState('talking'),
         () => {
           setIsSpeaking(false)
           setRobotState('idle')
+          setReveal({ index: -1, chars: 0 }) // done → show full text
         },
-        studentId
+        studentId,
+        (durationSec) => {
+          // Audio is starting — reveal the caption over its real duration.
+          startReveal(newIndex, message.length, (durationSec || message.length * 0.06) * 1000)
+        },
       )
     }
   }
@@ -136,8 +165,16 @@ export default function AskHero({
     }
   }
 
+  // Stop any in-progress caption reveal and show the full text (used when the
+  // student interrupts the voice via mute or mic).
+  function snapRevealToFull() {
+    if (revealRaf.current) cancelAnimationFrame(revealRaf.current)
+    setReveal({ index: -1, chars: 0 })
+  }
+
   function toggleMute() {
     if (isSpeaking) heroStop()
+    snapRevealToFull()
     setIsMuted(prev => !prev)
     setIsSpeaking(false)
   }
@@ -166,6 +203,7 @@ export default function AskHero({
     }
     // Start recording. Stop Hero talking first so it doesn't hear itself.
     if (isSpeaking) heroStop()
+    snapRevealToFull()
     try {
       recorderRef.current = await startRecording()
       setVoiceState('recording')
@@ -223,7 +261,11 @@ export default function AskHero({
                 color: 'white',
                 fontSize: 14, lineHeight: 1.5,
               }}>
-                {msg.message}
+                {/* While this Hero message is being spoken, reveal it in sync with
+                    the voice; otherwise show the full text. */}
+                {msg.role === 'hero' && reveal.index === i
+                  ? (msg.message.slice(0, reveal.chars) || '…')
+                  : msg.message}
               </div>
             </div>
             {msg.role === 'hero' && msg.manipulative && (

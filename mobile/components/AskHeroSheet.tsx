@@ -54,11 +54,17 @@ export default function AskHeroSheet({
   // Teach Me (animated whiteboard lesson) vs Ask (chat). Default to Teach when
   // there's a question to teach.
   const [tab, setTab] = useState<'teach' | 'ask'>(question ? 'teach' : 'ask')
-  const [lesson, setLesson] = useState<{ steps: any[]; manipulative?: string | null } | null>(null)
+  type LessonExample = { question: string; options: string[]; correctAnswer: string; hint?: string }
+  const [lesson, setLesson] = useState<{ steps: any[]; manipulative?: string | null; example?: LessonExample } | null>(null)
   const [lessonLoading, setLessonLoading] = useState(false)
   const [lessonError, setLessonError] = useState('')
   const [stepIndex, setStepIndex] = useState(0)
   const lessonPlayingRef = useRef(false)
+  // Practice phase: after the lesson, try a similar example before the real Q.
+  const [phase, setPhase] = useState<'lesson' | 'practice' | 'result'>('lesson')
+  const [practicePick, setPracticePick] = useState<string | null>(null)
+  // Caption sync (item 4): reveal a Hero chat message in time with its audio.
+  const [reveal, setReveal] = useState<{ index: number; chars: number }>({ index: -1, chars: 0 })
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
   const playerRef = useRef<AudioPlayer | null>(null)
@@ -75,6 +81,7 @@ export default function AskHeroSheet({
       const startTab: 'teach' | 'ask' = question ? 'teach' : 'ask'
       setTab(startTab)
       setLesson(null); setLessonError(''); setStepIndex(0)
+      setPhase('lesson'); setPracticePick(null)
       Animated.spring(slideAnim, {
         toValue: 0, useNativeDriver: true,
         tension: 65, friction: 11,
@@ -131,6 +138,7 @@ export default function AskHeroSheet({
       if (!lsn?.steps?.length) { setLessonError("I couldn't build a lesson right now."); setRobotMood('waving'); return }
       setLesson(lsn)
       setStepIndex(0)
+      setPhase('lesson'); setPracticePick(null)
       lessonPlayingRef.current = true
       // Narrate steps in order, revealing each as we speak it.
       for (let i = 0; i < lsn.steps.length; i++) {
@@ -142,6 +150,11 @@ export default function AskHeroSheet({
         else await new Promise(r => setTimeout(r, 1200))
       }
       setRobotMood('happy')
+      // Lesson finished → invite the student to try a similar example.
+      if (lessonPlayingRef.current && lsn.example) {
+        setPhase('practice')
+        await speakWithOpenAI(`Now you try one! ${lsn.example.question}`)
+      }
     } catch {
       setLessonError("I had trouble connecting. Try again! 🤖")
       setRobotMood('waving')
@@ -150,9 +163,41 @@ export default function AskHeroSheet({
     }
   }
 
+  // Manually enter the practice example (the "Let me try one" button).
+  function answerPracticeReady() {
+    if (!lesson?.example) return
+    setPracticePick(null); setPhase('practice')
+    setRobotMood('waving')
+    void speakWithOpenAI(`Now you try one! ${lesson.example.question}`)
+  }
+
+  // Student answers the practice example.
+  async function answerPractice(opt: string) {
+    if (practicePick != null || !lesson?.example) return
+    lessonPlayingRef.current = false
+    await stopAllAudio()
+    setPracticePick(opt)
+    const correct = opt === lesson.example.correctAnswer
+    setPhase('result')
+    setRobotMood(correct ? 'happy' : 'thinking')
+    void speakWithOpenAI(
+      correct
+        ? "Brilliant! You've got it — now head back and answer your real question. 🎉"
+        : `Good try! Let's look at how it's done, then you'll be ready for your question.`,
+    )
+  }
+
+  // From a wrong answer, show the worked lesson again on the whiteboard.
+  function reviewWorked() {
+    setPhase('lesson'); setPracticePick(null)
+    replayLesson()
+  }
+
   // Play Hero's voice via the OpenAI TTS proxy at /api/hero-voice. NO expo-speech
   // fallback — if it's unavailable or plan-gated, Hero stays silent.
-  async function speakWithOpenAI(text: string): Promise<void> {
+  // onProgress(fraction 0..1) lets a caller reveal caption text in time with the
+  // audio (item 4). Optional — lesson narration doesn't use it.
+  async function speakWithOpenAI(text: string, onProgress?: (frac: number) => void): Promise<void> {
     const clean = text
       .replace(/[✦🤖🎯💪🎉😅🔥⚡🏆👋]/g, '')
       .replace(/\s+/g, ' ')
@@ -208,9 +253,14 @@ export default function AskHeroSheet({
       player.play()
 
       await new Promise<void>((resolve) => {
-        const sub = player.addListener('playbackStatusUpdate', (status) => {
+        const sub = player.addListener('playbackStatusUpdate', (status: any) => {
+          // Drive the caption reveal off real playback position.
+          if (onProgress && status?.duration > 0) {
+            onProgress(Math.min(1, (status.currentTime || 0) / status.duration))
+          }
           if (status?.didJustFinish) {
             try { sub.remove() } catch {}
+            onProgress && onProgress(1)
             resolve()
           }
         })
@@ -230,6 +280,7 @@ export default function AskHeroSheet({
 
   async function stopAllAudio() {
     setSpeaking(false)
+    setReveal({ index: -1, chars: 0 }) // snap any partial caption to full
     if (playerRef.current) {
       try { playerRef.current.pause() } catch {}
       try { playerRef.current.release() } catch {}
@@ -237,11 +288,20 @@ export default function AskHeroSheet({
     }
   }
 
-  function addHeroMessage(text: string, isIntro = false, manipulative: string | null = null) {
-    setMessages(prev => [...prev, { role: 'hero', text, isIntro, manipulative }])
+  function addHeroMessage(text: string, isIntro = false, manipulative: string | null = null): number {
+    let idx = -1
+    setMessages(prev => { idx = prev.length; return [...prev, { role: 'hero', text, isIntro, manipulative }] })
     // Mirror into the API conversation as an assistant turn.
     setConversation(prev => [...prev, { role: 'assistant', content: text }])
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100)
+    return idx
+  }
+
+  // Speak a chat reply while revealing its bubble text in sync with the audio.
+  async function speakReply(idx: number, text: string) {
+    setReveal({ index: idx, chars: 0 })
+    await speakWithOpenAI(text, (frac) => setReveal({ index: idx, chars: Math.ceil(text.length * frac) }))
+    setReveal({ index: -1, chars: 0 }) // done → show full text
   }
 
   async function sendHeroMessage(explicitMsg?: string) {
@@ -272,8 +332,8 @@ export default function AskHeroSheet({
         || "I'm thinking... what have you tried so far? 🤔"
       setRobotMood('happy')
       // res.data.manipulative is a tool key when Hero chose to surface a visual.
-      addHeroMessage(reply, false, res.data?.manipulative || null)
-      await speakWithOpenAI(reply)
+      const idx = addHeroMessage(reply, false, res.data?.manipulative || null)
+      await speakReply(idx, reply)
     } catch {
       setRobotMood('happy')
       const fallback = 'Connection issue — try again! 🤖'
@@ -413,33 +473,84 @@ export default function AskHeroSheet({
         {tab === 'teach' && (
           <View style={{ flex: 1 }}>
             <View style={s.questionRef}>
-              <Text style={s.questionRefLabel}>📝 Question</Text>
+              <Text style={s.questionRefLabel}>📝 Your question</Text>
               <Text style={s.questionRefText} numberOfLines={3}>{question}</Text>
             </View>
-            <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
-              {lessonLoading && !lesson && (
-                <Text style={s.wbHint}>Hero is preparing your lesson… ✦✦✦</Text>
-              )}
-              {!!lessonError && <Text style={s.wbError}>{lessonError}</Text>}
-              {lesson?.steps.slice(0, stepIndex + 1).map((st: any, i: number) => (
-                <View key={i} style={{ marginBottom: 16 }}>
-                  {!!st.say && <Text style={s.wbSay}>{st.say}</Text>}
-                  {!!st.write && (
-                    <Text style={[s.wbWrite, st.emphasis === 'result' && s.wbResult]}>{st.write}</Text>
-                  )}
-                </View>
-              ))}
-              {lesson?.manipulative && stepIndex >= (lesson.steps.length - 1) && (
-                <Manipulative tool={lesson.manipulative} />
-              )}
-            </ScrollView>
-            {lesson && (
-              <View style={s.lessonControls}>
-                <TouchableOpacity onPress={replayLesson} style={s.lessonBtn}>
-                  <Text style={s.lessonBtnText}>⏮ Replay</Text>
+
+            {phase === 'practice' && lesson?.example ? (
+              /* Practice example — tap to answer */
+              <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
+                <Text style={s.wbHint}>✏️ Your turn — try this one:</Text>
+                <Text style={[s.wbWrite, { marginBottom: 16 }]}>{lesson.example.question}</Text>
+                {lesson.example.options.map((opt, i) => (
+                  <TouchableOpacity key={i} onPress={() => answerPractice(opt)} style={s.exampleOpt}>
+                    <Text style={s.exampleOptText}>{opt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : phase === 'result' ? (
+              /* Result */
+              <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ fontSize: 52 }}>{practicePick === lesson?.example?.correctAnswer ? '🎉' : '💪'}</Text>
+                <Text style={[s.wbWrite, { textAlign: 'center', marginVertical: 8 }]}>
+                  {practicePick === lesson?.example?.correctAnswer ? "You've got it!" : 'Good try — let’s review it'}
+                </Text>
+                <Text style={[s.wbSay, { textAlign: 'center' }]}>
+                  {practicePick === lesson?.example?.correctAnswer
+                    ? 'Now head back and answer your real question.'
+                    : (lesson?.example?.hint || 'Watch the worked example, then go back and try your question.')}
+                </Text>
+                {practicePick !== lesson?.example?.correctAnswer && (
+                  <TouchableOpacity onPress={reviewWorked} style={[s.lessonBtn, { marginTop: 16 }]}>
+                    <Text style={s.lessonBtnText}>👀 Show me worked out</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={handleClose} style={s.backToQ}>
+                  <Text style={s.backToQBtnText}>← Back to my question</Text>
                 </TouchableOpacity>
-                <Text style={s.lessonStep}>Step {Math.min(stepIndex + 1, lesson.steps.length)} / {lesson.steps.length}</Text>
-              </View>
+              </ScrollView>
+            ) : (
+              /* Lesson whiteboard */
+              <>
+                <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
+                  {lessonLoading && !lesson && (
+                    <Text style={s.wbHint}>Hero is preparing your lesson… ✦✦✦</Text>
+                  )}
+                  {!!lessonError && <Text style={s.wbError}>{lessonError}</Text>}
+                  {!lessonLoading && !lessonError && lesson && (
+                    <Text style={s.wbHint}>📘 Here’s a similar example (not your question):</Text>
+                  )}
+                  {lesson?.steps.slice(0, stepIndex + 1).map((st: any, i: number) => (
+                    <View key={i} style={{ marginBottom: 16 }}>
+                      {!!st.say && <Text style={s.wbSay}>{st.say}</Text>}
+                      {!!st.write && (
+                        <Text style={[s.wbWrite, st.emphasis === 'result' && s.wbResult]}>{st.write}</Text>
+                      )}
+                    </View>
+                  ))}
+                  {lesson?.manipulative && stepIndex >= (lesson.steps.length - 1) && (
+                    <Manipulative tool={lesson.manipulative} />
+                  )}
+                </ScrollView>
+                {lesson && (
+                  <View style={s.lessonControls}>
+                    <TouchableOpacity onPress={replayLesson} style={s.lessonBtn}>
+                      <Text style={s.lessonBtnText}>⏮ Replay</Text>
+                    </TouchableOpacity>
+                    <Text style={s.lessonStep}>Step {Math.min(stepIndex + 1, lesson.steps.length)} / {lesson.steps.length}</Text>
+                    {lesson.example && (
+                      <TouchableOpacity onPress={() => { lessonPlayingRef.current = false; void stopAllAudio().then(() => answerPracticeReady()) }} style={[s.lessonBtn, { backgroundColor: '#C49A1A' }]}>
+                        <Text style={[s.lessonBtnText, { color: '#1B2B4B' }]}>Let me try one →</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+                {lesson && (
+                  <TouchableOpacity onPress={handleClose} style={{ alignSelf: 'center', paddingVertical: 8 }}>
+                    <Text style={s.backToQText}>← Back to my question</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         )}
@@ -479,7 +590,10 @@ export default function AskHeroSheet({
                     s.bubbleText,
                     msg.isIntro && s.introBubbleText,
                   ]}>
-                    {msg.text}
+                    {/* Reveal in sync with the voice while this message is spoken. */}
+                    {msg.role === 'hero' && reveal.index === i
+                      ? (msg.text.slice(0, reveal.chars) || '…')
+                      : msg.text}
                   </Text>
                 </View>
               </View>
@@ -596,10 +710,15 @@ const s = StyleSheet.create({
   wbSay: { color: '#1B2B4B', fontSize: 18, lineHeight: 25, marginBottom: 6 },
   wbWrite: { color: '#0f3d6e', fontSize: 22, fontWeight: '600' },
   wbResult: { color: '#15803d', fontSize: 26, fontWeight: '800', backgroundColor: '#ECFDF5', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
-  lessonControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderTopWidth: 1, borderColor: '#E2E8F0' },
-  lessonBtn: { backgroundColor: '#C49A1A', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  lessonControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: 14, borderTopWidth: 1, borderColor: '#E2E8F0' },
+  lessonBtn: { backgroundColor: '#1B2B4B', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   lessonBtnText: { color: 'white', fontWeight: '800', fontSize: 14 },
   lessonStep: { color: '#64748B', fontSize: 13, fontWeight: '600' },
+  exampleOpt: { backgroundColor: 'white', borderWidth: 2, borderColor: '#C49A1A', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center' },
+  exampleOptText: { color: '#1B2B4B', fontSize: 20, fontWeight: '800' },
+  backToQ: { backgroundColor: '#C49A1A', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 18 },
+  backToQBtnText: { color: '#1B2B4B', fontWeight: '800', fontSize: 15 },
+  backToQText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
   handle: {
     width: 44, height: 4,
     backgroundColor: '#E2E8F0',

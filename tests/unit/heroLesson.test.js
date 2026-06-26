@@ -1,7 +1,57 @@
 import { describe, it, expect } from 'vitest'
 import {
-  extractLessonJson, validateLesson, parseLesson, fallbackLesson,
+  extractLessonJson, validateLesson, parseLesson, fallbackLesson, validateExample,
 } from '../../lib/heroLesson.js'
+
+describe('validateExample', () => {
+  const good = {
+    question: 'Simplify 49^(1/2)',
+    options: ['7', '24.5', '9', '14'],
+    correctAnswer: '7',
+    hint: 'A half power means square root.',
+  }
+  it('accepts a well-formed example', () => {
+    const out = validateExample(good, { questionText: 'Simplify 81^(1/2)' })
+    expect(out).toMatchObject({ question: 'Simplify 49^(1/2)', correctAnswer: '7' })
+    expect(out.options).toContain('7')
+  })
+  it('injects the correct answer if missing from options', () => {
+    const out = validateExample({ ...good, options: ['24.5', '9', '14'] })
+    expect(out.options).toContain('7')
+  })
+  it('rejects when question/answer missing', () => {
+    expect(validateExample({ options: ['1'], correctAnswer: '1' })).toBeNull()
+    expect(validateExample({ question: 'x', options: ['1'] })).toBeNull()
+  })
+  it('rejects fewer than 2 options', () => {
+    expect(validateExample({ question: 'x', options: [], correctAnswer: 'a' })).toBeNull()
+  })
+  it('anti-leak: rejects an example that reuses the real question numbers', () => {
+    const leak = { ...good, question: 'Simplify 81^(1/2)', options: ['9', '7', '40.5'], correctAnswer: '9' }
+    expect(validateExample(leak, { questionText: 'Simplify 81^(1/2)' })).toBeNull()
+  })
+  it('allows different numbers from the real question', () => {
+    expect(validateExample(good, { questionText: 'Simplify 81^(1/2)' })).not.toBeNull()
+  })
+})
+
+describe('validateLesson with example', () => {
+  it('attaches a valid example to the lesson', () => {
+    const out = validateLesson({
+      steps: [{ say: 'Hi', write: '7 x 7 = 49', emphasis: 'result' }],
+      example: { question: 'Simplify 36^(1/2)', options: ['6', '18', '9', '12'], correctAnswer: '6' },
+    }, { questionText: 'Simplify 81^(1/2)' })
+    expect(out.example).toMatchObject({ correctAnswer: '6' })
+  })
+  it('omits a leaking/invalid example but keeps the lesson', () => {
+    const out = validateLesson({
+      steps: [{ say: 'Hi', write: '' }],
+      example: { question: 'bad' },
+    }, { questionText: 'Simplify 81^(1/2)' })
+    expect(out.steps.length).toBe(1)
+    expect(out.example).toBeUndefined()
+  })
+})
 
 describe('extractLessonJson', () => {
   it('parses plain JSON', () => {
