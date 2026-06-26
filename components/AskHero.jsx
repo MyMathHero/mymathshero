@@ -41,6 +41,9 @@ export default function AskHero({
   const [isMuted, setIsMuted] = useState(false)
   // Voice input (speech-to-speech, report #6): 'idle' | 'recording' | 'transcribing'
   const [voiceState, setVoiceState] = useState('idle')
+  // Voice-first input: lead with a big mic; let the student switch to typing.
+  // Default to voice when supported; if no mic support, fall straight to typing.
+  const [typeMode, setTypeMode] = useState(!isVoiceInputSupported())
   const recorderRef = useRef(null)
   const voiceSupported = isVoiceInputSupported()
   const chatEndRef = useRef(null)
@@ -245,56 +248,89 @@ export default function AskHero({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Chat input */}
+      {/* Input area — VOICE-FIRST: a big round mic is the primary control; the
+          student can switch to typing. Falls back to typing if no mic support. */}
       <div style={{
         padding: 14,
-        borderTop: '1px solid #E2E8F0',
-        display: 'flex', gap: 8,
+        borderTop: '1px solid var(--border-color)',
       }}>
-        {/* Mic — talk to Hero (speech-to-speech). Tap to record, tap to send. */}
-        {voiceSupported && (
-          <button
-            onClick={handleMicTap}
-            disabled={loading || voiceState === 'transcribing'}
-            title={voiceState === 'recording' ? 'Tap to send' : 'Talk to Hero'}
-            aria-label="Talk to Hero"
-            style={{
-              background: voiceState === 'recording' ? '#EF4444' : '#1B2B4B',
-              color: 'white', border: 'none', borderRadius: 10,
-              width: 44, flexShrink: 0,
-              cursor: loading ? 'default' : 'pointer', fontSize: 18,
-              animation: voiceState === 'recording' ? 'pulse 1s infinite' : 'none',
-            }}
-          >
-            {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
-          </button>
+        {voiceSupported && !typeMode ? (
+          // Big centered mic + "type instead" link.
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={handleMicTap}
+              disabled={loading || voiceState === 'transcribing'}
+              aria-label={voiceState === 'recording' ? 'Tap to send' : 'Talk to Hero'}
+              style={{
+                background: voiceState === 'recording' ? '#EF4444' : '#C49A1A',
+                color: 'white', border: 'none', borderRadius: '50%',
+                width: 76, height: 76, flexShrink: 0,
+                cursor: loading ? 'default' : 'pointer', fontSize: 30,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 24px rgba(196,154,26,0.4)',
+                animation: voiceState === 'recording' ? 'pulse 1s infinite' : 'none',
+              }}
+            >
+              {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
+            </button>
+            <span style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, minHeight: 18 }}>
+              {voiceState === 'recording' ? 'Listening… tap to send'
+                : voiceState === 'transcribing' ? 'Got it — thinking…'
+                : 'Tap to talk to Hero'}
+            </span>
+            <button
+              onClick={() => setTypeMode(true)}
+              disabled={loading}
+              style={{ background: 'none', border: 'none', color: 'var(--accent-gold)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              ⌨️ Type instead
+            </button>
+          </div>
+        ) : (
+          // Typing row (+ a way back to voice when mic is available).
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {voiceSupported && (
+              <button
+                onClick={() => setTypeMode(false)}
+                disabled={loading}
+                title="Use voice"
+                aria-label="Use voice"
+                style={{
+                  background: '#1B2B4B', color: 'white', border: 'none', borderRadius: 10,
+                  width: 44, height: 44, flexShrink: 0, cursor: 'pointer', fontSize: 18,
+                }}
+              >🎤</button>
+            )}
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+              placeholder="Ask Hero anything about Maths..."
+              disabled={loading}
+              autoFocus
+              style={{
+                flex: 1, padding: '10px 14px',
+                borderRadius: 10,
+                border: '1.5px solid var(--border-color)',
+                fontSize: 14, color: 'var(--text-primary)',
+                background: 'var(--bg-card)',
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={() => handleChatSend()}
+              disabled={loading || !chatInput.trim()}
+              style={{
+                background: chatInput.trim() ? '#C49A1A' : 'var(--border-color)',
+                color: 'white', border: 'none',
+                borderRadius: 10, padding: '10px 16px',
+                fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default', fontSize: 14,
+              }}
+            >
+              Send
+            </button>
+          </div>
         )}
-        <input
-          value={chatInput}
-          onChange={e => setChatInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-          placeholder={voiceState === 'recording' ? 'Listening… tap ⏺ to send' : voiceState === 'transcribing' ? 'Got it — thinking…' : 'Ask Hero anything about Maths...'}
-          disabled={loading || voiceState !== 'idle'}
-          style={{
-            flex: 1, padding: '10px 14px',
-            borderRadius: 10,
-            border: '1.5px solid #E2E8F0',
-            fontSize: 14, color: '#1B2B4B',
-            outline: 'none',
-          }}
-        />
-        <button
-          onClick={() => handleChatSend()}
-          disabled={loading || !chatInput.trim()}
-          style={{
-            background: chatInput.trim() ? '#C49A1A' : '#E2E8F0',
-            color: 'white', border: 'none',
-            borderRadius: 10, padding: '10px 16px',
-            fontWeight: 700, cursor: chatInput.trim() ? 'pointer' : 'default', fontSize: 14,
-          }}
-        >
-          Send
-        </button>
       </div>
     </>
   )
@@ -319,7 +355,7 @@ export default function AskHero({
       padding: 16,
     }}>
       <div style={{
-        background: 'white',
+        background: 'var(--bg-card)',
         borderRadius: 24,
         width: '100%',
         maxWidth: 580,
@@ -395,7 +431,7 @@ export default function AskHero({
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          borderBottom: '1px solid #E2E8F0',
+          borderBottom: '1px solid var(--border-color)',
         }}>
           <div style={{
             flexShrink: 0, width: 100, height: 100,
@@ -428,15 +464,15 @@ export default function AskHero({
           </div>
 
           <div style={{
-            flex: 1, background: 'white',
+            flex: 1, background: 'var(--bg-card)',
             borderRadius: 12, padding: '10px 14px',
-            border: '1px solid #E2E8F0',
+            border: '1px solid var(--border-color)',
           }}>
-            <p style={{ color: '#64748B', fontSize: 11,
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11,
               margin: '0 0 4px' }}>
               {general ? 'General Maths help' : 'Current question:'}
             </p>
-            <p style={{ color: '#1B2B4B', fontWeight: 700,
+            <p style={{ color: 'var(--text-primary)', fontWeight: 700,
               fontSize: 14, margin: 0 }}>
               {general
                 ? 'Ask me anything about Maths! 😊'

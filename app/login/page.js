@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
-const BRAND_DARK = '#1B2B4B'
+// Theme-aware: these drive inline styles, so they must be CSS vars (not fixed
+// hex) or text/borders go invisible in dark mode.
+const BRAND_DARK = 'var(--text-primary)'
 const BRAND_GOLD = 'var(--accent-gold)'
-const BRAND_BG = '#F0F4F8'
-const BRAND_BORDER = '#E2E8F0'
-const BRAND_SUBTEXT = '#64748B'
+const BRAND_BG = 'var(--bg-primary)'
+const BRAND_BORDER = 'var(--border-color)'
+const BRAND_SUBTEXT = 'var(--text-secondary)'
 
 const ROLES = [
   {
@@ -172,7 +174,7 @@ export default function LoginPage() {
                   onClick={() => selectRole(role.id)}
                   style={{
                     width: '100%',
-                    background: isSelected ? 'var(--accent-gold-light)' : '#F8FAFC',
+                    background: isSelected ? 'var(--accent-gold-light)' : 'var(--bg-card-elevated)',
                     border: isSelected
                       ? `2px solid ${BRAND_GOLD}`
                       : `1px solid ${BRAND_BORDER}`,
@@ -190,7 +192,7 @@ export default function LoginPage() {
                     fontSize: 28,
                     width: 44, height: 44,
                     borderRadius: 12,
-                    background: isSelected ? `${BRAND_GOLD}22` : '#FFFFFF',
+                    background: isSelected ? 'var(--accent-gold-light)' : 'var(--bg-card)',
                     border: `1px solid ${BRAND_BORDER}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     flexShrink: 0,

@@ -9,10 +9,11 @@ import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { usesJuniorDiagnostic } from '@/lib/juniorMode'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
 
-const BRAND_DARK = '#1B2B4B'
+// Theme-aware CSS vars (inline styles → must adapt for dark mode).
+const BRAND_DARK = 'var(--text-primary)'
 const BRAND_GOLD = 'var(--accent-gold)'
-const BRAND_BG = '#F0F4F8'
-const BRAND_SUBTEXT = '#64748B'
+const BRAND_BG = 'var(--bg-primary)'
+const BRAND_SUBTEXT = 'var(--text-secondary)'
 
 // Older questions baked the letter into each option ("A) 3 rows of 5"). Strip
 // any leading "A) "/"A. "/"A " for display. Display-only — comparisons still use
@@ -241,7 +242,7 @@ export default function DiagnosticPage() {
             style={{
               width: '100%', padding: '13px',
               borderRadius: 12, border: 'none',
-              background: BRAND_DARK, color: 'white',
+              background: 'var(--bg-header)', color: 'white', // dark button, both themes
               fontWeight: 700, fontSize: 16,
               cursor: 'pointer',
             }}

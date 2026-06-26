@@ -4,7 +4,6 @@ import {
   ScrollView, ActivityIndicator, TextInput,
   KeyboardAvoidingView, Platform, Animated,
 } from 'react-native'
-import * as Speech from 'expo-speech'
 import * as SecureStore from 'expo-secure-store'
 import {
   createAudioPlayer, setAudioModeAsync, type AudioPlayer,
@@ -66,6 +65,8 @@ export default function AskHeroSheet({
   // Voice input — talk to Hero (speech-to-speech, report #6).
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'transcribing'>('idle')
+  // Voice-first Ask Hero: lead with a big mic, let the student switch to typing.
+  const [typeMode, setTypeMode] = useState(false)
 
   // Open/close animation + fresh conversation each time the sheet opens.
   useEffect(() => {
@@ -149,7 +150,8 @@ export default function AskHeroSheet({
     }
   }
 
-  // Try the OpenAI nova proxy at /api/hero-voice; fall back to expo-speech.
+  // Play Hero's voice via the OpenAI TTS proxy at /api/hero-voice. NO expo-speech
+  // fallback — if it's unavailable or plan-gated, Hero stays silent.
   async function speakWithOpenAI(text: string): Promise<void> {
     const clean = text
       .replace(/[✦🤖🎯💪🎉😅🔥⚡🏆👋]/g, '')
@@ -220,26 +222,14 @@ export default function AskHeroSheet({
       setSpeaking(false)
       return
     } catch (err) {
-      console.log('OpenAI TTS failed, falling back to expo-speech:', err)
+      // OpenAI TTS unavailable or plan-gated — stay silent (no device-voice fallback).
+      console.log('OpenAI TTS unavailable:', err)
+      setSpeaking(false)
     }
-
-    // Fallback: expo-speech.
-    try { await Speech.stop() } catch {}
-    await new Promise<void>((resolve) => {
-      Speech.speak(clean, {
-        language: 'en-AU',
-        rate: 0.85,
-        pitch: 1.05,
-        onDone: () => { setSpeaking(false); resolve() },
-        onError: () => { setSpeaking(false); resolve() },
-        onStopped: () => { setSpeaking(false); resolve() },
-      })
-    })
   }
 
   async function stopAllAudio() {
     setSpeaking(false)
-    try { await Speech.stop() } catch {}
     if (playerRef.current) {
       try { playerRef.current.pause() } catch {}
       try { playerRef.current.release() } catch {}
@@ -517,11 +507,33 @@ export default function AskHeroSheet({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          {tab === 'ask' && !typeMode ? (
+            // VOICE-FIRST: big centered round mic + "type instead" link.
+            <View style={s.voiceFirst}>
+              <TouchableOpacity
+                style={[s.bigMic, voiceState === 'recording' && s.micBtnRecording]}
+                onPress={handleMicTap}
+                disabled={loading || speaking || voiceState === 'transcribing'}
+              >
+                <Text style={s.bigMicText}>
+                  {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={s.voiceHint}>
+                {voiceState === 'recording' ? 'Listening… tap to send'
+                  : voiceState === 'transcribing' ? 'Got it — thinking…'
+                  : 'Tap to talk to Hero'}
+              </Text>
+              <TouchableOpacity onPress={() => setTypeMode(true)} disabled={loading}>
+                <Text style={s.switchLink}>⌨️ Type instead</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={s.inputRow}>
-            {/* Mic — talk to Hero (speech-to-speech). Tap to record, tap to send. */}
+            {/* Mic / back-to-voice (talk to Hero, speech-to-speech). */}
             <TouchableOpacity
               style={[s.micBtn, voiceState === 'recording' && s.micBtnRecording]}
-              onPress={handleMicTap}
+              onPress={tab === 'ask' ? () => setTypeMode(false) : handleMicTap}
               disabled={loading || speaking || voiceState === 'transcribing'}
             >
               <Text style={s.micBtnText}>
@@ -547,6 +559,7 @@ export default function AskHeroSheet({
               <Text style={s.sendBtnText}>→</Text>
             </TouchableOpacity>
           </View>
+          )}
         </KeyboardAvoidingView>
         </>)}
       </Animated.View>
@@ -685,4 +698,10 @@ const s = StyleSheet.create({
   micBtn: { backgroundColor: '#1B2B4B', borderRadius: 12, width: 48, alignItems: 'center', justifyContent: 'center' },
   micBtnRecording: { backgroundColor: '#EF4444' },
   micBtnText: { fontSize: 20 },
+  // Voice-first Ask Hero
+  voiceFirst: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 },
+  bigMic: { backgroundColor: '#C49A1A', width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', shadowColor: '#C49A1A', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
+  bigMicText: { fontSize: 34 },
+  voiceHint: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+  switchLink: { color: '#C49A1A', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
 })

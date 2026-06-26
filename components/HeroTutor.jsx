@@ -129,8 +129,24 @@ export default function HeroTutor({
   const speaking = robotMood === 'talking'
   const visibleSteps = lesson ? lesson.steps.slice(0, stepIndex + 1) : []
 
+  // General mode (the floating "Ask Hero" with no question to teach) renders as a
+  // small rounded chat widget docked bottom-right — like a normal site chatbot,
+  // NOT full-screen. Teach-me mode (a real question) stays full-screen so the
+  // whiteboard lesson has room.
+  const shellStyle = general
+    ? {
+        position: 'fixed', bottom: 24, right: 24, zIndex: 3000,
+        width: 'min(400px, calc(100vw - 32px))',
+        height: 'min(620px, calc(100vh - 48px))',
+        background: NAVY, display: 'flex', flexDirection: 'column',
+        borderRadius: 20, overflow: 'hidden',
+        border: `2px solid ${GOLD}`,
+        boxShadow: '0 24px 70px rgba(0,0,0,0.45)',
+      }
+    : { position: 'fixed', inset: 0, zIndex: 3000, background: NAVY, display: 'flex', flexDirection: 'column' }
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 3000, background: NAVY, display: 'flex', flexDirection: 'column' }}>
+    <div style={shellStyle}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
         @keyframes htPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(1.06)} }
@@ -138,17 +154,17 @@ export default function HeroTutor({
         @keyframes htFade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
       `}</style>
 
-      {/* Top band: robot + title + controls + X */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+      {/* Top band: robot + title + controls + X (compact in the small widget) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: general ? 10 : 14, padding: general ? '12px 14px' : '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ position: 'relative', width: general ? 44 : 72, height: general ? 44 : 72, flexShrink: 0 }}>
           {speaking && <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `3px solid ${GOLD}`, animation: 'htPulse 1s infinite' }} />}
           {robot.type === 'video'
-            ? <RoboVideo src={robot.src} width={72} loop={robot.loop} />
-            : <img src={robot.src} alt="Hero" style={{ width: 72, mixBlendMode: 'multiply' }} />}
+            ? <RoboVideo src={robot.src} width={general ? 44 : 72} loop={robot.loop} />
+            : <img src={robot.src} alt="Hero" style={{ width: general ? 44 : 72, mixBlendMode: 'multiply' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: 'white', fontWeight: 800, fontSize: 18, margin: 0 }}>
-            Hero is teaching <span style={{ color: GOLD }}>✦</span>
+          <p style={{ color: 'white', fontWeight: 800, fontSize: general ? 15 : 18, margin: 0 }}>
+            {general ? <>Ask <span style={{ color: GOLD }}>Hero</span> ✦</> : <>Hero is teaching <span style={{ color: GOLD }}>✦</span></>}
           </p>
           <p style={{ color: '#94A3B8', fontSize: 12, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {speaking ? '🔊 Speaking…' : (skillName || 'Your AI Maths Tutor')}
@@ -160,14 +176,16 @@ export default function HeroTutor({
         <button onClick={handleClose} aria-label="Close tutor" style={{ ...iconBtn('rgba(255,255,255,0.1)'), fontSize: 20, fontWeight: 700 }}>×</button>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, padding: '10px 18px 0' }}>
-        {!general && <TabBtn active={tab === 'teach'} onClick={() => setTab('teach')}>✏️ Teach Me</TabBtn>}
-        <TabBtn active={tab === 'ask'} onClick={() => { heroStop(); setPlaying(false); setTab('ask') }}>💬 Ask Hero</TabBtn>
-      </div>
+      {/* Tabs — hidden in general mode (only one tab, no need for a switcher). */}
+      {!general && (
+        <div style={{ display: 'flex', gap: 8, padding: '10px 18px 0' }}>
+          <TabBtn active={tab === 'teach'} onClick={() => setTab('teach')}>✏️ Teach Me</TabBtn>
+          <TabBtn active={tab === 'ask'} onClick={() => { heroStop(); setPlaying(false); setTab('ask') }}>💬 Ask Hero</TabBtn>
+        </div>
+      )}
 
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, padding: 18, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: general ? 12 : 18, display: 'flex', flexDirection: 'column' }}>
         {tab === 'teach' ? (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Question reference */}

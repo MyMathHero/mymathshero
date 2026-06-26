@@ -6,11 +6,14 @@ import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Analytics } from '@/lib/analytics'
 
-const BRAND_DARK = '#1B2B4B'
+// Theme-aware CSS vars (inline styles → must adapt for dark mode).
+const BRAND_DARK = 'var(--text-primary)'
 const BRAND_GOLD = 'var(--accent-gold)'
-const BRAND_BG = '#F0F4F8'
-const BRAND_BORDER = '#E2E8F0'
-const BRAND_SUBTEXT = '#64748B'
+const BRAND_BG = 'var(--bg-primary)'
+const BRAND_BORDER = 'var(--border-color)'
+const BRAND_SUBTEXT = 'var(--text-secondary)'
+// Always-dark surface (the login-details card), independent of theme.
+const BRAND_NAVY = '#1B2B4B'
 
 const AVATARS = ['🦊', '🐱', '🐶', '🦁', '🐼', '🦄', '🐸', '🦋']
 const GRADES = ['Prep', 'Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5', 'Year 6']
@@ -351,7 +354,7 @@ function ParentFlow({ onBack }) {
         </div>
 
         <div style={{
-          background: BRAND_DARK,
+          background: BRAND_NAVY, // always-dark login-details card
           border: `2px solid ${BRAND_GOLD}`,
           borderRadius: 20, padding: '28px 24px', marginBottom: 16, textAlign: 'center',
         }}>
@@ -631,7 +634,7 @@ function PathPicker({ onSelect, flags }) {
           >
             <span style={{
               fontSize: 28, width: 52, height: 52, borderRadius: 14,
-              background: `${BRAND_GOLD}22`, display: 'flex', alignItems: 'center',
+              background: 'var(--accent-gold-light)', display: 'flex', alignItems: 'center',
               justifyContent: 'center', flexShrink: 0,
             }}>{p.emoji}</span>
             <div>

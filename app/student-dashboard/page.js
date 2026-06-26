@@ -1510,7 +1510,7 @@ export default function StudentDashboard() {
                                   regardless of theme, so pin text to navy for
                                   guaranteed contrast in every theme. */}
                               <span style={{ fontWeight: 700,
-                                color: '#1B2B4B', fontSize: 15 }}>
+                                color: 'var(--text-primary)', fontSize: 15 }}>
                                 {info.name}
                               </span>
                               <span style={{
@@ -1787,7 +1787,7 @@ export default function StudentDashboard() {
             )}
 
             {/* Today's Missions */}
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border-2 border-dashed border-electric/30 dark:border-white/15 shadow-sm mb-6">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border-2 border-dashed border-electric/30 dark:border-white/15 shadow-sm mb-6">
               <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-3">🎯 Today&apos;s Missions</h3>
               <div className="flex flex-col sm:flex-row gap-3">
                 {todaysGoals.map((goal, i) => (
@@ -1842,7 +1842,7 @@ export default function StudentDashboard() {
             </div>
 
             {rightTab === 'progress' && (
-              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
                 <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-4">My Progress</h3>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-green-50 rounded-xl p-3 text-center border border-green-200"><div className="text-2xl font-extrabold text-green-600">{stats.mastered}</div><div className="text-[10px] text-green-600 font-bold">Mastered 🏆</div></div>
@@ -1872,7 +1872,7 @@ export default function StudentDashboard() {
 
             {/* Feature 5: Strand Breakdown */}
             {rightTab === 'strands' && (
-              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
                 <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-1">{currentSubject?.emoji} {currentSubject?.name} Strands</h3>
                 <p className="text-[10px] text-gray-400 dark:text-slate-400 mb-4">Detailed skill breakdown</p>
                 {currentStrands.length === 0 ? (
@@ -1896,7 +1896,7 @@ export default function StudentDashboard() {
             )}
 
             {rightTab === 'badges' && (
-              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+              <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">🏅 Hero Badges</h3>
                   <span className="text-xs text-gray-400 dark:text-slate-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
@@ -1925,7 +1925,7 @@ export default function StudentDashboard() {
       {/* League tab — focused leaderboard view */}
       {activeTab === 'league' && (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+          <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-base flex items-center gap-2">
                 <Trophy size={18} className="text-[#C49A1A]" />
@@ -1998,7 +1998,7 @@ export default function StudentDashboard() {
       {/* Badges tab — focused badge grid */}
       {activeTab === 'badges' && (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
+          <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-base">🏅 Hero Badges</h3>
               <span className="text-xs text-gray-400 dark:text-slate-400">{badges.filter(b => b.earned).length}/{badges.length} earned</span>
@@ -2024,7 +2024,7 @@ export default function StudentDashboard() {
       {/* Profile tab — student info + logout */}
       {activeTab === 'profile' && (
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{ margin: '0 auto 16px', width: 96 }}>
               <CharacterAvatar id={student?.avatar} size={96} />
             </div>
@@ -2045,7 +2045,7 @@ export default function StudentDashboard() {
               { label: 'Accuracy', value: `${stats?.accuracy ?? 0}%`, emoji: '🎯' },
               { label: 'Sessions', value: student?.sessions_completed ?? 0, emoji: '📚' },
             ].map((s, i) => (
-              <div key={i} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl p-3 border border-gray-100 dark:border-white/10 colorblind:border-gray-300" style={{ textAlign: 'center' }}>
+              <div key={i} className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl p-3 border border-gray-100 dark:border-white/10 colorblind:border-gray-300" style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 22, margin: '0 0 2px' }}>{s.emoji}</p>
                 <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18, margin: 0 }}>{s.value}</p>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: 0 }}>{s.label}</p>
@@ -2500,7 +2500,7 @@ export default function StudentDashboard() {
 
                       {/* Feature 6: Show Me How button on wrong answer */}
                       {showResult && !answerState?.correct && practiceModal.steps?.length > 0 && (
-                        <button onClick={() => setShowSteps(true)} className="w-full mb-3 py-3 rounded-xl border-2 border-[#C49A1A] text-[#1B2B4B] font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#C49A1A]/10 transition-colors">
+                        <button onClick={() => setShowSteps(true)} className="w-full mb-3 py-3 rounded-xl border-2 border-[#C49A1A] text-[#1B2B4B] dark:text-[#F0F0F0] font-bold text-sm flex items-center justify-center gap-2 hover:bg-[#C49A1A]/10 transition-colors">
                           <Lightbulb size={16} /> Show Me How
                         </button>
                       )}
@@ -2528,7 +2528,7 @@ export default function StudentDashboard() {
                         </div>
                         <p className="text-white/60 text-xs font-medium">Watch tutorial video</p>
                       </div>
-                      <h4 className="font-bold text-[#1B2B4B] text-base mb-4">Step-by-Step Solution</h4>
+                      <h4 className="font-bold text-[#1B2B4B] dark:text-[#F0F0F0] text-base mb-4">Step-by-Step Solution</h4>
                       <div className="space-y-3 mb-5">
                         {(practiceModal.steps || []).map((step, i) => (
                           <div key={i} className="flex items-start gap-3">
@@ -2605,7 +2605,7 @@ export default function StudentDashboard() {
           padding: 16,
         }}>
           <div style={{
-            background: 'white', borderRadius: 24, width: '100%', maxWidth: 420,
+            background: 'var(--bg-card)', borderRadius: 24, width: '100%', maxWidth: 420,
             border: '3px solid #C49A1A', padding: 32, textAlign: 'center',
             boxShadow: '0 24px 80px rgba(0,0,0,0.4)',
           }}>
@@ -2613,14 +2613,14 @@ export default function StudentDashboard() {
               onClick={() => setShowAskHero(false)}
               style={{
                 position: 'absolute', top: 24, right: 24, background: 'none',
-                border: 'none', fontSize: 24, cursor: 'pointer', color: '#94A3B8',
+                border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--text-muted)',
               }}
             >×</button>
             {heroStatus.reason === 'upgrade' ? (
               <>
                 <p style={{ fontSize: 48, margin: 0 }}>💎</p>
-                <h3 style={{ color: '#1B2B4B', fontWeight: 800, marginBottom: 8 }}>Premium Feature</h3>
-                <p style={{ color: '#64748B', fontSize: 14, marginBottom: 24 }}>
+                <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, marginBottom: 8 }}>Premium Feature</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24 }}>
                   Ask Hero is available on the Premium plan 💎 Upgrade to unlock unlimited AI tutoring!
                 </p>
                 <button
@@ -2634,8 +2634,8 @@ export default function StudentDashboard() {
             ) : (
               <>
                 <p style={{ fontSize: 48, margin: 0 }}>🌟</p>
-                <h3 style={{ color: '#1B2B4B', fontWeight: 800, marginBottom: 8 }}>Daily Limit Reached</h3>
-                <p style={{ color: '#64748B', fontSize: 14 }}>
+                <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, marginBottom: 8 }}>Daily Limit Reached</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
                   You&apos;ve used all your Hero chats for today! Come back tomorrow 🌟 You&apos;ve got this!
                 </p>
               </>
@@ -2855,7 +2855,7 @@ export default function StudentDashboard() {
                   }} />
                 </div>
 
-                <div style={{ background: '#F8FAFC', borderRadius: 16,
+                <div style={{ background: 'var(--bg-card-elevated)', borderRadius: 16,
                   padding: 20, marginBottom: 20,
                   border: '1px solid var(--border-color)' }}>
                   <p style={{ fontSize: 18, fontWeight: 700,
@@ -3089,7 +3089,7 @@ export default function StudentDashboard() {
               onChange={e => setFeedbackMsg(e.target.value.slice(0, 2000))}
               style={{
                 width: '100%', padding: 12,
-                border: '1.5px solid #E2E8F0',
+                border: '1.5px solid var(--border-color)',
                 borderRadius: 12, fontSize: 14,
                 resize: 'none', height: 80,
                 color: 'var(--text-primary)', marginBottom: 16,
@@ -3108,7 +3108,7 @@ export default function StudentDashboard() {
                 disabled={feedbackSubmitting}
                 style={{ flex: 1, padding: 14,
                   background: 'var(--bg-card)',
-                  border: '1.5px solid #E2E8F0',
+                  border: '1.5px solid var(--border-color)',
                   borderRadius: 12, fontWeight: 600,
                   cursor: 'pointer', color: 'var(--text-secondary)' }}>
                 Skip

@@ -92,10 +92,10 @@ export default function Navbar() {
           <NavbarThemeToggle />
           <button onClick={handleLogout} style={{
             background: 'none',
-            border: '1px solid #E2E8F0',
+            border: '1px solid var(--border-color)',
             borderRadius: 8,
             padding: '6px 16px',
-            color: '#64748B',
+            color: 'var(--text-secondary)',
             cursor: 'pointer',
             fontSize: 14,
             fontWeight: 600,
@@ -141,7 +141,7 @@ export default function Navbar() {
             <Link href="/teacher-dashboard" style={linkStyle(pathname === '/teacher-dashboard')}>Teacher Demo</Link>
           )}
           <NavbarThemeToggle />
-          <Link href="/login" style={{ color: '#1B2B4B', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+          <Link href="/login" style={{ color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
             Login
           </Link>
           <Link href="/onboarding" style={{
@@ -173,8 +173,8 @@ export default function Navbar() {
 }
 
 const navShellStyle = {
-  background: 'white',
-  borderBottom: '1px solid #E2E8F0',
+  background: 'var(--bg-card)',
+  borderBottom: '1px solid var(--border-color)',
   padding: '0 24px',
   height: 80,
   display: 'grid',
@@ -194,7 +194,7 @@ function getDashboardLink(role) {
 
 function linkStyle(active) {
   return {
-    color: active ? '#C49A1A' : '#1B2B4B',
+    color: active ? '#C49A1A' : 'var(--text-primary)',
     textDecoration: 'none',
     fontWeight: active ? 700 : 600,
     fontSize: 14,

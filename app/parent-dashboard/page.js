@@ -46,8 +46,8 @@ function AccountTile({ icon, title, desc, onClick }) {
       onClick={onClick}
       style={{
         textAlign: 'left',
-        background: 'white',
-        border: '1px solid #E2E8F0',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
         borderRadius: 14,
         padding: 16,
         cursor: 'pointer',
@@ -57,7 +57,7 @@ function AccountTile({ icon, title, desc, onClick }) {
         transition: 'border-color 0.15s, transform 0.1s',
       }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#C49A1A' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)' }}
     >
       <div style={{
         width: 36, height: 36, borderRadius: 10,
@@ -65,8 +65,8 @@ function AccountTile({ icon, title, desc, onClick }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 18,
       }}>{icon}</div>
-      <div style={{ fontWeight: 700, color: '#1B2B4B', fontSize: 14 }}>{title}</div>
-      <div style={{ color: '#64748B', fontSize: 12, lineHeight: 1.45 }}>{desc}</div>
+      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 14 }}>{title}</div>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 12, lineHeight: 1.45 }}>{desc}</div>
     </button>
   )
 }
@@ -690,7 +690,7 @@ export default function ParentDashboard() {
                 <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Create Parent Account</h2>
                 <p className="text-gray-500 dark:text-slate-300 text-sm mt-1">Step 1 of 2</p>
               </div>
-              <form onSubmit={handleRegister} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
+              <form onSubmit={handleRegister} className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Full Name</label>
                   <div className="relative"><User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400" /><input type="text" required value={registerForm.name} onChange={e => setRegisterForm({...registerForm, name: e.target.value})} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Sarah Johnson" /></div>
@@ -725,14 +725,14 @@ export default function ParentDashboard() {
                 <h2 className="text-2xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Add Your Child</h2>
                 <p className="text-gray-500 dark:text-slate-300 text-sm mt-1">Step 2 of 2 — Welcome, {parentData?.name}!</p>
               </div>
-              <form onSubmit={handleAddChild} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
+              <form onSubmit={handleAddChild} className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-sm space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Child&apos;s Name</label>
                   <input type="text" required value={childForm.name} onChange={e => setChildForm({...childForm, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm" placeholder="Alex" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-200 mb-1">Grade</label>
-                  <select required value={childForm.grade} onChange={e => setChildForm({...childForm, grade: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm bg-white dark:bg-[#1E2D42] colorblind:bg-white appearance-none">
+                  <select required value={childForm.grade} onChange={e => setChildForm({...childForm, grade: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-electric focus:ring-1 focus:ring-electric text-sm bg-white dark:bg-[#1C1C1C] colorblind:bg-white appearance-none">
                     <option value="">Select grade</option>
                     {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
@@ -759,7 +759,7 @@ export default function ParentDashboard() {
         {step === 'childCreated' && childData && (
           <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md mx-auto text-center">
-              <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
+              <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
                 <div className="mx-auto mb-4" style={{ width: 80 }}>
                   {isCharacterId(childData.avatar)
                     ? <CharacterAvatar id={childData.avatar} size={80} />
@@ -841,11 +841,11 @@ export default function ParentDashboard() {
       `}</style>
 
       {/* Header */}
-      <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white border-b border-gray-200">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-lg font-bold text-[#1B2B4B]">Parent Hub — MyMathsHero</h1>
+              <h1 className="text-lg font-bold text-[#1B2B4B] dark:text-[#F0F0F0]">Parent Hub — MyMathsHero</h1>
               <p className="text-xs text-gray-500 dark:text-slate-300 mt-0.5">{childName} &middot; Grade {childGrade} &middot; {children.length || 1} child{(children.length || 1) === 1 ? '' : 'ren'}</p>
             </div>
             <div className="flex items-center gap-2">
@@ -853,7 +853,7 @@ export default function ParentDashboard() {
                 <select
                   value={childData?.id || ''}
                   onChange={e => setChildData(children.find(c => c.id === e.target.value))}
-                  className="text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 dark:text-slate-300 bg-white dark:bg-[#1E2D42] colorblind:bg-white focus:outline-none focus:ring-1 focus:ring-electric"
+                  className="text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 dark:text-slate-300 bg-white dark:bg-[#1C1C1C] colorblind:bg-white focus:outline-none focus:ring-1 focus:ring-electric"
                 >
                   {/* <option> can't render a component, so for character-id
                       avatars we just show the name (no raw "ninja" text). */}
@@ -880,7 +880,7 @@ export default function ParentDashboard() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Child Card (mirrors My Classes header strip) */}
-        <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+        <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users size={15} className="text-electric" />
@@ -916,7 +916,7 @@ export default function ParentDashboard() {
         {/* Overview Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {overviewCards.map((card, i) => (
-            <div key={i} className={`bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl p-4 border ${card.border} hover:shadow-sm transition-all`}>
+            <div key={i} className={`bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl p-4 border ${card.border} hover:shadow-sm transition-all`}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] text-gray-500 dark:text-slate-300 font-medium uppercase tracking-wider">{card.label}</span>
                 <div className={`w-7 h-7 rounded-lg ${card.bg} flex items-center justify-center`}>
@@ -938,7 +938,7 @@ export default function ParentDashboard() {
         {/* Placement Report — AI estimate of the child's true working level from
             the diagnostic, fused with parent insight. Only shown once set. */}
         {childData?.placement?.rationale && (
-          <div className="mb-6 bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="mb-6 bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
               <Trophy size={15} className="text-amber-500" />
               <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Placement Report</h2>
@@ -963,7 +963,7 @@ export default function ParentDashboard() {
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Skill Heatmap */}
           <div className="flex-1 min-w-0">
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <BarChart3 size={15} className="text-electric" />
@@ -1016,7 +1016,7 @@ export default function ParentDashboard() {
             </div>
 
             {/* Weekly Activity (extra parent card, same card chrome) */}
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
                 <Activity size={15} className="text-electric" />
                 <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Weekly Activity</h2>
@@ -1043,7 +1043,7 @@ export default function ParentDashboard() {
 
           {/* AI Insights (mirrors teacher AI Insights panel exactly) */}
           <div className="w-full xl:w-[340px] flex-shrink-0">
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between bg-gradient-to-r from-white to-blue-50/50">
                 <div className="flex items-center gap-2">
                   <Brain size={15} className="text-electric" />
@@ -1114,7 +1114,7 @@ export default function ParentDashboard() {
             </div>
 
             {/* Recent Sessions (mirrors teacher's secondary list) */}
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
                 <Activity size={15} className="text-electric" />
                 <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">Recent Sessions</h2>
@@ -1137,7 +1137,7 @@ export default function ParentDashboard() {
             </div>
 
             {reportMsg && (
-              <p className="text-[11px] text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] font-medium mt-3 bg-white dark:bg-[#1E2D42] colorblind:bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] font-medium mt-3 bg-white dark:bg-[#1C1C1C] colorblind:bg-white border border-gray-200 rounded-lg px-3 py-2">
                 {reportMsg}{lastReportSent ? ` · ${lastReportSent.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}` : ''}
               </p>
             )}
@@ -1225,7 +1225,7 @@ export default function ParentDashboard() {
               position: 'fixed',
               top: 0, right: 0, bottom: 0,
               width: '100%', maxWidth: 520,
-              background: 'white',
+              background: 'var(--bg-card)',
               boxShadow: '-20px 0 60px rgba(15,23,42,0.18)',
               zIndex: 401,
               display: 'flex', flexDirection: 'column',
@@ -1237,7 +1237,7 @@ export default function ParentDashboard() {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '18px 20px',
-              borderBottom: '1px solid #F0F4F8',
+              borderBottom: '1px solid var(--border-light)',
             }}>
               {accountView !== 'index' && (
                 <button
@@ -1245,12 +1245,12 @@ export default function ParentDashboard() {
                   aria-label="Back to categories"
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 20, color: '#1B2B4B', padding: 4,
+                    fontSize: 20, color: 'var(--text-primary)', padding: 4,
                   }}
                 >←</button>
               )}
               <h2 style={{
-                margin: 0, fontSize: 17, fontWeight: 800, color: '#1B2B4B',
+                margin: 0, fontSize: 17, fontWeight: 800, color: 'var(--text-primary)',
                 flex: 1,
               }}>
                 {accountView === 'index'        ? 'Account settings'
@@ -1265,7 +1265,7 @@ export default function ParentDashboard() {
                 aria-label="Close"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 22, color: '#94A3B8', padding: 4, lineHeight: 1,
+                  fontSize: 22, color: 'var(--text-muted)', padding: 4, lineHeight: 1,
                 }}
               >×</button>
             </div>
@@ -1275,7 +1275,7 @@ export default function ParentDashboard() {
               {accountView === 'index' && (
                 <>
                   <p style={{
-                    fontSize: 11, fontWeight: 800, color: '#94A3B8',
+                    fontSize: 11, fontWeight: 800, color: 'var(--text-muted)',
                     textTransform: 'uppercase', letterSpacing: 1,
                     margin: '0 0 12px',
                   }}>
@@ -1295,7 +1295,7 @@ export default function ParentDashboard() {
                   </div>
 
                   <p style={{
-                    fontSize: 11, fontWeight: 800, color: '#94A3B8',
+                    fontSize: 11, fontWeight: 800, color: 'var(--text-muted)',
                     textTransform: 'uppercase', letterSpacing: 1,
                     margin: '0 0 12px',
                   }}>
@@ -1356,11 +1356,11 @@ export default function ParentDashboard() {
                     <div style={{
                       padding: '16px 0', display: 'flex',
                       justifyContent: 'space-between', alignItems: 'center',
-                      borderBottom: '1px solid #F0F4F8',
+                      borderBottom: '1px solid var(--border-light)',
                     }}>
                       <div>
-                        <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 2px' }}>Name</p>
-                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{parentData?.name || '—'}</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 2px' }}>Name</p>
+                        <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{parentData?.name || '—'}</p>
                       </div>
                       <button
                         onClick={() => { setNameInput(parentData?.name || ''); setEditingName(true) }}
@@ -1369,22 +1369,22 @@ export default function ParentDashboard() {
                       >Edit</button>
                     </div>
                   ) : (
-                    <div style={{ padding: '16px 0', borderBottom: '1px solid #F0F4F8' }}>
-                      <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 8px' }}>Name</p>
+                    <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border-light)' }}>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>Name</p>
                       <input
                         value={nameInput}
                         onChange={e => setNameInput(e.target.value)}
                         autoFocus
                         style={{ width: '100%', padding: '10px 14px',
-                          border: '1.5px solid #E2E8F0', borderRadius: 10,
-                          fontSize: 15, color: '#1B2B4B', outline: 'none',
+                          border: '1.5px solid var(--border-color)', borderRadius: 10,
+                          fontSize: 15, color: 'var(--text-primary)', outline: 'none',
                           marginBottom: 10, boxSizing: 'border-box' }}
                       />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => setEditingName(false)} disabled={savingName}
-                          style={{ flex: 1, padding: 10, background: 'white',
-                            border: '1px solid #E2E8F0', borderRadius: 10,
-                            fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                          style={{ flex: 1, padding: 10, background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)', borderRadius: 10,
+                            fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                           Cancel
                         </button>
                         <button onClick={saveName} disabled={savingName}
@@ -1402,11 +1402,11 @@ export default function ParentDashboard() {
                     <div style={{
                       padding: '16px 0', display: 'flex',
                       justifyContent: 'space-between', alignItems: 'center',
-                      borderBottom: '1px solid #F0F4F8',
+                      borderBottom: '1px solid var(--border-light)',
                     }}>
                       <div>
-                        <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 2px' }}>Email</p>
-                        <p style={{ fontWeight: 600, color: '#1B2B4B', margin: 0, fontSize: 14 }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 2px' }}>Email</p>
+                        <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>
                           {parentData?.email || '—'}
                         </p>
                       </div>
@@ -1417,8 +1417,8 @@ export default function ParentDashboard() {
                       >Edit</button>
                     </div>
                   ) : (
-                    <div style={{ padding: '16px 0', borderBottom: '1px solid #F0F4F8' }}>
-                      <p style={{ fontSize: 12, color: '#94A3B8', margin: '0 0 8px' }}>Email</p>
+                    <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border-light)' }}>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px' }}>Email</p>
                       <input
                         type="email"
                         value={emailInput}
@@ -1426,15 +1426,15 @@ export default function ParentDashboard() {
                         autoFocus
                         autoComplete="email"
                         style={{ width: '100%', padding: '10px 14px',
-                          border: '1.5px solid #E2E8F0', borderRadius: 10,
-                          fontSize: 15, color: '#1B2B4B', outline: 'none',
+                          border: '1.5px solid var(--border-color)', borderRadius: 10,
+                          fontSize: 15, color: 'var(--text-primary)', outline: 'none',
                           marginBottom: 10, boxSizing: 'border-box' }}
                       />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => setEditingEmail(false)} disabled={savingEmail}
-                          style={{ flex: 1, padding: 10, background: 'white',
-                            border: '1px solid #E2E8F0', borderRadius: 10,
-                            fontWeight: 600, cursor: 'pointer', color: '#64748B' }}>
+                          style={{ flex: 1, padding: 10, background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)', borderRadius: 10,
+                            fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                           Cancel
                         </button>
                         <button onClick={saveEmail} disabled={savingEmail}
@@ -1452,15 +1452,15 @@ export default function ParentDashboard() {
                     onClick={() => setShowChangePassword(true)}
                     style={{
                       width: '100%', marginTop: 16, padding: '14px 16px',
-                      background: '#F8FAFC', border: '1px solid #E2E8F0',
+                      background: 'var(--bg-card-elevated)', border: '1px solid var(--border-color)',
                       borderRadius: 12, fontWeight: 700, fontSize: 14,
-                      color: '#1B2B4B', cursor: 'pointer',
+                      color: 'var(--text-primary)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 12,
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🔑</span>
                     <span style={{ flex: 1, textAlign: 'left' }}>Change password</span>
-                    <span style={{ color: '#94A3B8' }}>›</span>
+                    <span style={{ color: 'var(--text-muted)' }}>›</span>
                   </button>
                 </>
               )}
@@ -1471,7 +1471,7 @@ export default function ParentDashboard() {
                     background: subStatus?.accessBlocked ? '#FEE2E2' : '#DCFCE7',
                     borderRadius: 12, padding: 16, marginBottom: 16,
                   }}>
-                    <p style={{ fontWeight: 800, margin: '0 0 4px', color: '#1B2B4B', fontSize: 15 }}>
+                    <p style={{ fontWeight: 800, margin: '0 0 4px', color: 'var(--text-primary)', fontSize: 15 }}>
                       {subStatus?.plan === 'premium' ? '⭐ Premium Plan'
                         : subStatus?.plan === 'standard' ? '📚 Standard Plan'
                         : subStatus?.subscribed ? '✅ Active Plan'
@@ -1493,7 +1493,7 @@ export default function ParentDashboard() {
                       </p>
                     )}
                     {subStatus?.siblingAddonActive && (
-                      <p style={{ margin: '6px 0 0', fontSize: 12, color: '#1B2B4B', fontWeight: 700 }}>
+                      <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--text-primary)', fontWeight: 700 }}>
                         👫 Sibling add-on active
                       </p>
                     )}
@@ -1532,37 +1532,37 @@ export default function ParentDashboard() {
                     <div key={child.id || i} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '12px 0',
-                      borderBottom: '1px solid #F0F4F8',
+                      borderBottom: '1px solid var(--border-light)',
                     }}>
                       {isCharacterId(child.avatar) ? (
                         <CharacterAvatar id={child.avatar} size={40} />
                       ) : (
                         <div style={{
                           width: 40, height: 40, borderRadius: '50%',
-                          background: '#F0F4F8',
+                          background: 'var(--bg-primary)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 20,
                         }}>{child.avatar || '🧒'}</div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontWeight: 700, color: '#1B2B4B', margin: 0 }}>{child.name}</p>
-                        <p style={{ fontSize: 12, color: '#94A3B8', margin: 0 }}>
+                        <p style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{child.name}</p>
+                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
                           {child.grade === 0 || child.grade === '0' ? 'Prep' : `Year ${child.grade}`} · {child.xp || 0} Hero Points
                         </p>
                       </div>
                       <button
                         onClick={() => handleResetChildPin(child)}
                         style={{
-                          background: '#F0F4F8', border: '1px solid #E2E8F0',
+                          background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
                           borderRadius: 8, padding: '6px 12px', fontSize: 12,
-                          fontWeight: 600, cursor: 'pointer', color: '#1B2B4B',
+                          fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)',
                           whiteSpace: 'nowrap',
                         }}
                       >🔢 Reset PIN</button>
                     </div>
                   ))}
                   {(!children || children.length === 0) && (
-                    <p style={{ color: '#94A3B8', fontSize: 13, margin: '0 0 12px' }}>No children yet.</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 12px' }}>No children yet.</p>
                   )}
                   {(() => {
                     const existingCount = children?.length || 0
@@ -1572,9 +1572,9 @@ export default function ParentDashboard() {
                         onClick={handleAddChildClick}
                         style={{
                           width: '100%', marginTop: 14, padding: '12px 16px',
-                          background: 'white', border: '2px dashed #CBD5E1',
+                          background: 'var(--bg-card)', border: '2px dashed #CBD5E1',
                           borderRadius: 12, fontWeight: 700, fontSize: 14,
-                          color: '#64748B', cursor: 'pointer',
+                          color: 'var(--text-secondary)', cursor: 'pointer',
                         }}
                       >
                         {needsSiblingPayment
@@ -1589,7 +1589,7 @@ export default function ParentDashboard() {
               {accountView === 'arcade' && (
                 flags.arcadeEnabled && parentData?.id && (children?.length || 0) > 0
                   ? <ArcadeSettings parentId={parentData.id} children={children} />
-                  : <p style={{ color: '#94A3B8', fontSize: 13 }}>
+                  : <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                       Arcade controls become available once at least one child is added and the Arcade feature is enabled.
                     </p>
               )}
@@ -1625,7 +1625,7 @@ export default function ParentDashboard() {
                     onChange={e => setChangePwForm(prev => ({ ...prev, [field.key]: e.target.value }))}
                     required
                     style={{ width: '100%', padding: '12px 14px',
-                      border: '1.5px solid #E2E8F0', borderRadius: 10,
+                      border: '1.5px solid var(--border-color)', borderRadius: 10,
                       fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
@@ -1637,7 +1637,7 @@ export default function ParentDashboard() {
                 <button type="button"
                   onClick={() => { setShowChangePassword(false); setChangePwError('') }}
                   style={{ flex: 1, padding: 12, background: 'var(--bg-card)',
-                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    border: '1.5px solid var(--border-color)', borderRadius: 10,
                     fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
@@ -1679,7 +1679,7 @@ export default function ParentDashboard() {
                   onChange={e => setAddChildForm(prev => ({ ...prev, name: e.target.value }))}
                   required
                   style={{ width: '100%', padding: '12px 14px',
-                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    border: '1.5px solid var(--border-color)', borderRadius: 10,
                     fontSize: 14, boxSizing: 'border-box' }}
                 />
               </div>
@@ -1691,7 +1691,7 @@ export default function ParentDashboard() {
                   value={addChildForm.grade}
                   onChange={e => setAddChildForm(prev => ({ ...prev, grade: e.target.value }))}
                   style={{ width: '100%', padding: '12px 14px',
-                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    border: '1.5px solid var(--border-color)', borderRadius: 10,
                     fontSize: 14, boxSizing: 'border-box' }}
                 >
                   <option value="0">Prep</option>
@@ -1713,7 +1713,7 @@ export default function ParentDashboard() {
                   onChange={e => setAddChildForm(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
                   required
                   style={{ width: '100%', padding: '12px 14px',
-                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    border: '1.5px solid var(--border-color)', borderRadius: 10,
                     fontSize: 20, letterSpacing: 8,
                     boxSizing: 'border-box' }}
                 />
@@ -1725,7 +1725,7 @@ export default function ParentDashboard() {
                 <button type="button"
                   onClick={() => { setShowAddChildModal(false); setAddChildError('') }}
                   style={{ flex: 1, padding: 12, background: 'var(--bg-card)',
-                    border: '1.5px solid #E2E8F0', borderRadius: 10,
+                    border: '1.5px solid var(--border-color)', borderRadius: 10,
                     fontWeight: 600, cursor: 'pointer', color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
@@ -1781,9 +1781,9 @@ export default function ParentDashboard() {
                 onClick={() => submitNPS(n)}
                 style={{
                   width: 36, height: 36,
-                  borderRadius: 8, border: '1.5px solid #E2E8F0',
+                  borderRadius: 8, border: '1.5px solid var(--border-color)',
                   background: n >= 9 ? 'var(--correct-bg)'
-                    : n >= 7 ? 'var(--accent-gold-light)' : 'white',
+                    : n >= 7 ? 'var(--accent-gold-light)' : 'var(--bg-card)',
                   color: 'var(--text-primary)', fontWeight: 700,
                   fontSize: 13, cursor: 'pointer',
                 }}>

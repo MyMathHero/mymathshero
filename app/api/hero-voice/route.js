@@ -54,9 +54,14 @@ export async function POST(request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1',
+        // Newer, more natural model — supports `instructions` for accent/tone
+        // steering (the older tts-1 ignores it).
+        model: 'gpt-4o-mini-tts',
         voice: 'nova',
         input: clean,
+        // Steer toward a warm Australian accent for Hero.
+        instructions:
+          'Speak with a friendly, natural Australian accent. You are Hero, an encouraging primary-school maths tutor for children. Warm, upbeat and clear, at a gentle pace.',
         speed: 0.95,
       }),
     })

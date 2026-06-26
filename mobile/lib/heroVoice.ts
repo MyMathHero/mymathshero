@@ -1,10 +1,10 @@
 // Shared Hero voice (OpenAI TTS via /api/hero-voice) for any mobile screen that
 // needs Hero to speak — Junior Mode narration, etc. Mirrors the proven path in
 // AskHeroSheet: fetch audio via expo/fetch .bytes() (NOT axios — see
-// ask-hero-voice-rn-fetch memory), play with expo-audio, fall back to
-// expo-speech. One utterance at a time; speak() stops any prior playback.
+// ask-hero-voice-rn-fetch memory), play with expo-audio. One utterance at a time;
+// speak() stops any prior playback. NO expo-speech fallback — if OpenAI TTS is
+// unavailable or plan-gated, Hero is simply silent (never the robotic device voice).
 
-import * as Speech from 'expo-speech'
 import * as SecureStore from 'expo-secure-store'
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
@@ -14,7 +14,6 @@ import { API_URL } from './api'
 let player: AudioPlayer | null = null
 
 export async function stopSpeaking(): Promise<void> {
-  try { await Speech.stop() } catch {}
   if (player) {
     try { player.pause() } catch {}
     try { player.release() } catch {}
@@ -64,14 +63,6 @@ export async function speak(text: string): Promise<void> {
     try { file.delete() } catch {}
     return
   } catch {
-    // Fall through to expo-speech.
+    // OpenAI TTS unavailable or plan-gated — stay silent (no device-voice fallback).
   }
-
-  try { await Speech.stop() } catch {}
-  await new Promise<void>((resolve) => {
-    Speech.speak(clean, {
-      language: 'en-AU', rate: 0.9, pitch: 1.05,
-      onDone: () => resolve(), onError: () => resolve(), onStopped: () => resolve(),
-    })
-  })
 }
