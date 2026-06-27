@@ -1485,8 +1485,11 @@ export default function StudentDashboard() {
                         <div key={skill.id || i} style={{
                           display: 'flex', alignItems: 'center', gap: 14,
                           padding: '14px 16px', borderRadius: 14,
-                          border: `1px solid ${info.lightColor}`,
-                          background: info.lightColor,
+                          // Theme-aware card with a coloured left accent (was a
+                          // light pastel that hid the title in dark mode).
+                          border: '1px solid var(--border-color)',
+                          borderLeft: `4px solid ${info.color}`,
+                          background: 'var(--bg-card)',
                           cursor: 'pointer',
                         }}
                         onClick={() => openPractice(skill)}
@@ -1506,9 +1509,7 @@ export default function StudentDashboard() {
                             <div style={{ display: 'flex',
                               alignItems: 'center', gap: 8,
                               marginBottom: 4, flexWrap: 'wrap' }}>
-                              {/* Card sits on info.lightColor (a light pastel)
-                                  regardless of theme, so pin text to navy for
-                                  guaranteed contrast in every theme. */}
+                              {/* Themed card surface → text follows the theme. */}
                               <span style={{ fontWeight: 700,
                                 color: 'var(--text-primary)', fontSize: 15 }}>
                                 {info.name}
@@ -1525,13 +1526,13 @@ export default function StudentDashboard() {
                               )}
                             </div>
                             <div style={{ height: 6,
-                              background: 'rgba(0,0,0,0.08)',
+                              background: 'var(--border-color)',
                               borderRadius: 3, overflow: 'hidden' }}>
                               <div style={{
                                 height: '100%', borderRadius: 3,
                                 width: `${score}%`,
                                 background: score >= 80 ? 'var(--correct)'
-                                  : score >= 50 ? info.color : '#E2E8F0',
+                                  : score >= 50 ? info.color : 'var(--text-muted)',
                                 transition: 'width 0.5s ease',
                               }} />
                             </div>

@@ -468,7 +468,7 @@ export default function AskHero({
 
         {/* Robot + Question reference */}
         <div style={{
-          background: '#F0F4F8',
+          background: 'var(--bg-card-elevated)',
           padding: 16,
           display: 'flex',
           alignItems: 'center',
@@ -495,11 +495,12 @@ export default function AskHero({
                 src={robot.src}
                 width={100}
                 loop={robot.loop}
+                blend="auto"
               />
             ) : (
               <img
                 src={robot.src}
-                style={{ width: 100, mixBlendMode: 'multiply' }}
+                style={{ width: 100 }}
                 alt="Hero"
               />
             )}

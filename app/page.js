@@ -105,35 +105,36 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#0F1620]">
+    <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#080808]">
 
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-[#F0F4F8] dark:bg-[#0F1620]">
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-[#F0F4F8] dark:bg-[#080808]">
         {/* Subtle maths equations background decoration */}
         <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-6xl font-bold" style={{ top: '12%', left: '6%' }}>2x+3=7</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-7xl font-bold" style={{ top: '20%', right: '8%' }}>a²+b²=c²</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-8xl font-bold" style={{ top: '55%', left: '4%' }}>π</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-8xl font-bold" style={{ bottom: '15%', right: '12%' }}>∑</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-5xl font-bold" style={{ top: '70%', left: '40%' }}>½ + ¼</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-6xl font-bold" style={{ top: '40%', left: '55%' }}>√25 = 5</span>
-          <span className="absolute text-[#1B2B4B] dark:text-slate-100 opacity-5 text-7xl font-bold" style={{ bottom: '25%', left: '25%' }}>12 × 8</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-6xl font-bold" style={{ top: '12%', left: '6%' }}>2x+3=7</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ top: '20%', right: '8%' }}>a²+b²=c²</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-8xl font-bold" style={{ top: '55%', left: '4%' }}>π</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-8xl font-bold" style={{ bottom: '15%', right: '12%' }}>∑</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-5xl font-bold" style={{ top: '70%', left: '40%' }}>½ + ¼</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-6xl font-bold" style={{ top: '40%', left: '55%' }}>√25 = 5</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ bottom: '25%', left: '25%' }}>12 × 8</span>
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 w-full">
           <div className="grid lg:grid-cols-2 gap-10 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-[#1E2D42] colorblind:bg-white border border-[#E2E8F0] dark:border-white/10 text-[#1B2B4B] dark:text-slate-100 text-sm mb-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm mb-6 shadow-sm"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
                 <Sparkles size={16} className="text-[#C49A1A]" />
                 Personalised AI Maths Learning — Prep to Year 6
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#1B2B4B] dark:text-slate-100 leading-tight mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: 'var(--text-primary)' }}>
                 Meet Hero —{' '}
                 <span className="text-[#C49A1A]">Your Child&apos;s AI Maths Tutor</span>
               </h1>
 
-              <p className="text-lg sm:text-xl text-[#64748B] dark:text-slate-300 mb-8 leading-relaxed max-w-2xl">
+              <p className="text-lg sm:text-xl mb-8 leading-relaxed max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
                 Personalised maths support that adapts to your child, builds confidence, and helps them learn step by step.
               </p>
 
@@ -142,7 +143,8 @@ export default function LandingPage() {
                 {trustBadges.map((badge, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-[#1E2D42] colorblind:bg-white border border-[#E2E8F0] dark:border-white/10 text-[#1B2B4B] dark:text-slate-100 text-sm font-medium shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium shadow-sm"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
                   >
                     <CheckCircle2 size={14} className="text-[#C49A1A]" />
                     {badge.label}
@@ -172,6 +174,7 @@ export default function LandingPage() {
               <RoboVideo
                 src="/assets/robot/wavingrobo.MP4"
                 width={300}
+                blend="auto"
                 loop={true}
                 className="mx-auto"
               />
@@ -182,7 +185,7 @@ export default function LandingPage() {
 
       {/* ===== STATS BAR ===== */}
       <section className="relative -mt-8 z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl shadow-xl border border-[#E2E8F0] dark:border-white/10 p-6 sm:p-8">
+        <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl shadow-xl border border-[#E2E8F0] dark:border-white/10 p-6 sm:p-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {stats.map((stat, i) => (
               <div key={i} className="text-center">
@@ -207,7 +210,7 @@ export default function LandingPage() {
             {features.map((f, i) => (
               <div
                 key={i}
-                className={`bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-[#E2E8F0] dark:border-white/10 hover:border-[#C49A1A]/40 transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px] ${visibleSections['features'] ? 'animate-fade-in-up' : 'opacity-0'}`}
+                className={`bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-8 border border-[#E2E8F0] dark:border-white/10 hover:border-[#C49A1A]/40 transition-all duration-300 hover:shadow-lg hover:translate-y-[-4px] ${visibleSections['features'] ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${i * 0.15}s` }}
               >
                 <div className="w-14 h-14 rounded-xl bg-[#C49A1A]/10 flex items-center justify-center mb-6">
@@ -222,7 +225,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===== HOW IT WORKS ===== */}
-      <section id="how-it-works" data-animate className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
+      <section id="how-it-works" data-animate className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1C1C1C] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-[#C49A1A]/10 text-[#C49A1A] text-sm font-semibold mb-4">Simple Process</span>
@@ -285,7 +288,7 @@ export default function LandingPage() {
                     <span>{sub.count}</span>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white p-6">
+                <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white p-6">
                   <h4 className="text-sm font-semibold text-[#64748B] dark:text-slate-300 uppercase tracking-wider mb-3">Key Skills</h4>
                   <ul className="space-y-2.5">
                     {sub.skills.map((skill, j) => (
@@ -303,7 +306,7 @@ export default function LandingPage() {
       </section>
 
       {/* ===== TESTIMONIALS ===== */}
-      <section data-animate id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
+      <section data-animate id="testimonials" className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1C1C1C] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-[#C49A1A]/10 text-[#C49A1A] text-sm font-semibold mb-4">Testimonials</span>
@@ -314,7 +317,7 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <div
                 key={i}
-                className={`bg-[#F0F4F8] dark:bg-[#0F1620] rounded-2xl p-8 border border-[#E2E8F0] dark:border-white/10 hover:border-[#C49A1A]/40 transition-all duration-300 hover:shadow-lg ${visibleSections['testimonials'] ? 'animate-fade-in-up' : 'opacity-0'}`}
+                className={`bg-[#F0F4F8] dark:bg-[#080808] rounded-2xl p-8 border border-[#E2E8F0] dark:border-white/10 hover:border-[#C49A1A]/40 transition-all duration-300 hover:shadow-lg ${visibleSections['testimonials'] ? 'animate-fade-in-up' : 'opacity-0'}`}
                 style={{ animationDelay: `${i * 0.15}s` }}
               >
                 <div className="flex gap-1 mb-4">

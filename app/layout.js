@@ -6,6 +6,8 @@ import { ThemeProvider, THEME_SCRIPT } from '@/lib/useTheme'
 import { GoogleAnalytics } from '@next/third-parties/google'
 
 export const metadata = {
+  // Resolves relative canonical/OG URLs (e.g. '/curriculum') to absolute ones.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://mymathshero.com.au'),
   title: 'MyMathsHero — Personalised AI Maths Learning',
   description: 'Personalised AI Maths Learning from Prep to Year 6',
   manifest: '/manifest.json',

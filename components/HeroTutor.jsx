@@ -358,7 +358,7 @@ export default function HeroTutor({
           </div>
         ) : (
           // Ask Hero chat, embedded (HeroTutor owns the robot/header/X above).
-          <div style={{ flex: 1, minHeight: 0, background: 'white', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0, background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <AskHero
               embedded
               question={question}

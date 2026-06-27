@@ -44,6 +44,21 @@
   --error: #EF4444;
   --error-bg: #FEE2E2;
 
+  /* ── Premium tokens (parity with mobile themeContext) ──────────────────── */
+  /* Full gold gradient + per-purpose gradients used by the shared web UI kit. */
+  --gold-gradient: linear-gradient(135deg, #F4D879 0%, #C99A1E 100%);
+  --cta-gradient: linear-gradient(135deg, #F6DD86 0%, #C99A1E 100%);
+  --challenge-gradient: linear-gradient(135deg, #FBEAB0 0%, #FFFFFF 100%);
+  --challenge-text: #1B1B1B;
+  --challenge-text-sub: #6B6B6B;
+  --login-gradient: linear-gradient(160deg, #0F1F3D 0%, #16294A 50%, #1B2B4B 100%);
+  --bg-gradient: linear-gradient(160deg, #EAF3FF 0%, #FFF6E5 100%);
+  /* Solid nav surface (alongside the existing glass tokens). */
+  --nav-bg: #FFFFFF;
+  --nav-border: rgba(0,0,0,0.08);
+  --nav-active: #C49A1A;
+  --nav-inactive: #9CA3AF;
+
   --shadow: 0 2px 8px rgba(0,0,0,0.06);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
 }
@@ -90,6 +105,19 @@
   --error: #F87171;
   --error-bg: rgba(248,113,113,0.15);
 
+  /* ── Premium tokens (parity with mobile dark themeContext) ─────────────── */
+  --gold-gradient: linear-gradient(135deg, #D9B23A 0%, #C49A1A 100%);
+  --cta-gradient: linear-gradient(135deg, #E2C15A 0%, #B7891A 100%);
+  --challenge-gradient: linear-gradient(135deg, #1E1B12 0%, #161616 100%);
+  --challenge-text: #F0F0F0;
+  --challenge-text-sub: #888888;
+  --login-gradient: linear-gradient(160deg, #0A0A0A 0%, #0E0E0E 50%, #141414 100%);
+  --bg-gradient: linear-gradient(160deg, #0E0C06 0%, #080808 100%);
+  --nav-bg: #111111;
+  --nav-border: rgba(255,255,255,0.06);
+  --nav-active: #C49A1A;
+  --nav-inactive: #9A9A9A;
+
   --shadow: 0 2px 10px rgba(0,0,0,0.5);
   --shadow-lg: 0 10px 36px rgba(0,0,0,0.6);
 }
@@ -101,6 +129,7 @@
   --bg-primary: #F5F5F0;
   --bg-secondary: #FFFFFF;
   --bg-card: #FFFFFF;
+  --bg-card-elevated: #FFFFFF;
   --bg-header: #003366;
   --bg-header-secondary: #004488;
 
@@ -127,6 +156,24 @@
   --wrong-bg: #FFF3E0;
   --error: #CC0044;
   --error-bg: #FFE0EA;
+
+  /* ── Premium tokens (parity with mobile colour-safe themeContext) ──────── */
+  --bg-gradient-from: #F5F5F0;
+  --bg-gradient-to: #F5F5F0;
+  --gold-gradient-from: #F2A03C;
+  --gold-gradient-to: #E07B00;
+  --glow: rgba(224,123,0,0.18);
+  --gold-gradient: linear-gradient(135deg, #F2A03C 0%, #E07B00 100%);
+  --cta-gradient: linear-gradient(135deg, #F2A03C 0%, #D06A00 100%);
+  --challenge-gradient: linear-gradient(135deg, #FFF0D8 0%, #FFFFFF 100%);
+  --challenge-text: #1A1A1A;
+  --challenge-text-sub: #555555;
+  --login-gradient: linear-gradient(160deg, #002244 0%, #003366 50%, #004488 100%);
+  --bg-gradient: linear-gradient(160deg, #F5F5F0 0%, #F5F5F0 100%);
+  --nav-bg: #FFFFFF;
+  --nav-border: rgba(0,0,0,0.08);
+  --nav-active: #E07B00;
+  --nav-inactive: #888888;
 
   --shadow: 0 2px 8px rgba(0,0,0,0.08);
   --shadow-lg: 0 8px 32px rgba(0,51,102,0.15);

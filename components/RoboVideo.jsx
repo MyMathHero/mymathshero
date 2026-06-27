@@ -10,16 +10,25 @@ export default function RoboVideo({
   onEnded = null,
   // The robot videos have a near-WHITE background. On LIGHT surfaces 'multiply'
   // blends that white away. On a DARK surface 'multiply' multiplies the robot
-  // toward black → it disappears; use 'screen' there (drops the dark, keeps the
-  // bright robot). Callers on dark headers should pass blend="screen".
+  // toward black → it disappears; 'screen' drops the dark instead.
+  //   blend="multiply" (default) — light surfaces
+  //   blend="screen"             — always-dark surfaces (e.g. navy headers)
+  //   blend="auto"               — follow the active theme (multiply light / screen dark)
   blend = 'multiply',
 }) {
   const videoRef = useRef(null)
   const [mounted, setMounted] = useState(false)
+  const [isDark, setIsDark] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    if (blend !== 'auto') return
+    const read = () => setIsDark(document.documentElement.getAttribute('data-theme') === 'dark')
+    read()
+    const obs = new MutationObserver(read)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [blend])
 
   useEffect(() => {
     if (mounted && videoRef.current) {
@@ -28,6 +37,8 @@ export default function RoboVideo({
   }, [mounted, src])
 
   if (!mounted) return null
+
+  const effectiveBlend = blend === 'auto' ? (isDark ? 'screen' : 'multiply') : blend
 
   return (
     <video
@@ -39,7 +50,7 @@ export default function RoboVideo({
       playsInline
       onEnded={onEnded}
       style={{
-        mixBlendMode: blend,
+        mixBlendMode: effectiveBlend,
         width,
         height: 'auto',
       }}

@@ -54,7 +54,12 @@
   }
 
   body {
-    @apply bg-offwhite text-slate font-sans antialiased;
+    /* Theme-aware base surface. Hardcoded bg-offwhite previously left every
+       transparent / un-backgrounded section LIGHT in dark mode (white-section
+       bleed on landing + how-it-works). Drive it from the theme variables. */
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    @apply font-sans antialiased;
   }
 
   html {

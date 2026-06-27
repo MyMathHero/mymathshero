@@ -1,75 +1,102 @@
 'use client'
 
 import Link from 'next/link'
-import { Facebook, Twitter, Instagram, Linkedin, Mail } from 'lucide-react'
+import { Facebook, Instagram, Linkedin, Mail, ArrowRight } from 'lucide-react'
+
+// Footer is intentionally always dark (navy) in every theme — a deliberate
+// anchor at the foot of the page. Links point to the real public pages so the
+// whole site is internally linked (good for SEO + navigation).
+const exploreLinks = [
+  { label: 'Home', href: '/' },
+  { label: 'How It Works', href: '/how-it-works' },
+  { label: 'Curriculum', href: '/curriculum' },
+  { label: 'For Parents', href: '/for-parents' },
+  { label: 'Meet Hero', href: '/meet-hero' },
+  { label: 'For Schools', href: '/for-schools' },
+]
+
+const learningTopics = [
+  'Number & Place Value', 'Addition & Subtraction', 'Multiplication & Division',
+  'Fractions & Decimals', 'Measurement & Geometry', 'Patterns & Algebra',
+]
 
 export default function Footer() {
   return (
     <footer className="bg-[#1B2B4B] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Waitlist CTA banner */}
+        <div className="rounded-2xl p-8 mb-14 flex flex-col md:flex-row items-center justify-between gap-6"
+          style={{ background: 'linear-gradient(135deg, rgba(196,154,26,0.18), rgba(196,154,26,0.06))', border: '1px solid rgba(196,154,26,0.35)' }}>
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold mb-1">Help your child build maths confidence</h3>
+            <p className="text-white/70 text-sm">Australian Curriculum aligned maths learning from Prep to Year 6.</p>
+          </div>
+          <a href="/#waitlist" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold whitespace-nowrap shadow-lg transition-all duration-200" style={{ background: '#C49A1A', color: '#1B2B4B' }}>
+            Join the Early Access Waitlist
+            <ArrowRight size={18} />
+          </a>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img
-                src="/assets/logos/logo-icon.png"
-                alt="MyMathsHero"
-                className="h-10 w-auto"
-              />
+              <img src="/assets/logos/logo-icon.png" alt="MyMathsHero" className="h-10 w-auto" />
               <span className="font-bold text-lg">MyMathsHero</span>
             </div>
             <p className="text-white/60 text-sm leading-relaxed">
-              Personalised AI Maths Learning<br />Prep to Year 6
+              Personalised, Australian Curriculum aligned maths learning.<br />Prep to Year 6.
             </p>
             <div className="flex gap-3 mt-5">
-              {[Facebook, Twitter, Instagram, Linkedin].map((Icon, i) => (
-                <a key={i} href="#" className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#C49A1A] flex items-center justify-center transition-all duration-200">
+              {[Facebook, Instagram, Linkedin].map((Icon, i) => (
+                <a key={i} href="#" aria-label="Social link" className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#C49A1A] flex items-center justify-center transition-all duration-200">
                   <Icon size={16} className="text-white" />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Links */}
+          {/* Explore */}
           <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white/80">Platform</h4>
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white/80">Explore</h4>
             <ul className="space-y-3">
-              {['Home', 'How It Works', 'For Schools', 'Student Demo', 'Teacher Demo'].map(label => (
+              {exploreLinks.map(({ label, href }) => (
                 <li key={label}>
-                  <Link href={label === 'Home' ? '/' : `/${label.toLowerCase().replace(/ /g, '-')}`} className="text-white/50 hover:text-[#C49A1A] text-sm transition-colors">
-                    {label}
-                  </Link>
+                  <Link href={href} className="text-white/50 hover:text-[#C49A1A] text-sm transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
           </div>
 
+          {/* Learning */}
           <div>
-            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white/80">Learning</h4>
+            <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white/80">Maths Topics</h4>
             <ul className="space-y-3">
-              {['Mathematics', 'Prep to Year 6', 'Australian Curriculum', 'Personalised', 'AI Tutor — Ask Hero'].map(label => (
+              {learningTopics.map(label => (
                 <li key={label}>
-                  <span className="text-white/50 text-sm">{label}</span>
+                  <Link href="/curriculum" className="text-white/50 hover:text-[#C49A1A] text-sm transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
           </div>
 
+          {/* Contact */}
           <div>
             <h4 className="font-semibold text-sm uppercase tracking-wider mb-4 text-white/80">Contact</h4>
             <ul className="space-y-3">
-              <li className="flex items-center gap-2 text-white/50 text-sm hover:text-[#C49A1A] transition-colors">
-                <Mail size={14} />
-                hello@mymathshero.com.au
+              <li>
+                <a href="mailto:hello@mymathshero.com.au" className="flex items-center gap-2 text-white/50 text-sm hover:text-[#C49A1A] transition-colors">
+                  <Mail size={14} />
+                  hello@mymathshero.com.au
+                </a>
               </li>
-              <li className="text-white/50 text-sm">Melbourne, Australia</li>
-              <li className="text-white/50 text-sm">ABN: XX XXX XXX XXX</li>
+              <li className="text-white/50 text-sm">Australia</li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-white/40 text-sm">&copy; 2026 MyMathsHero. All rights reserved.</p>
+          <p className="text-white/40 text-sm">&copy; {new Date().getFullYear()} MyMathsHero. All rights reserved.</p>
           <div className="flex gap-6">
             <a href="#" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Privacy Policy</a>
             <a href="#" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Terms of Service</a>

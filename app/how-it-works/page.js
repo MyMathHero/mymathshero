@@ -74,7 +74,7 @@ export default function HowItWorksPage() {
       <section className="gradient-hero pt-32 pb-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/80 text-sm mb-8">
-            <Brain size={16} className="text-electric" />
+            <Brain size={16} className="text-electric dark:text-[#D9B23A]" />
             Deep Dive
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
@@ -93,11 +93,11 @@ export default function HowItWorksPage() {
             {detailedSteps.map((step, i) => (
               <div key={i} className={`flex flex-col ${i % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-12 items-center`}>
                 <div className="flex-1">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-electric/10 text-electric text-sm font-semibold mb-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-electric/10 dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">
                     Step {step.num}
                   </div>
                   <h2 className="text-3xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{step.title}</h2>
-                  <p className="text-electric font-medium mb-4">{step.subtitle}</p>
+                  <p className="text-electric dark:text-[#D9B23A] font-medium mb-4">{step.subtitle}</p>
                   <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">{step.description}</p>
                   <ul className="space-y-3">
                     {step.details.map((d, j) => (
@@ -109,13 +109,13 @@ export default function HowItWorksPage() {
                   </ul>
                 </div>
                 <div className="flex-1">
-                  <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
-                    <div className="w-16 h-16 rounded-2xl bg-electric/10 flex items-center justify-center mb-6">
-                      <step.icon size={32} className="text-electric" />
+                  <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-8 border border-gray-100 dark:border-white/10 shadow-lg">
+                    <div className="w-16 h-16 rounded-2xl bg-electric/10 dark:bg-[#C49A1A]/15 flex items-center justify-center mb-6">
+                      <step.icon size={32} className="text-electric dark:text-[#D9B23A]" />
                     </div>
                     <div className="space-y-3">
                       {step.details.map((d, j) => (
-                        <div key={j} className="h-3 bg-skyblue rounded-full" style={{ width: `${100 - j * 15}%` }} />
+                        <div key={j} className="h-3 bg-skyblue dark:bg-[#C49A1A]/30 rounded-full" style={{ width: `${100 - j * 15}%` }} />
                       ))}
                     </div>
                   </div>
@@ -127,11 +127,11 @@ export default function HowItWorksPage() {
       </section>
 
       {/* SmartScore */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1C1C1C] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
-              <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">SmartScore</span>
+              <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">SmartScore</span>
               <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Your Child's Learning, Quantified</h2>
               <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">
                 SmartScore is a 0–100 measure of skill mastery. Unlike simple percentages, it factors in response time, error patterns, hint usage, and consistency to give a true picture of understanding.
@@ -177,7 +177,7 @@ export default function HowItWorksPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">Skill Tree</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">Skill Tree</span>
             <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Visual Skill Progression</h2>
             <p className="text-gray-500 dark:text-slate-300 max-w-2xl mx-auto text-lg">Skills unlock as prerequisites are mastered, creating a clear learning pathway.</p>
           </div>
@@ -185,10 +185,10 @@ export default function HowItWorksPage() {
           <div className="max-w-3xl mx-auto">
             <div className="space-y-4">
               {skillTreeData.map((skill, i) => (
-                <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${skill.unlocked ? 'bg-white dark:bg-[#1E2D42] colorblind:bg-white border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-md' : 'bg-gray-50 dark:bg-[#16202e] border-gray-100 dark:border-white/10 opacity-60'}`}>
+                <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${skill.unlocked ? 'bg-white dark:bg-[#1C1C1C] colorblind:bg-white border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-md' : 'bg-gray-50 dark:bg-[#16202e] border-gray-100 dark:border-white/10 opacity-60'}`}>
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${skill.mastered ? 'bg-success/10' : skill.unlocked ? 'bg-electric/10' : 'bg-gray-100'}`}>
                     {skill.unlocked ? (
-                      skill.mastered ? <CheckCircle2 size={20} className="text-success" /> : <Unlock size={20} className="text-electric" />
+                      skill.mastered ? <CheckCircle2 size={20} className="text-success" /> : <Unlock size={20} className="text-electric dark:text-[#D9B23A]" />
                     ) : (
                       <Lock size={20} className="text-gray-400 dark:text-slate-400" />
                     )}
@@ -199,7 +199,7 @@ export default function HowItWorksPage() {
                       {skill.unlocked && <span className="text-sm font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">{skill.score}/100</span>}
                     </div>
                     {skill.unlocked && (
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-1000 ${skill.score >= 70 ? 'bg-success' : skill.score >= 40 ? 'bg-warning' : 'bg-red-400'}`}
                           style={{ width: `${skill.score}%` }}
@@ -215,11 +215,11 @@ export default function HowItWorksPage() {
       </section>
 
       {/* AI Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1C1C1C] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
-              <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">AI Engine</span>
+              <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">AI Engine</span>
               <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Our AI Watches How Your Child Learns</h2>
               <p className="text-gray-600 dark:text-slate-300 leading-relaxed mb-6">
                 MyMathsHero's AI doesn't just check if an answer is right or wrong. It analyses the entire learning process to build a complete picture of each student.
@@ -231,8 +231,8 @@ export default function HowItWorksPage() {
                   { icon: Lightbulb, title: 'Hint Usage', desc: 'Students who need hints get gentler progression. Those who don\'t are challenged faster.' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-electric/10 flex items-center justify-center flex-shrink-0">
-                      <item.icon size={20} className="text-electric" />
+                    <div className="w-10 h-10 rounded-lg bg-electric/10 dark:bg-[#C49A1A]/15 flex items-center justify-center flex-shrink-0">
+                      <item.icon size={20} className="text-electric dark:text-[#D9B23A]" />
                     </div>
                     <div>
                       <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">{item.title}</h4>
@@ -244,7 +244,7 @@ export default function HowItWorksPage() {
             </div>
             <div className="bg-gradient-to-br from-navy to-navy/90 rounded-2xl p-8 text-white">
               <div className="flex items-center gap-3 mb-6">
-                <Brain size={24} className="text-electric" />
+                <Brain size={24} className="text-electric dark:text-[#D9B23A]" />
                 <span className="font-semibold">AI Learning Profile</span>
               </div>
               <div className="space-y-4">
@@ -275,14 +275,14 @@ export default function HowItWorksPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Students</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">For Students</span>
             <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Learning That Feels Like Playing</h2>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {studentFeatures.map((f, i) => (
-              <div key={i} className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-lg transition-all duration-300 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-electric/10 flex items-center justify-center mx-auto mb-4">
-                  <f.icon size={28} className="text-electric" />
+              <div key={i} className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 hover:border-electric/20 hover:shadow-lg transition-all duration-300 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-electric/10 dark:bg-[#C49A1A]/15 flex items-center justify-center mx-auto mb-4">
+                  <f.icon size={28} className="text-electric dark:text-[#D9B23A]" />
                 </div>
                 <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-2">{f.title}</h3>
                 <p className="text-gray-500 dark:text-slate-300 text-sm leading-relaxed">{f.description}</p>
@@ -290,7 +290,7 @@ export default function HowItWorksPage() {
             ))}
           </div>
           {/* Leaderboard Preview */}
-          <div className="mt-12 max-w-lg mx-auto bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-md">
+          <div className="mt-12 max-w-lg mx-auto bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 shadow-md">
             <h4 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4 flex items-center gap-2"><Trophy size={18} className="text-warning" /> Class Leaderboard</h4>
             {[
               { rank: 1, name: 'Emma', xp: 2840, avatar: 'E' },
@@ -300,7 +300,7 @@ export default function HowItWorksPage() {
             ].map((s, i) => (
               <div key={i} className={`flex items-center gap-4 py-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-warning/10 text-warning' : i === 1 ? 'bg-gray-100 text-gray-600 dark:text-slate-300' : i === 2 ? 'bg-orange-50 text-orange-600' : 'bg-gray-50 dark:bg-[#16202e] text-gray-400 dark:text-slate-400'}`}>{s.rank}</span>
-                <div className="w-8 h-8 rounded-full bg-electric/10 flex items-center justify-center text-electric font-bold text-xs">{s.avatar}</div>
+                <div className="w-8 h-8 rounded-full bg-electric/10 dark:bg-[#C49A1A]/15 flex items-center justify-center text-electric dark:text-[#D9B23A] font-bold text-xs">{s.avatar}</div>
                 <span className="font-medium text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm flex-1">{s.name}</span>
                 <span className="text-sm text-gray-500 dark:text-slate-300">{s.xp.toLocaleString()} XP</span>
               </div>
@@ -310,15 +310,15 @@ export default function HowItWorksPage() {
       </section>
 
       {/* For Teachers */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1E2D42] colorblind:bg-white">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#1C1C1C] colorblind:bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Teachers</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">For Teachers</span>
             <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Your Classroom, Supercharged</h2>
           </div>
-          <div className="bg-offwhite rounded-2xl p-8 border border-gray-100 dark:border-white/10">
+          <div className="bg-offwhite dark:bg-[#1C1C1C] rounded-2xl p-8 border border-gray-100 dark:border-white/10">
             <div className="flex items-center gap-3 mb-6">
-              <BarChart3 size={20} className="text-electric" />
+              <BarChart3 size={20} className="text-electric dark:text-[#D9B23A]" />
               <span className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">Class Skill Heatmap — Grade 4</span>
             </div>
             <div className="overflow-x-auto">
@@ -360,14 +360,14 @@ export default function HowItWorksPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue text-electric text-sm font-semibold mb-4">For Parents</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-skyblue dark:bg-[#C49A1A]/15 text-electric dark:text-[#D9B23A] text-sm font-semibold mb-4">For Parents</span>
             <h2 className="text-3xl sm:text-4xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] mb-4">Stay in the Loop, Every Week</h2>
           </div>
           <div className="max-w-xl mx-auto">
-            <div className="bg-white dark:bg-[#1E2D42] colorblind:bg-white rounded-2xl border border-gray-100 dark:border-white/10 shadow-lg overflow-hidden">
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl border border-gray-100 dark:border-white/10 shadow-lg overflow-hidden">
               <div className="bg-navy p-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <Mail size={18} className="text-electric" />
+                  <Mail size={18} className="text-electric dark:text-[#D9B23A]" />
                   <span className="text-white/60 text-sm">Weekly Progress Report</span>
                 </div>
                 <h3 className="text-white font-bold text-lg">Alex's Week in Review</h3>
@@ -386,7 +386,7 @@ export default function HowItWorksPage() {
                       5-day practice streak maintained
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
-                      <TrendingUp size={16} className="text-electric" />
+                      <TrendingUp size={16} className="text-electric dark:text-[#D9B23A]" />
                       Fractions improved from 38 to 52
                     </div>
                   </div>
@@ -407,15 +407,15 @@ export default function HowItWorksPage() {
                 <div className="border-t border-gray-100 dark:border-white/10 pt-4">
                   <h4 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm mb-2">Week Stats</h4>
                   <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="bg-skyblue/50 rounded-lg p-3">
+                    <div className="bg-skyblue/50 dark:bg-[#C49A1A]/12 rounded-lg p-3">
                       <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">47</div>
                       <div className="text-xs text-gray-500 dark:text-slate-300">Questions</div>
                     </div>
-                    <div className="bg-skyblue/50 rounded-lg p-3">
+                    <div className="bg-skyblue/50 dark:bg-[#C49A1A]/12 rounded-lg p-3">
                       <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">78%</div>
                       <div className="text-xs text-gray-500 dark:text-slate-300">Accuracy</div>
                     </div>
-                    <div className="bg-skyblue/50 rounded-lg p-3">
+                    <div className="bg-skyblue/50 dark:bg-[#C49A1A]/12 rounded-lg p-3">
                       <div className="text-xl font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]">3</div>
                       <div className="text-xs text-gray-500 dark:text-slate-300">Skills Up</div>
                     </div>

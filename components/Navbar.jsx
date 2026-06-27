@@ -112,10 +112,13 @@ export default function Navbar() {
     return (
       <nav style={navShellStyle}>
         {/* Left — marketing links */}
-        <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 22, alignItems: 'center' }}>
           <Link href="/" style={linkStyle(pathname === '/')}>Home</Link>
           <Link href="/how-it-works" style={linkStyle(pathname === '/how-it-works')}>How It Works</Link>
-          {/* For Schools — hidden until forSchoolsPage flag is on */}
+          <Link href="/curriculum" style={linkStyle(pathname === '/curriculum')}>Curriculum</Link>
+          <Link href="/for-parents" style={linkStyle(pathname === '/for-parents')}>For Parents</Link>
+          <Link href="/meet-hero" style={linkStyle(pathname === '/meet-hero')}>Meet Hero</Link>
+          {/* For Schools — hidden until forSchoolsPage flag is on (lives in the footer) */}
           {flags.forSchoolsPage && (
             <Link href="/for-schools" style={linkStyle(pathname === '/for-schools')}>For Schools</Link>
           )}
