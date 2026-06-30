@@ -142,9 +142,30 @@ function buildQuestionDoc(q, skill, index, band = null) {
     explanation: q.explanation || '',
     active: true,
     source: 'AI-Generated',
-    needsReview: true,
+    unverified: true, // cleared by verifyDocs() once the inline verifier passes
     createdAt: new Date(),
   }
+}
+
+// Part 3 — verify a batch of freshly-built question docs before insert. Mutates
+// each doc: clean → drop `unverified`; suspect → set verifierFlagged (withheld).
+// Best-effort (verifier down → docs stay `unverified`, servable but tagged).
+async function verifyDocs(docs) {
+  const { verifyQuestion } = await import('@/lib/verifyQuestion')
+  await Promise.all(docs.map(async d => {
+    try {
+      const r = await verifyQuestion(d, { double: false })
+      if (r.status === 'ok') { delete d.unverified }
+      else if (r.status === 'suspect') {
+        d.verifierFlagged = true
+        d.verifierAnswer = r.verifierAnswer
+        d.verifierModel = 'anthropic/claude-opus-4-8'
+        d.verifiedAt = new Date()
+        delete d.unverified
+      }
+    } catch { /* keep unverified */ }
+  }))
+  return docs
 }
 
 export async function GET(request) {
@@ -268,7 +289,7 @@ export async function POST(request) {
           try {
             const questions = await generateForSkill(skill, needed, band)
             const docs = questions.slice(0, needed).map((q, i) => buildQuestionDoc(q, skill, i, band))
-            if (docs.length > 0) await db.collection('questions').insertMany(docs)
+            if (docs.length > 0) { await verifyDocs(docs); await db.collection('questions').insertMany(docs) }
             totalGenerated += docs.length
             details.push({ skillId: skill.id, band, generated: docs.length, existing })
           } catch (err) {
@@ -322,6 +343,7 @@ export async function POST(request) {
           const questions = await generateForSkill(skill, needed)
           const docs = questions.slice(0, needed).map((q, i) => buildQuestionDoc(q, skill, i))
           if (docs.length > 0) {
+            await verifyDocs(docs)
             await db.collection('questions').insertMany(docs)
           }
           totalGenerated += docs.length
@@ -387,6 +409,7 @@ export async function POST(request) {
     const questions = await generateForSkill(skill, count)
     const docs = questions.slice(0, count).map((q, i) => buildQuestionDoc(q, skill, i))
     if (docs.length > 0) {
+      await verifyDocs(docs)
       await db.collection('questions').insertMany(docs)
     }
 

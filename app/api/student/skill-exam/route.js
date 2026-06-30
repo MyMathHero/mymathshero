@@ -55,6 +55,7 @@ export async function GET(request) {
         { $match: {
           skillId,
           active: { $ne: false },
+          verifierFlagged: { $ne: true }, // exclude flagged/suspect questions from exams
           difficulty: { $gte: 0.5 },
         } },
         { $sample: { size: 10 } },
@@ -65,7 +66,7 @@ export async function GET(request) {
     if (questions.length < 5) {
       questions = await db.collection('questions')
         .aggregate([
-          { $match: { skillId, active: { $ne: false } } },
+          { $match: { skillId, active: { $ne: false }, verifierFlagged: { $ne: true } } },
           { $sample: { size: 10 } },
         ])
         .toArray()

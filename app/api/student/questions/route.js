@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { normaliseGrade } from '@/lib/normaliseGrade'
 import { bandForDifficulty, bandForScore, adjacentBands, shiftBand } from '@/lib/difficulty'
+import { verifyQuestion } from '@/lib/verifyQuestion'
 
 let client
 async function connectDB() {
@@ -67,6 +68,9 @@ export async function GET(request) {
     const baseMatch = {
       skillId,
       active: { $ne: false },
+      // Withhold questions flagged by the AI verifier as having a wrong/suspect
+      // answer — they must be re-checked & corrected before students see them.
+      verifierFlagged: { $ne: true },
       // Junior serves only visual junior questions; Standard excludes them.
       mode: junior ? 'junior' : { $ne: 'junior' },
       // Spec: enforce Maths subject in the query so a mistyped/legacy question
@@ -236,15 +240,34 @@ Return only the JSON array, no other text.`
         difficultyBand: bandForDifficulty(difficulty),
         active: true,
         aiGenerated: true,
-        needsReview: true,
+        unverified: true, // set false once the inline verify below passes
         source: 'AI-Generated',
         createdAt: new Date(),
         }
       })
 
     if (toInsert.length > 0) {
+      // Part 3 — auto-verify each new question BEFORE it can be served. A suspect
+      // answer gets verifierFlagged:true (withheld); a clean one drops `unverified`.
+      // Best-effort: if the verifier API is down, leave them `unverified` (servable
+      // but tagged) rather than blocking generation entirely.
+      await Promise.all(toInsert.map(async d => {
+        try {
+          const r = await verifyQuestion(d, { double: false })
+          if (r.status === 'ok') { delete d.unverified }
+          else if (r.status === 'suspect') {
+            d.verifierFlagged = true
+            d.verifierAnswer = r.verifierAnswer
+            d.verifierModel = 'anthropic/claude-opus-4-8'
+            d.verifiedAt = new Date()
+            delete d.unverified
+          }
+          // 'skipped' (visual) / 'error' → stays unverified (servable)
+        } catch { /* keep unverified */ }
+      }))
       await db.collection('questions').insertMany(toInsert)
-      console.log(`[questions] Generated ${toInsert.length} new questions for ${skillId}`)
+      const flagged = toInsert.filter(d => d.verifierFlagged).length
+      console.log(`[questions] Generated ${toInsert.length} for ${skillId} (${flagged} flagged by verifier, withheld)`)
     }
   } catch (err) {
     console.error('Question generation failed:', err.message)

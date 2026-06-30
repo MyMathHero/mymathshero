@@ -54,6 +54,7 @@ export async function GET(request) {
     async function sampleSkill(skillId, depth, gradeForGen) {
       const match = {
         skillId, active: { $ne: false },
+        verifierFlagged: { $ne: true }, // don't diagnose with flagged/suspect questions
         $or: [{ subject: { $in: ['Maths', 'Mathematics', 'Math'] } }, { subject: { $exists: false } }],
       }
       let qs = await db.collection('questions').aggregate([{ $match: match }, { $sample: { size: depth } }]).toArray()
