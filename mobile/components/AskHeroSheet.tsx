@@ -129,10 +129,13 @@ export default function AskHeroSheet({
     setLessonLoading(true); setLessonError(''); setRobotMood('thinking')
     try {
       const studentId = (await SecureStore.getItemAsync('user_id')) || ''
+      // Opus lesson generation is slow (10–20s+), so override the default 15s
+      // axios timeout for THIS call — otherwise it aborts and shows the
+      // "trouble connecting" error even though the server is fine.
       const res = await api.post('/api/student/lesson', {
         questionText: question, questionId: questionId || null,
         skillId: skillId || null, studentId, grade,
-      })
+      }, { timeout: 45000 })
       if (res.data?.upgrade) { setLessonError(res.data.message || 'Teach Me is a Premium feature 💎'); setRobotMood('waving'); return }
       const lsn = res.data?.lesson
       if (!lsn?.steps?.length) { setLessonError("I couldn't build a lesson right now."); setRobotMood('waving'); return }

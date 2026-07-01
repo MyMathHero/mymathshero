@@ -5,6 +5,10 @@ import { getPlanFeatures } from '@/lib/planGating'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
 import { parseLesson, fallbackLesson } from '@/lib/heroLesson'
 
+// The Opus lesson can take 10–20s; give the serverless function room so it
+// doesn't 504 (which surfaced as "I had trouble connecting" in the app).
+export const maxDuration = 45
+
 let client
 async function connectDB() {
   if (!client) {
@@ -48,9 +52,14 @@ function buildLessonPrompt({ studentName, grade, questionText, skillId }) {
 
 async function callOpenRouter(prompt) {
   if (!process.env.OPENROUTER_API_KEY) return null
+  // Abort a hung Opus call so the route can fall back to a deterministic lesson
+  // instead of timing out the whole request.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 35000)
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
@@ -74,6 +83,8 @@ async function callOpenRouter(prompt) {
   } catch (err) {
     console.error('[lesson] OpenRouter threw:', err.message)
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 

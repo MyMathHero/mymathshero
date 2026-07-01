@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -41,10 +41,35 @@ export default function JuniorHome() {
     void stopSpeaking()
     router.push('/student/junior-play')
   }
+  // Junior mode never shows the tab bar / profile, so logout must live here.
+  function logout() {
+    void stopSpeaking()
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out', style: 'destructive', onPress: async () => {
+          await Promise.all([
+            SecureStore.deleteItemAsync('auth_token'),
+            SecureStore.deleteItemAsync('user_role'),
+            SecureStore.deleteItemAsync('user_id'),
+            SecureStore.deleteItemAsync('user_name'),
+            SecureStore.deleteItemAsync('user_grade'),
+          ])
+          router.replace('/login')
+        },
+      },
+    ])
+  }
 
   return (
     <ScreenBackground>
       <SafeAreaView style={s.container} edges={['top']}>
+        {/* Top bar with a discreet log-out (kids can't reach the profile tab here). */}
+        <View style={s.topBar}>
+          <TouchableOpacity onPress={logout} style={s.logoutBtn} hitSlop={10}>
+            <Text style={s.logoutText}>Log out</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView contentContainerStyle={s.scroll}>
           <HeroRobot mood="waving" size={150} containerStyle="card" />
           {!started ? (
@@ -79,6 +104,9 @@ export default function JuniorHome() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 4 },
+  logoutBtn: { backgroundColor: 'rgba(27,43,75,0.06)', borderColor: '#E2E8F0', borderWidth: 1, borderRadius: 16, paddingVertical: 7, paddingHorizontal: 14 },
+  logoutText: { color: NAVY, fontWeight: '700', fontSize: 13 },
   scroll: { alignItems: 'center', padding: 20, paddingBottom: 48 },
   hi: { fontSize: 30, fontWeight: '900', color: NAVY, marginTop: 8 },
   sub: { fontSize: 17, color: '#475569', marginTop: 4, marginBottom: 24 },
