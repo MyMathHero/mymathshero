@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { VOUCHER_TIERS, getVoucherTier } from '@/lib/arcadeVouchers'
+import { logCoinChange } from '@/lib/coins'
 import { sendEmail } from '@/lib/email'
 import { getRequestToken, verifyToken } from '@/lib/auth'
 
@@ -100,6 +101,7 @@ export async function POST(request) {
         needMore: tier.coinsCost - (current.coins || 0),
       }, { status: 400 })
     }
+    await logCoinChange(db, studentId, { coins: -tier.coinsCost, reason: 'voucher-redeem', meta: { tierId }, after: student })
 
     const voucherCode = generateVoucherCode(tier.id)
     const voucher = {
@@ -120,10 +122,12 @@ export async function POST(request) {
     } catch (insertErr) {
       // Insert failed after we already deducted coins — refund or the kid
       // silently loses coins. Best-effort refund.
-      await db.collection('children').updateOne(
+      const refunded = await db.collection('children').findOneAndUpdate(
         { id: studentId },
-        { $inc: { coins: tier.coinsCost } }
-      ).catch(() => {})
+        { $inc: { coins: tier.coinsCost } },
+        { returnDocument: 'after' }
+      ).catch(() => null)
+      await logCoinChange(db, studentId, { coins: tier.coinsCost, reason: 'voucher-refund', meta: { tierId }, after: refunded?.value || refunded })
       throw insertErr
     }
 

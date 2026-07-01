@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { adjustCoins } from '@/lib/coins'
 import { updateSmartScore } from '@/lib/smartscore'
 import { classifyBehaviour, getBehaviourInsight } from '@/lib/behaviour'
 import { getRecommendations, getEffectiveCeiling } from '@/lib/recommender'
@@ -256,10 +257,11 @@ export async function POST(request) {
     const xpGain = correct ? (mastered ? 50 : 10) : 2
     let coinGain = correct ? 2 : 0
     if (mastered) coinGain += 20
-    await db.collection('children').updateOne(
-      { id: studentId },
-      { $inc: { xp: xpGain, coins: coinGain } }
-    )
+    await adjustCoins(db, studentId, {
+      coins: coinGain, xp: xpGain,
+      reason: mastered ? 'answer-mastered' : correct ? 'answer-correct' : 'answer-wrong',
+      meta: { skillId, questionId },
+    })
 
     // Flag suspiciously fast correct answers (<2s) for moderation review.
     const isSuspicious = typeof timeTakenMs === 'number' && timeTakenMs < 2000 && correct

@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { AVATAR_ITEMS } from '@/lib/avatarItems'
 import { isCharacterId } from '@/lib/characterAvatars'
+import { logCoinChange } from '@/lib/coins'
 
 let client
 async function connectDB() {
@@ -85,13 +86,15 @@ export async function POST(request) {
       }
 
       // $addToSet so concurrent calls can't create duplicate unlock entries.
-      await db.collection('children').updateOne(
+      const upd = await db.collection('children').findOneAndUpdate(
         { id: studentId },
         {
           $inc: { coins: -item.cost },
           $addToSet: { unlockedAvatarItems: itemKey },
-        }
+        },
+        { returnDocument: 'after' }
       )
+      await logCoinChange(db, studentId, { coins: -item.cost, reason: 'avatar-unlock', meta: { itemKey }, after: upd?.value || upd })
 
       return NextResponse.json({
         success: true,

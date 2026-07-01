@@ -1,6 +1,7 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { ARCADE_GAMES, canPlayGame } from '@/lib/arcadeGames'
+import { logCoinChange } from '@/lib/coins'
 import { getAESTMidnightUTC } from '@/lib/arcadeTime'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
 
@@ -143,6 +144,7 @@ export async function POST(request) {
           { status: 403 }
         )
       }
+      await logCoinChange(db, studentId, { coins: -game.coinsCost, reason: 'arcade-unlock', meta: { gameId }, after })
 
       return NextResponse.json({
         success: true,

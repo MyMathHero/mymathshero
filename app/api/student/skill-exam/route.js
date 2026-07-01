@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
+import { adjustCoins } from '@/lib/coins'
 
 let client
 async function connectDB() {
@@ -266,10 +267,7 @@ export async function POST(request) {
         },
         { upsert: true }
       )
-      await db.collection('children').updateOne(
-        { id: studentId },
-        { $inc: { xp: 50, coins: 20 } }
-      )
+      await adjustCoins(db, studentId, { coins: 20, xp: 50, reason: 'skill-exam-passed', meta: { skillId } })
     }
 
     return NextResponse.json({
