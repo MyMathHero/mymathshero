@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
+import { router } from 'expo-router'
 
 export const API_URL = 'https://mymathshero.com.au'
 // For local testing change to your Mac IP:
@@ -24,11 +25,42 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
+// Guard so an expired session only triggers ONE logout+redirect even if several
+// requests 401 at once (e.g. a dashboard firing multiple loads on mount).
+let handlingExpiry = false
+
+async function handleSessionExpired() {
+  if (handlingExpiry) return
+  handlingExpiry = true
+  try {
+    await Promise.all([
+      SecureStore.deleteItemAsync('auth_token'),
+      SecureStore.deleteItemAsync('user_role'),
+      SecureStore.deleteItemAsync('user_id'),
+      SecureStore.deleteItemAsync('user_name'),
+      SecureStore.deleteItemAsync('user_grade'),
+    ])
+  } catch { /* ignore */ }
+  try { router.replace('/login') } catch { /* router not mounted yet */ }
+  // Allow a fresh login attempt to be handled again later.
+  setTimeout(() => { handlingExpiry = false }, 1500)
+}
+
 api.interceptors.response.use(
   response => response,
   error => {
-    // Log but don't crash. Callers decide how to handle the rejection.
-    console.error('API Error:', error?.message || 'Unknown error')
+    const status = error?.response?.status
+    const url: string = error?.config?.url || ''
+    // A 401 on any authed call means the session (JWT, 7-day expiry) is invalid
+    // or expired — clear it and send the user back to login instead of leaving
+    // them stuck on a broken screen. Skip the login call itself (a 401 there is
+    // just "wrong PIN/password", handled by the login screen).
+    if (status === 401 && !url.includes('/api/auth/login')) {
+      void handleSessionExpired()
+    } else {
+      // Log but don't crash. Callers decide how to handle the rejection.
+      console.error('API Error:', error?.message || 'Unknown error')
+    }
     return Promise.reject(error)
   }
 )
