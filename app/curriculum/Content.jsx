@@ -97,17 +97,22 @@ export default function CurriculumContent() {
             <p className="text-gray-600 dark:text-slate-300 max-w-2xl mx-auto text-lg">Every child learns at a different pace. MyMathsHero identifies your child&apos;s current level and provides practice suited to their needs.</p>
           </div>
           <div className="space-y-4">
-            {yearLevels.map((y, i) => (
-              <div key={i} className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-6 rounded-2xl bg-[#F0F4F8] dark:bg-[#141414] border border-gray-100 dark:border-white/10">
+            {yearLevels.map((y, i) => {
+              const slug = y.level.toLowerCase().replace('year ', 'year-')
+              return (
+              <Link key={i} href={`/curriculum/${slug}`}
+                className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-6 rounded-2xl bg-[#F0F4F8] dark:bg-[#141414] border border-gray-100 dark:border-white/10 hover:border-[#C49A1A]/50 transition-all duration-200 group">
                 <div className="flex-shrink-0">
                   <span className="inline-flex items-center justify-center px-4 py-2 rounded-xl font-bold text-white" style={{ background: 'var(--bg-header)' }}>{y.level}</span>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-navy dark:text-slate-100 mb-1">{y.title}</h3>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-navy dark:text-slate-100 mb-1 group-hover:text-[#C49A1A] transition-colors">{y.title}</h3>
                   <p className="text-gray-600 dark:text-slate-300 leading-relaxed text-sm">{y.desc}</p>
                 </div>
-              </div>
-            ))}
+                <ArrowRight size={20} className="hidden sm:block flex-shrink-0 self-center text-gray-400 group-hover:text-[#C49A1A] transition-colors" />
+              </Link>
+              )
+            })}
           </div>
         </div>
       </section>
