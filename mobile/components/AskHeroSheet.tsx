@@ -10,6 +10,10 @@ import {
   useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync,
 } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
+// Legacy namespace has uploadAsync — the reliable multipart file upload. expo/fetch
+// does NOT properly send a FormData file (uri) body, which is why mic transcription
+// silently failed on device.
+import { uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy'
 import { fetch as expoFetch } from 'expo/fetch'
 import api, { API_URL } from '../lib/api'
 import HeroRobot from './HeroRobot'
@@ -355,29 +359,46 @@ export default function AskHeroSheet({
       try {
         await audioRecorder.stop()
         const uri = audioRecorder.uri
-        if (!uri) { setVoiceState('idle'); return }
+        if (!uri) {
+          setVoiceState('idle')
+          addHeroMessage("I didn't catch that recording — try again! 🎤")
+          return
+        }
         const token = await SecureStore.getItemAsync('auth_token')
         const studentId = (await SecureStore.getItemAsync('user_id')) || ''
-        const form = new FormData()
-        // React Native FormData file shape.
-        form.append('audio', { uri, name: 'speech.m4a', type: 'audio/m4a' } as any)
-        if (studentId) form.append('studentId', studentId)
-        const res = await expoFetch(`${API_URL}/api/student/voice-transcribe`, {
-          method: 'POST',
-          headers: token ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` } : {},
-          body: form as any,
+
+        // MULTIPART upload of the recorded m4a — uploadAsync actually sends the
+        // file bytes (unlike expo/fetch + FormData, which sent an empty body).
+        const res = await uploadAsync(`${API_URL}/api/student/voice-transcribe`, uri, {
+          httpMethod: 'POST',
+          uploadType: FileSystemUploadType.MULTIPART,
+          fieldName: 'audio',
+          mimeType: 'audio/m4a',
+          parameters: studentId ? { studentId } : {},
+          headers: token
+            ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` }
+            : {},
         })
         setVoiceState('idle')
+
         if (res.status === 403) {
           addHeroMessage('Talking to me is a Premium feature 💎 You can still type your question!')
           return
         }
-        if (!res.ok) return
-        const data = await res.json()
-        const text = (data.text || '').trim()
-        if (text) sendHeroMessage(text)
+        if (res.status < 200 || res.status >= 300) {
+          addHeroMessage("I couldn't hear that clearly — please try again, or type your question. 🤖")
+          return
+        }
+        let text = ''
+        try { text = (JSON.parse(res.body)?.text || '').trim() } catch { /* bad json */ }
+        if (text) {
+          sendHeroMessage(text)
+        } else {
+          addHeroMessage("I didn't quite catch that — try speaking again, or type it. 🎤")
+        }
       } catch {
         setVoiceState('idle')
+        addHeroMessage('Something went wrong hearing you — please try again. 🤖')
       }
       return
     }
