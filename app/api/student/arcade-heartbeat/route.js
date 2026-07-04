@@ -1,6 +1,5 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { getAESTMidnightUTC } from '@/lib/arcadeTime'
 
 let client
 async function connectDB() {
@@ -46,44 +45,48 @@ export async function POST(request) {
       )
     }
 
-    // Update session duration in real time. durationMinutes is the running
-    // wall-clock total for THIS session, so we set (not increment).
+    // `durationMinutes` is the running wall-clock total for THIS session. Charge
+    // the wallet for whatever hasn't been charged yet (idempotent — survives
+    // missed heartbeats, and re-sends of the same total charge nothing extra).
+    const total = Math.max(0, Math.round(durationMinutes || 0))
+    const sess = await db.collection('arcade_sessions').findOne({ _id: objId })
+    const already = sess?.minutesCharged || 0
+    const toCharge = Math.max(0, total - already)
+
     await db.collection('arcade_sessions').updateOne(
       { _id: objId },
       {
         $set: {
-          durationMinutes: durationMinutes || 0,
+          durationMinutes: total,
+          minutesCharged: total,
           lastHeartbeat: new Date(),
           active: true,
         }
       }
     )
 
-    // Recompute minutesToday from AEST midnight so the client stays in sync.
-    const todayStart = getAESTMidnightUTC()
-    const todaySessions = await db.collection('arcade_sessions')
-      .find({ studentId, startedAt: { $gte: todayStart } })
-      .toArray()
-
-    const minutesToday = todaySessions.reduce(
-      (sum, s) => sum + (s.durationMinutes || 0), 0
-    )
-
-    // Per-child arcade settings live on the children doc.
-    const student = await db.collection('children')
-      .findOne({ id: studentId })
-    const arcadeSettings = student?.arcadeSettings || {
-      dailyMinutes: 30, enabled: true
+    if (toCharge > 0) {
+      const upd = await db.collection('children').findOneAndUpdate(
+        { id: studentId },
+        { $inc: { arcadeMinutesRemaining: -toCharge } },
+        { returnDocument: 'after' }
+      )
+      const doc = upd?.value || upd
+      if ((doc?.arcadeMinutesRemaining || 0) < 0) {
+        await db.collection('children').updateOne(
+          { id: studentId }, { $set: { arcadeMinutesRemaining: 0 } }
+        )
+      }
     }
-    const dailyLimit = arcadeSettings.dailyMinutes || 30
-    const limitReached = minutesToday >= dailyLimit
+
+    const student = await db.collection('children').findOne({ id: studentId })
+    const minutesRemaining = Math.max(0, student?.arcadeMinutesRemaining || 0)
+    const enabled = student?.arcadeSettings?.enabled !== false
 
     return NextResponse.json({
       success: true,
-      minutesToday,
-      minutesRemaining: Math.max(0, dailyLimit - minutesToday),
-      limitReached,
-      dailyLimit,
+      minutesRemaining,
+      limitReached: minutesRemaining <= 0 || !enabled,
     })
   } catch (error) {
     return NextResponse.json(

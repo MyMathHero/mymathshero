@@ -21,6 +21,7 @@ export interface ArcadeGame {
   embedUrl: string | null
   comingSoon: boolean
   tags: string[]
+  provider?: 'crazygames'
 }
 
 export interface ArcadeCategory {
@@ -180,6 +181,51 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     embedUrl: null,
     comingSoon: true,
     tags: ['strategy', 'premium'],
+  },
+
+  // CrazyGames placeholders (embedded, ad-free). Swap embedUrl for licensed
+  // titles: 'https://www.crazygames.com/embed/<slug>'. Mirror of web config.
+  {
+    id: 'cg_placeholder_1',
+    title: 'CrazyGames Pick #1',
+    category: 'Action',
+    emoji: '🎯',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'action'],
+  },
+  {
+    id: 'cg_placeholder_2',
+    title: 'CrazyGames Pick #2',
+    category: 'Racing',
+    emoji: '🏎️',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'racing'],
+  },
+  {
+    id: 'cg_placeholder_3',
+    title: 'CrazyGames Pick #3',
+    category: 'Puzzle',
+    emoji: '🧩',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'puzzle'],
   },
 ]
 

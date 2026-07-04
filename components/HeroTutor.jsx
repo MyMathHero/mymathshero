@@ -1,18 +1,10 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import RoboVideo from './RoboVideo'
+import FractionVisual from './FractionVisual'
 import AskHero from './AskHero'
 import Manipulative from './manipulatives/Manipulative'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
 
-// Robot mood → asset. Mirrors AskHero's ROBOT_STATES so the character is consistent.
-const ROBOT = {
-  idle:     { type: 'img', src: '/assets/robot/hero-robot.png' },
-  thinking: { type: 'video', src: '/assets/robot/thinkinggotidearobo.MP4', loop: true },
-  talking:  { type: 'video', src: '/assets/robot/thinkinggotidearobo.MP4', loop: true },
-  happy:    { type: 'video', src: '/assets/robot/happyjumpingrobo.MP4', loop: false },
-  waving:   { type: 'video', src: '/assets/robot/wavingrobo.MP4', loop: true },
-}
 
 const NAVY = '#1B2B4B'
 const GOLD = '#C49A1A'
@@ -33,7 +25,7 @@ const BOARD_MUTED = '#9DB4D4'     // hints/labels
  * Closing returns to the EXACT question (parent keeps practiceModal mounted).
  */
 export default function HeroTutor({
-  question, skillId, skillName, studentId, studentName = 'Hero',
+  question, questionVisual, questionOptions, skillId, skillName, studentId, studentName = 'Hero',
   grade = 3, questionId, onClose,
 }) {
   const general = !question
@@ -41,6 +33,13 @@ export default function HeroTutor({
   const [tab, setTab] = useState(general ? 'ask' : 'teach')
   const [robotMood, setRobotMood] = useState('waving')
   const [isMuted, setIsMuted] = useState(false)
+  // Stack the lesson split vertically on narrow screens.
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const check = () => setNarrow(typeof window !== 'undefined' && window.innerWidth < 860)
+    check(); window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const mutedRef = useRef(false)
   useEffect(() => { mutedRef.current = isMuted }, [isMuted])
 
@@ -171,9 +170,11 @@ export default function HeroTutor({
     setPhase('lesson'); heroStop(); setStepIndex(0); setPlaying(true)
   }
 
-  const robot = ROBOT[robotMood] || ROBOT.idle
   const speaking = robotMood === 'talking'
   const visibleSteps = lesson ? lesson.steps.slice(0, stepIndex + 1) : []
+  // Only split the screen when the question has a diagram to show on the right.
+  // Otherwise the whiteboard goes full-width (with Hero peeking inside it).
+  const hasDiagram = !!(question && questionVisual)
 
   // General mode (the floating "Ask Hero" with no question to teach) renders as a
   // small rounded chat widget docked bottom-right — like a normal site chatbot,
@@ -200,26 +201,29 @@ export default function HeroTutor({
         @keyframes htFade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
       `}</style>
 
-      {/* Top band: robot + title + controls + X (compact in the small widget) */}
+      {/* Top band. Full-screen tutor: just the skill name + controls (the robot
+          + "Hero is teaching" title were removed — Hero now lives in the panels
+          below). General chat widget: keep the compact avatar + "Ask Hero". */}
       <div style={{ display: 'flex', alignItems: 'center', gap: general ? 10 : 14, padding: general ? '12px 14px' : '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{
-          position: 'relative', width: general ? 44 : 72, height: general ? 44 : 72, flexShrink: 0,
-          borderRadius: '50%', overflow: 'hidden', border: `2px solid ${GOLD}`,
-          background: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {speaking && <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `3px solid ${GOLD}`, animation: 'htPulse 1s infinite' }} />}
-          {/* Header is dark navy → use 'screen' blend so the robot isn't crushed to black. */}
-          {robot.type === 'video'
-            ? <RoboVideo src={robot.src} width={(general ? 44 : 72) * 1.15} loop={robot.loop} blend="screen" />
-            : <img src={robot.src} alt="Hero" style={{ width: (general ? 44 : 72) * 1.15, mixBlendMode: 'screen' }} />}
-        </div>
+        {general && (
+          <div style={{
+            position: 'relative', width: 44, height: 44, flexShrink: 0,
+            borderRadius: '50%', overflow: 'hidden', border: `2px solid ${GOLD}`,
+            background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {speaking && <div style={{ position: 'absolute', inset: -4, borderRadius: '50%', border: `3px solid ${GOLD}`, animation: 'htPulse 1s infinite', zIndex: 2 }} />}
+            <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ color: 'white', fontWeight: 800, fontSize: general ? 15 : 18, margin: 0 }}>
-            {general ? <>Ask <span style={{ color: GOLD }}>Hero</span> ✦</> : <>Hero is teaching <span style={{ color: GOLD }}>✦</span></>}
+            {general ? <>Ask <span style={{ color: GOLD }}>Hero</span> ✦</> : <>{skillName || 'Understand the concept'} <span style={{ color: GOLD }}>✦</span></>}
           </p>
-          <p style={{ color: '#94A3B8', fontSize: 12, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {speaking ? '🔊 Speaking…' : (skillName || 'Your AI Maths Tutor')}
-          </p>
+          {general && (
+            <p style={{ color: '#94A3B8', fontSize: 12, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {speaking ? '🔊 Speaking…' : 'Your AI Maths Tutor'}
+            </p>
+          )}
         </div>
         <button onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'} style={iconBtn(isMuted ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.1)')}>
           {isMuted ? '🔇' : '🔊'}
@@ -239,11 +243,17 @@ export default function HeroTutor({
       <div style={{ flex: 1, minHeight: 0, padding: general ? 12 : 18, display: 'flex', flexDirection: 'column' }}>
         {tab === 'teach' ? (
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* Question reference */}
-            {question && (
+            {/* Compact question reference for the practice/result phases (the
+                lesson phase shows the full question card in its right panel). */}
+            {question && phase !== 'lesson' && (
               <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 14px', marginBottom: 12 }}>
-                <p style={{ color: '#94A3B8', fontSize: 11, margin: '0 0 4px' }}>Your question</p>
+                <p style={{ color: '#94A3B8', fontSize: 11, margin: '0 0 4px' }}>📝 Your question</p>
                 <p style={{ color: 'white', fontWeight: 700, fontSize: 15, margin: 0 }}>{question}</p>
+                {questionVisual && (
+                  <div style={{ marginTop: 10, background: 'white', borderRadius: 10, padding: 10, maxWidth: 360 }}>
+                    <FractionVisual visual={questionVisual} />
+                  </div>
+                )}
               </div>
             )}
 
@@ -288,64 +298,164 @@ export default function HeroTutor({
                 </button>
               </div>
             ) : (
-              /* ── Lesson whiteboard ─────────────────────────────────────────── */
+              /* ── Lesson: split view (lesson left · question+diagram right) ──── */
               <>
-                <div style={{
-                  flex: 1, minHeight: 0, overflowY: 'auto',
-                  background: BOARD_BG, borderRadius: 16, border: `3px solid ${GOLD}`,
-                  padding: 22, fontFamily: "'Patrick Hand', cursive",
-                }}>
-                  {loadingLesson && <p style={{ color: BOARD_MUTED, fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
-                  {lessonError && <p style={{ color: '#FCA5A5', fontSize: 18 }}>{lessonError}</p>}
-                  {!loadingLesson && !lessonError && lesson && (
-                    <p style={{ color: BOARD_MUTED, fontSize: 13, margin: '0 0 10px', fontWeight: 700 }}>
-                      📘 Here’s a similar example (not your question):
-                    </p>
-                  )}
-                  {visibleSteps.map((s, i) => (
-                    <div key={i} style={{ marginBottom: 18, animation: 'htFade 0.3s ease' }}>
-                      {s.say && <p style={{ color: BOARD_TEXT, fontSize: 20, margin: '0 0 6px', lineHeight: 1.4 }}>{s.say}</p>}
-                      {s.write && (
-                        <div style={{
-                          display: 'inline-block',
-                          fontSize: s.emphasis === 'result' ? 30 : 24,
-                          fontWeight: s.emphasis === 'result' ? 700 : 400,
-                          color: s.emphasis === 'result' ? BOARD_RESULT : BOARD_WRITE,
-                          background: s.emphasis === 'result' ? BOARD_RESULT_BG : 'transparent',
-                          padding: s.emphasis === 'result' ? '4px 12px' : 0,
-                          borderRadius: 8,
-                          animation: i === stepIndex ? 'htWrite 0.7s ease forwards' : undefined,
-                        }}>
-                          {s.write}
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: narrow ? 'column' : 'row', gap: 16, overflowY: narrow ? 'auto' : 'visible' }}>
+                  {/* LEFT — the whiteboard. Full-width when there's no diagram to show;
+                      shares the row (flex 1.5) when a diagram card sits on the right. */}
+                  <div style={{ flex: narrow ? 'none' : (hasDiagram ? 1.5 : 1), minWidth: 0, minHeight: narrow ? 300 : 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                    {/* Talking Hero inside a CLEAN CIRCLE (clipped, no spilling) + bubble */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+                      <div style={{
+                        width: 96, height: 96, flexShrink: 0, position: 'relative',
+                        borderRadius: '50%', overflow: 'hidden', border: `3px solid ${GOLD}`,
+                        background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {speaking && <div style={{ position: 'absolute', inset: -3, borderRadius: '50%', border: `3px solid #34D399`, animation: 'htPulse 1s infinite', zIndex: 2 }} />}
+                        {/* Clean Hero profile photo (white bg → owns the white circle). */}
+                        <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ position: 'relative', background: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: '14px 18px', flex: 1, minWidth: 0 }}>
+                        <p style={{ color: GOLD, fontWeight: 800, fontSize: 17, margin: '0 0 3px' }}>Let’s solve this together! 💡</p>
+                        <p style={{ color: '#CBD5E1', fontSize: 13, margin: 0 }}>I’ll help you understand step by step.</p>
+                      </div>
+                    </div>
+
+                    {/* Lesson chalkboard — bigger, roomier text */}
+                    <div style={{
+                      position: 'relative', flex: 1, minHeight: narrow ? 220 : 0, overflowY: 'auto',
+                      background: BOARD_BG, borderRadius: 16, border: `3px solid ${GOLD}`,
+                      padding: 26, fontFamily: "'Patrick Hand', cursive",
+                    }}>
+                      {loadingLesson && <p style={{ color: BOARD_MUTED, fontSize: 18 }}>Hero is preparing your lesson… ✦✦✦</p>}
+                      {lessonError && <p style={{ color: '#FCA5A5', fontSize: 18 }}>{lessonError}</p>}
+                      {!loadingLesson && !lessonError && lesson && (
+                        <p style={{ color: BOARD_MUTED, fontSize: 14, margin: '0 0 12px', fontWeight: 700 }}>
+                          📘 Here’s a similar example (not your question):
+                        </p>
+                      )}
+                      {visibleSteps.map((s, i) => (
+                        <div key={i} style={{ marginBottom: 18, animation: 'htFade 0.3s ease' }}>
+                          {s.say && <p style={{ color: BOARD_TEXT, fontSize: 22, margin: '0 0 8px', lineHeight: 1.45 }}>{s.say}</p>}
+                          {s.write && (
+                            <div style={{
+                              display: 'inline-block',
+                              fontSize: s.emphasis === 'result' ? 32 : 26,
+                              fontWeight: s.emphasis === 'result' ? 700 : 400,
+                              color: s.emphasis === 'result' ? BOARD_RESULT : BOARD_WRITE,
+                              background: s.emphasis === 'result' ? BOARD_RESULT_BG : 'transparent',
+                              padding: s.emphasis === 'result' ? '4px 14px' : 0,
+                              borderRadius: 8,
+                              animation: i === stepIndex ? 'htWrite 0.7s ease forwards' : undefined,
+                            }}>
+                              {s.write}
+                            </div>
+                          )}
                         </div>
+                      ))}
+                      {lesson?.manipulative && stepIndex >= lesson.steps.length - 1 && (
+                        <div style={{ marginTop: 12 }}><Manipulative tool={lesson.manipulative} /></div>
                       )}
                     </div>
-                  ))}
-                  {lesson?.manipulative && stepIndex >= lesson.steps.length - 1 && (
-                    <div style={{ marginTop: 12 }}><Manipulative tool={lesson.manipulative} /></div>
+
+                    {/* Full-width board (no diagram): Hero peeks up over the bottom edge
+                        of the whiteboard, hands on the frame so it looks like he's holding
+                        it. Pinned to the panel (NOT the scrolling board) so it stays put as
+                        the lesson scrolls. The PNG already has a transparent background, so
+                        no blend/frame is needed. */}
+                    {!hasDiagram && !narrow && (
+                      <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
+                        style={{
+                          position: 'absolute', bottom: -18, right: 20, width: 160, height: 'auto',
+                          pointerEvents: 'none', zIndex: 3,
+                        }} />
+                    )}
+                  </div>
+
+                  {/* RIGHT — WHITE "Your question" card, shown ONLY when the question
+                      has a diagram (otherwise the whiteboard is full-width). Shows the
+                      question, its diagram, and the answer choices as a read-only
+                      reminder (they answer back in practice). */}
+                  {hasDiagram && (
+                    <div style={{ flex: 1, minWidth: 0, minHeight: narrow ? 'auto' : 0, display: 'flex', flexDirection: 'column' }}>
+                      <div style={{
+                        // Fit content, but never overflow the panel — scroll if tall.
+                        position: 'relative', maxHeight: '100%', overflow: 'hidden',
+                        background: 'white', borderRadius: 16, border: `1px solid ${GOLD}55`,
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.25)', padding: 22, paddingBottom: 8,
+                        display: 'flex', flexDirection: 'column',
+                      }}>
+                        {/* Hero peeks up from the bottom-right. PNG has a transparent bg, so no blend needed. */}
+                        <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
+                          style={{ position: 'absolute', bottom: -8, right: 8, width: 140, height: 'auto', pointerEvents: 'none', zIndex: 1 }} />
+
+                        {/* Scrollable content, above the peeking Hero; pad the bottom so
+                            the choices don't hide behind him. */}
+                        <div style={{ position: 'relative', zIndex: 2, overflowY: 'auto', paddingBottom: 90 }}>
+                          <p style={{ color: '#64748B', fontSize: 12, margin: '0 0 8px', fontWeight: 700 }}>📝 Your question</p>
+                          <p style={{ color: '#1B2B4B', fontWeight: 800, fontSize: 21, margin: 0, lineHeight: 1.35 }}>{question}</p>
+
+                          {questionVisual && (
+                            <div style={{ marginTop: 16, background: '#F8FAFC', borderRadius: 12, padding: 16, border: '1px solid #E2E8F0' }}>
+                              <FractionVisual visual={questionVisual} />
+                            </div>
+                          )}
+
+                          {/* Answer choices — a read-only reminder of what they'll pick. */}
+                          {Array.isArray(questionOptions) && questionOptions.length > 0 && (
+                            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              <p style={{ color: '#94A3B8', fontSize: 11, margin: 0, fontWeight: 700, letterSpacing: 0.3 }}>THE CHOICES</p>
+                              {questionOptions.map((opt, i) => (
+                                <div key={i} style={{
+                                  display: 'flex', alignItems: 'center', gap: 12,
+                                  background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12,
+                                  padding: '12px 14px',
+                                }}>
+                                  <span style={{
+                                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                                    background: '#EEF2F7', color: '#64748B', fontWeight: 800, fontSize: 13,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  }}>{String.fromCharCode(65 + i)}</span>
+                                  <span style={{ color: '#1B2B4B', fontWeight: 600, fontSize: 16 }}>{String(opt).replace(/^\s*[A-Da-d][).:]\s*/, '')}</span>
+                                </div>
+                              ))}
+                              <p style={{ color: '#94A3B8', fontSize: 12, margin: '2px 0 0', fontStyle: 'italic' }}>
+                                You’ll pick your answer back on your question 👍
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                {/* Lesson controls */}
+                {/* Controls: prev/play/next + STEP DOTS + try-one */}
                 {lesson && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, paddingTop: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 14, flexWrap: 'wrap' }}>
                     <CtrlBtn onClick={replay} title="Restart">⏮</CtrlBtn>
                     <CtrlBtn onClick={prevStep} title="Previous step" disabled={stepIndex === 0}>◀</CtrlBtn>
                     {playing
                       ? <CtrlBtn onClick={pause} title="Pause" big>⏸</CtrlBtn>
                       : <CtrlBtn onClick={play} title="Play" big>▶</CtrlBtn>}
                     <CtrlBtn onClick={nextStep} title="Next step" disabled={stepIndex >= lesson.steps.length - 1}>▶</CtrlBtn>
-                    <span style={{ color: '#94A3B8', fontSize: 13, margin: '0 8px' }}>
-                      Step {stepIndex + 1} / {lesson.steps.length}
-                    </span>
-                    {/* When the lesson is finished and there's an example, invite a try. */}
+                    {/* Step dots */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 6px' }}>
+                      {lesson.steps.map((_, i) => (
+                        <span key={i} style={{
+                          width: i === stepIndex ? 22 : 8, height: 8, borderRadius: 99,
+                          background: i === stepIndex ? GOLD : i < stepIndex ? 'rgba(196,154,26,0.5)' : 'rgba(255,255,255,0.2)',
+                          transition: 'all 0.3s ease',
+                        }} />
+                      ))}
+                    </div>
+                    <span style={{ color: '#94A3B8', fontSize: 13 }}>Step {stepIndex + 1} / {lesson.steps.length}</span>
                     {lesson.example && stepIndex >= lesson.steps.length - 1 && !playing && (
                       <button onClick={startPractice} style={ctaBtn(GOLD, NAVY)}>Let me try one →</button>
                     )}
                   </div>
                 )}
 
-                {/* Always-available escape back to the real question. */}
                 {lesson && (
                   <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10 }}>
                     <button onClick={handleClose} style={{ background: 'none', border: 'none', color: GOLD, fontSize: 13, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>

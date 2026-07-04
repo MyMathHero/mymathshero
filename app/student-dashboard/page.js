@@ -6,6 +6,7 @@ import RoboVideo from '@/components/RoboVideo'
 import RewardBurst, { comboMessage } from '@/components/RewardBurst'
 import ReviewSurvey from '@/components/ReviewSurvey'
 import MathText from '@/components/MathText'
+import FractionVisual from '@/components/FractionVisual'
 import JuniorHome from '@/components/junior/JuniorHome'
 import { isJuniorGrade, shouldAutoNarrate } from '@/lib/juniorMode'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
@@ -13,11 +14,13 @@ import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
+import { VOUCHERS_ENABLED } from '@/lib/featureVisibility'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
+import MonthlyExam from '@/components/MonthlyExam'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -217,6 +220,9 @@ export default function StudentDashboard() {
   const [difficultySubmitting, setDifficultySubmitting] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const [hintLoading, setHintLoading] = useState(false)
+  // True once the student opened Ask Hero / Teach Me on the CURRENT question.
+  // Sent as `aiHelpUsed` so the answer earns 5 coins instead of 10. Reset per Q.
+  const [aiHelpUsed, setAiHelpUsed] = useState(false)
   const [aiHint, setAiHint] = useState(null) // { text, source }
   const [showSteps, setShowSteps] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
@@ -282,6 +288,12 @@ export default function StudentDashboard() {
   const nudgeTimerRef = useRef(null)
   const nudgeCountRef = useRef(0)
 
+  // HERO Daily Task — until it's done, freestyle categories + arcade are locked.
+  const [dailyTask, setDailyTask] = useState(null)
+  const [dailyTaskCelebration, setDailyTaskCelebration] = useState(null) // {bonus} on finish
+  const dailyTaskLocked = !!dailyTask && dailyTask.done !== true
+  const [showMonthlyExam, setShowMonthlyExam] = useState(false)
+
   // ── Fetch progress on mount ─────────────────────────────────────────────────
   useEffect(() => {
     async function initDashboard() {
@@ -330,6 +342,8 @@ export default function StudentDashboard() {
       }
 
       setStudent(data.student)
+      // HERO Daily Task (non-blocking — gate is applied once it loads).
+      fetchDailyTask(studentId)
       setStudentPlan(data.student.plan || 'free')
       setTotalXp(data.student.xp || 0)
       setCoins(data.student.coins || 0)
@@ -357,6 +371,31 @@ export default function StudentDashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── HERO Daily Task ───────────────────────────────────────────────────────
+  async function fetchDailyTask(studentId = authStudentId) {
+    try {
+      const res = await fetch(`/api/student/daily-task?studentId=${studentId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setDailyTask(data.task || null)
+    } catch { /* non-fatal — leave unlocked if the task can't load */ }
+  }
+
+  // Report one answered question toward today's task. Returns the server result
+  // (justFinished / bonusAwarded) so the caller can celebrate + unlock.
+  async function reportDailyTaskProgress() {
+    try {
+      const res = await fetch('/api/student/daily-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: authStudentId, action: 'progress' }),
+      })
+      const data = await res.json()
+      if (data.task) setDailyTask(data.task)
+      return data
+    } catch { return null }
   }
 
   // ── Fetch leaderboard ─────────────────────────────────────────────────────
@@ -520,6 +559,7 @@ export default function StudentDashboard() {
             steps: q.steps,
           }) : prev)
           setShowHint(false)
+          setAiHelpUsed(false)
           setAiHint(null)
           questionStartTimeRef.current = Date.now()
           if (timerRef.current) clearInterval(timerRef.current)
@@ -609,6 +649,7 @@ export default function StudentDashboard() {
     setPracticeLoading(true)
     setAnswerState(null)
     setShowHint(false)
+    setAiHelpUsed(false)
     setHintLoading(false)
     setAiHint(null)
     setShowSteps(false)
@@ -640,7 +681,9 @@ export default function StudentDashboard() {
         options: q.options,
         hint: q.hint,
         steps: q.steps,
+        visual: q.visual || null,   // fraction diagram etc. — rendered under the question
         speedRound: !!opts.speedRound,
+        dailyTask: !!opts.dailyTask, // this run counts toward the HERO Daily Task
       })
       questionStartTimeRef.current = Date.now()
       // Start the visible per-question timer
@@ -654,6 +697,15 @@ export default function StudentDashboard() {
     } finally {
       setPracticeLoading(false)
     }
+  }
+
+  // Start today's HERO Daily Task as a focused practice run on the task skill.
+  const openDailyTask = () => {
+    if (!dailyTask?.skillId) return
+    openPractice(
+      { id: dailyTask.skillId, name: dailyTask.skillName },
+      { title: '🦸 HERO Daily Task', dailyTask: true }
+    )
   }
 
   // ── Handle answer — POST to API, get back correct/incorrect ───────────────
@@ -680,6 +732,7 @@ export default function StudentDashboard() {
           answer: selectedOption,
           timeTakenMs,
           hintUsed: showHint,
+          aiHelpUsed: aiHelpUsed || showHint,
           difficulty: 0.5,
         }),
       })
@@ -692,6 +745,17 @@ export default function StudentDashboard() {
       // Count answered questions in this run (speed rounds excluded — they have
       // their own completion screen) to drive the mandatory difficulty prompt.
       if (!speedRound) practiceAnsweredRef.current += 1
+
+      // HERO Daily Task — every answered question counts toward today's target.
+      // On completion, award + celebrate and unlock the rest of the app.
+      if (practiceModal?.dailyTask) {
+        reportDailyTaskProgress().then(dt => {
+          if (dt?.justFinished) {
+            setDailyTaskCelebration({ bonus: dt.bonusAwarded || 0 })
+            if (dt.bonusAwarded) setCoins(prev => prev + dt.bonusAwarded)
+          }
+        })
+      }
 
       const correctIndex = result.correctAnswer
         ? practiceModal.options.indexOf(result.correctAnswer)
@@ -781,6 +845,7 @@ export default function StudentDashboard() {
     setPracticeModal(null)
     setAnswerState(null)
     setShowHint(false)
+    setAiHelpUsed(false)
     setHintLoading(false)
     setAiHint(null)
     setShowSteps(false)
@@ -840,6 +905,7 @@ export default function StudentDashboard() {
     // Reset per-question UI state immediately.
     setAnswerState(null)
     setShowHint(false)
+    setAiHelpUsed(false)
     setHintLoading(false)
     setAiHint(null)
     setShowSteps(false)
@@ -873,7 +939,7 @@ export default function StudentDashboard() {
   }
 
   // ── Today's Hero Challenges — activity launchers ──────────────────────────
-  // Lowest-scoring started skill (score > 0), used by the Weak Spot Trainer.
+  // Lowest-scoring started skill (score > 0), used by the Development Spot Trainer.
   const weakestSkill = recommendations
     .filter(s => (s.currentScore ?? 0) > 0)
     .sort((a, b) => (a.currentScore ?? 0) - (b.currentScore ?? 0))[0] || null
@@ -912,6 +978,11 @@ export default function StudentDashboard() {
     }
     setHeroStatus(status)
     setHeroGeneral(general)
+
+    // In-practice help (Ask Hero / Teach Me on the current question) → this
+    // question now counts as "AI-assisted" and earns 5 coins instead of 10.
+    // General floating-button mode isn't tied to a question, so it doesn't count.
+    if (!general) setAiHelpUsed(true)
 
     // Gated (not premium, or daily limit reached) — open modal in locked state.
     if (status && !status.allowed) {
@@ -1122,7 +1193,7 @@ export default function StudentDashboard() {
         if (info) {
           nudges.push({
             emoji: '🎯',
-            title: 'Weak Spot Alert!',
+            title: 'Development Spot Alert!',
             message: `Your ${info.name} needs work (score: ${Math.round(weakest.currentScore || 0)}/100). Let's improve it now!`,
             action: 'Practice Now',
             skill: weakest,
@@ -1415,6 +1486,64 @@ export default function StudentDashboard() {
 
       {activeTab === 'home' && (
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ paddingBottom: 96, maxWidth: 1080 }}>
+        {/* === HERO DAILY TASK === (blocks the rest until completed) */}
+        {dailyTask && (
+          <div style={{ maxWidth: 672, margin: '0 auto 20px' }}>
+              <div style={{
+                background: dailyTaskLocked
+                  ? 'linear-gradient(135deg, #1B2B4B, #2D4A7A)'
+                  : 'linear-gradient(135deg, #065F46, #059669)',
+                borderRadius: 20, padding: 22, marginBottom: 20,
+                border: `2px solid ${dailyTaskLocked ? 'var(--accent-gold)' : '#34D399'}`,
+                boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <span style={{ fontSize: 34 }}>🦸</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ color: 'white', fontWeight: 800, fontSize: 18, margin: 0 }}>
+                      {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete! 🎉'}
+                    </p>
+                    <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '2px 0 0' }}>
+                      {dailyTaskLocked
+                        ? `${dailyTask.skillName} · ${dailyTask.progress || 0}/${dailyTask.target} questions`
+                        : 'Freestyle practice + the arcade are unlocked. Great work!'}
+                    </p>
+                  </div>
+                  {dailyTask.bonus > 0 && (
+                    <span style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 14, whiteSpace: 'nowrap' }}>
+                      +{dailyTask.bonus} 🪙
+                    </span>
+                  )}
+                </div>
+                {/* progress bar */}
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginBottom: dailyTaskLocked ? 14 : 0 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 4,
+                    width: `${Math.min(100, ((dailyTask.progress || 0) / (dailyTask.target || 1)) * 100)}%`,
+                    background: dailyTaskLocked ? 'var(--accent-gold)' : '#34D399',
+                    transition: 'width 0.4s ease',
+                  }} />
+                </div>
+                {dailyTaskLocked && (
+                  <>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, margin: '0 0 12px' }}>
+                      Complete today&apos;s HERO task to unlock freestyle practice and rewards.
+                    </p>
+                    <button onClick={openDailyTask} style={{
+                      width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+                      background: 'linear-gradient(135deg, var(--accent-gold), #FFD700)',
+                      color: '#1B2B4B', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+                    }}>
+                      {(dailyTask.progress || 0) > 0 ? 'Continue task →' : 'Start today’s task →'}
+                    </button>
+                  </>
+                )}
+              </div>
+          </div>
+        )}
+
+        {/* Everything below is locked until the daily task is done. */}
+        <div style={dailyTaskLocked ? { opacity: 0.4, pointerEvents: 'none', filter: 'grayscale(0.4)' } : undefined}>
         <div className="flex flex-col lg:flex-row gap-8 justify-center">
           {/* Main Content */}
           <div className="flex-1 min-w-0 max-w-2xl">
@@ -1742,7 +1871,22 @@ export default function StudentDashboard() {
                   </div>
                 </div>
 
-                {/* D) Weak Spot Trainer */}
+                {/* C2) Monthly Review Exam — once a month, big coin bonuses */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #7C2D12, #B45309)', borderRadius: 16, padding: 20,
+                  border: '2px solid #F59E0B', marginBottom: 12, cursor: 'pointer',
+                }} onClick={() => setShowMonthlyExam(true)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 32 }}>📅</span>
+                    <div>
+                      <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>Monthly Review</p>
+                      <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: 0 }}>20-question check-up · earn up to 100 🪙</p>
+                    </div>
+                    <span style={{ marginLeft: 'auto', color: '#FCD34D', fontSize: 20 }}>→</span>
+                  </div>
+                </div>
+
+                {/* D) Development Spot Trainer */}
                 {weakestSkill && (
                   <div style={{
                     background: 'var(--bg-card)', borderRadius: 16, padding: 20,
@@ -1751,7 +1895,7 @@ export default function StudentDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ fontSize: 32 }}>🎯</span>
                       <div>
-                        <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Weak Spot Trainer</p>
+                        <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Development Spot Trainer</p>
                         <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>Level up your weakest skill</p>
                         <p style={{ color: 'var(--error)', fontSize: 12, fontWeight: 700, margin: 0 }}>
                           {weakestSkill.name} — Score: {Math.round(weakestSkill.currentScore)}/100
@@ -1762,7 +1906,8 @@ export default function StudentDashboard() {
                   </div>
                 )}
 
-                {/* HERO VOUCHERS */}
+                {/* HERO VOUCHERS — hidden for now (VOUCHERS_ENABLED), code kept. */}
+                {VOUCHERS_ENABLED && (
                 <div
                   onClick={() => router.push('/vouchers')}
                   style={{
@@ -1784,6 +1929,7 @@ export default function StudentDashboard() {
                     <span style={{ marginLeft: 'auto', color: 'var(--accent-gold)', fontSize: 20 }}>→</span>
                   </div>
                 </div>
+                )}
               </div>
             )}
 
@@ -1920,6 +2066,7 @@ export default function StudentDashboard() {
             )}
           </div>
         </div>
+        </div>{/* /daily-task gate wrapper */}
       </div>
       )}
 
@@ -2027,7 +2174,12 @@ export default function StudentDashboard() {
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
           <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
             <div style={{ margin: '0 auto 16px', width: 96 }}>
-              <CharacterAvatar id={student?.avatar} size={96} />
+              {student?.profilePhoto ? (
+                <img src={student.profilePhoto} alt="Your photo"
+                  style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
+              ) : (
+                <CharacterAvatar id={student?.avatar} size={96} />
+              )}
             </div>
             <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
               {student?.name || 'Hero'}
@@ -2203,14 +2355,19 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Practice Modal */}
+      {/* Practice Modal — FULLSCREEN work area */}
       {practiceModal && !practiceLoading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={closePractice}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full relative pop-in overflow-hidden max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={closePractice}>
+          <div className="bg-white dark:bg-[#1C1C1C] w-full h-full relative pop-in overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Hero peeks in from the bottom-left of the modal. PNG has a transparent
+                bg, so no blend needed — works in light + dark mode. */}
+            <img src="/assets/robot/Heropeekingfromsidewall.png" alt="" aria-hidden
+              className="hidden lg:block pointer-events-none select-none"
+              style={{ position: 'absolute', bottom: 0, left: -8, width: 128, height: 'auto', zIndex: 5 }} />
             {showCelebration && <CelebrationOverlay show={showCelebration} />}
             <div className={`h-2 bg-gradient-to-r ${currentSubject?.gradient || 'from-blue-500 to-indigo-600'}`} />
-            <div className="p-6 sm:p-8">
-              <button onClick={closePractice} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl z-50"><X size={18} className="text-gray-400 dark:text-slate-400" /></button>
+            <div className="p-6 sm:p-8 mx-auto w-full max-w-3xl">
+              <button onClick={closePractice} className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl z-50"><X size={18} className="text-gray-400 dark:text-slate-400" /></button>
 
               {/* Empty state */}
               {practiceModal.empty ? (
@@ -2307,6 +2464,11 @@ export default function StudentDashboard() {
                       </div>
                     )}
                     <h3 className="text-xl font-extrabold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A]"><MathText>{practiceModal.question}</MathText></h3>
+                    {practiceModal.visual && (
+                      <div className="mt-4 rounded-xl bg-white dark:bg-white/95 border border-[#E2E8F0] dark:border-white/10 p-4 max-w-md">
+                        <FractionVisual visual={practiceModal.visual} />
+                      </div>
+                    )}
                   </div>
 
                   {!showSteps && (
@@ -2649,6 +2811,8 @@ export default function StudentDashboard() {
       {showAskHero && (!heroStatus || heroStatus.allowed) && (heroGeneral || practiceModal) && (
         <HeroTutor
           question={heroGeneral ? null : practiceModal?.question}
+          questionVisual={heroGeneral ? null : practiceModal?.visual}
+          questionOptions={heroGeneral ? null : practiceModal?.options}
           skillId={heroGeneral ? null : (practiceModal?.skillId || 'm_3_multiply100')}
           skillName={heroGeneral ? null : practiceModal?.skillName}
           studentId={authStudentId || 'student_test_001'}
@@ -2656,6 +2820,46 @@ export default function StudentDashboard() {
           grade={student?.grade ?? 3}
           questionId={heroGeneral ? null : practiceModal?.questionId}
           onClose={() => setShowAskHero(false)}
+        />
+      )}
+
+      {/* HERO Daily Task complete — celebration + unlock */}
+      {dailyTaskCelebration && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+          onClick={() => { setDailyTaskCelebration(null); closePractice() }}>
+          <div className="bg-white dark:bg-[#1C1C1C] rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center pop-in"
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 64, marginBottom: 8 }}>🦸🎉</div>
+            <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 6px' }}>
+              HERO Task complete!
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 4px' }}>
+              You&apos;ve unlocked freestyle practice and the Arcade. 🕹️
+            </p>
+            {dailyTaskCelebration.bonus > 0 && (
+              <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 18, margin: '10px 0 0' }}>
+                +{dailyTaskCelebration.bonus} 🪙 bonus!
+              </p>
+            )}
+            <button
+              onClick={() => { setDailyTaskCelebration(null); closePractice() }}
+              style={{
+                marginTop: 20, width: '100%', padding: 14, borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, var(--accent-gold), #FFD700)',
+                color: '#1B2B4B', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+              }}
+            >
+              Awesome! →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showMonthlyExam && (
+        <MonthlyExam
+          studentId={authStudentId}
+          onClose={() => setShowMonthlyExam(false)}
+          onDone={(r) => { if (r?.bonusAwarded) setCoins(prev => prev + r.bonusAwarded) }}
         />
       )}
 
@@ -3157,10 +3361,18 @@ export default function StudentDashboard() {
           { emoji: '👤', label: 'Profile', tab: 'profile' },
         ].map((item, i) => {
           const isActive = activeTab === item.tab
+          // Arcade is locked until today's HERO task is done.
+          const arcadeLocked = item.label === 'Arcade' && dailyTaskLocked
           return (
             <button
               key={i}
-              onClick={() => item.href ? router.push(item.href) : setActiveTab(item.tab)}
+              onClick={() => {
+                if (arcadeLocked) {
+                  alert('🦸 Finish today’s HERO task first to unlock the Arcade!')
+                  return
+                }
+                item.href ? router.push(item.href) : setActiveTab(item.tab)
+              }}
               style={{
                 flex: 1,
                 background: isActive
@@ -3181,9 +3393,10 @@ export default function StudentDashboard() {
               <span style={{
                 fontSize: 22,
                 filter: isActive ? 'none' : 'grayscale(0.15)',
+                opacity: arcadeLocked ? 0.5 : 1,
                 transition: 'transform 0.15s ease',
                 transform: isActive ? 'scale(1.12)' : 'scale(1)',
-              }}>{item.emoji}</span>
+              }}>{arcadeLocked ? '🔒' : item.emoji}</span>
               <span style={{
                 fontSize: 10,
                 fontWeight: isActive ? 800 : 600,

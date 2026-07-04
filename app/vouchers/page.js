@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { VOUCHER_TIERS } from '@/lib/arcadeVouchers'
+import { VOUCHERS_ENABLED } from '@/lib/featureVisibility'
 
 export default function VouchersPage() {
   const router = useRouter()
@@ -11,6 +12,11 @@ export default function VouchersPage() {
   const [success, setSuccess] = useState(null)
 
   useEffect(() => {
+    // Feature hidden — bounce anyone who reaches the URL directly.
+    if (!VOUCHERS_ENABLED) {
+      router.replace('/student-dashboard')
+      return
+    }
     async function load() {
       try {
         // The vouchers API itself reads the session cookie; we ping /me first

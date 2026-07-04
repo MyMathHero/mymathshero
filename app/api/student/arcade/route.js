@@ -1,9 +1,10 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { ARCADE_GAMES, canPlayGame } from '@/lib/arcadeGames'
-import { logCoinChange } from '@/lib/coins'
-import { getAESTMidnightUTC } from '@/lib/arcadeTime'
+import { ARCADE_GAMES } from '@/lib/arcadeGames'
+import { adjustCoins } from '@/lib/coins'
+import { getAESTMidnightUTC, TIME_PACKS, timePackCost, timePackMinutes } from '@/lib/arcadeTime'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
+import { isTaskDoneToday, needsNewTask } from '@/lib/dailyTask'
 
 let client
 async function connectDB() {
@@ -30,50 +31,37 @@ export async function GET(request) {
       { error: 'Student not found' }, { status: 404 }
     )
 
-    // Get today's arcade usage (resets at AEST midnight, not UTC). Active
-    // sessions are included because the heartbeat keeps their durationMinutes
-    // current, so mid-session time is visible across devices.
+    // Today's play stats (for display only — the gate is the purchased time
+    // wallet, not a daily cap). Resets at AEST midnight.
     const todayStart = getAESTMidnightUTC()
     const todaySessions = await db.collection('arcade_sessions')
-      .find({
-        studentId,
-        startedAt: { $gte: todayStart },
-      })
+      .find({ studentId, startedAt: { $gte: todayStart } })
       .toArray()
-
     const minutesToday = todaySessions.reduce(
       (sum, s) => sum + (s.durationMinutes || 0), 0
     )
-    const gamesPlayedToday = new Set(
-      todaySessions.map(s => s.gameId)
-    ).size
+    const gamesPlayedToday = new Set(todaySessions.map(s => s.gameId)).size
 
-    // Plan is account-level (lives on the parent); arcade limits are per-child.
+    // Plan is account-level (lives on the parent).
     const parent = student.parentId
       ? await db.collection('parents').findOne({ id: student.parentId })
       : null
-    const arcadeSettings = student.arcadeSettings || {
-      dailyMinutes: 30,
-      enabled: true,
-      allowedDays: ['Monday','Tuesday','Wednesday','Thursday',
-        'Friday','Saturday','Sunday'],
-    }
+    // Parents now control ONLY on/off (time is bought with coins, not a cap).
+    const arcadeSettings = { enabled: student.arcadeSettings?.enabled !== false }
 
-    const dailyLimit = arcadeSettings.dailyMinutes || 30
-    const minutesRemaining = Math.max(0, dailyLimit - minutesToday)
-    const timeLimitReached = minutesToday >= dailyLimit
+    // The purchased time wallet — minutes of arcade time the student has left.
+    const minutesRemaining = Math.max(0, student.arcadeMinutesRemaining || 0)
 
     return NextResponse.json({
-      coins: student.coins || 0,   // spending currency — gates the arcade
+      coins: student.coins || 0,   // spending currency — buys arcade time
       xp: student.xp || 0,         // leaderboard only; kept for display
       plan: resolveEffectivePlan(parent),
+      minutesRemaining,            // purchased time left (the real gate)
+      timeLimitReached: minutesRemaining <= 0,
       minutesToday,
-      minutesRemaining,
-      timeLimitReached,
-      dailyLimit,
       gamesPlayedToday,
       arcadeSettings,
-      unlockedGames: student.unlockedGames || [],
+      timePacks: TIME_PACKS,
     })
   } catch (error) {
     return NextResponse.json(
@@ -86,7 +74,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     // Read the body once — the request stream can only be consumed a single time.
-    const { studentId, gameId, action, durationMinutes, sessionId } =
+    const { studentId, gameId, action, durationMinutes, sessionId, pack } =
       await request.json()
 
     const db = await connectDB()
@@ -96,106 +84,87 @@ export async function POST(request) {
       { error: 'Student not found' }, { status: 404 }
     )
 
+    // Buy arcade time with coins (100c → 5 min, 200c → 10 min). Games are all
+    // free to open; TIME is the currency now. Atomic guarded spend so a
+    // double-submit can't overdraw coins.
+    if (action === 'buyTime') {
+      const cost = timePackCost(pack)
+      const minutes = timePackMinutes(pack)
+      if (cost == null || minutes == null) {
+        return NextResponse.json({ error: 'Unknown time pack' }, { status: 400 })
+      }
+      const after = await adjustCoins(db, studentId, {
+        coins: -cost, reason: 'arcade-time',
+        meta: { pack: String(pack), minutes },
+        guard: { coins: { $gte: cost } },
+      })
+      if (!after) {
+        return NextResponse.json(
+          { error: `Need ${cost} coins 🪙 for ${minutes} minutes`, coins: student.coins || 0 },
+          { status: 403 }
+        )
+      }
+      // Credit the purchased minutes onto the wallet (separate $inc so the coin
+      // ledger and the time wallet stay independent).
+      const upd = await db.collection('children').findOneAndUpdate(
+        { id: studentId },
+        { $inc: { arcadeMinutesRemaining: minutes } },
+        { returnDocument: 'after' }
+      )
+      const doc = upd?.value || upd
+      return NextResponse.json({
+        success: true,
+        coinsSpent: cost,
+        newCoins: after.coins,
+        minutesRemaining: Math.max(0, doc?.arcadeMinutesRemaining || 0),
+      })
+    }
+
     const game = ARCADE_GAMES.find(g => g.id === gameId)
     if (!game) return NextResponse.json(
       { error: 'Game not found' }, { status: 404 }
     )
 
-    const parent = student.parentId
-      ? await db.collection('parents').findOne({ id: student.parentId })
-      : null
-
-    if (action === 'unlock') {
-      const check = canPlayGame(game, student.coins || 0, resolveEffectivePlan(parent))
-      if (!check.allowed) return NextResponse.json(
-        { error: check.reason }, { status: 403 }
-      )
-
-      // Already unlocked?
-      const unlocked = student.unlockedGames || []
-      if (unlocked.includes(gameId)) return NextResponse.json({
-        success: true, alreadyUnlocked: true,
-      })
-
-      // Atomic deduct: only succeeds if the student still has enough coins and
-      // hasn't already unlocked this game. Guards against double-submit / races
-      // overdrawing coins into the negative.
-      const updated = await db.collection('children').findOneAndUpdate(
-        {
-          id: studentId,
-          coins: { $gte: game.coinsCost },
-          unlockedGames: { $ne: gameId },
-        },
-        {
-          $inc: { coins: -game.coinsCost },
-          $push: { unlockedGames: gameId },
-        },
-        { returnDocument: 'after' }
-      )
-      const after = updated?.value || updated
-      if (!after) {
-        // Lost the race or balance dropped — re-check for a precise message.
-        const current = await db.collection('children').findOne({ id: studentId })
-        if ((current?.unlockedGames || []).includes(gameId)) {
-          return NextResponse.json({ success: true, alreadyUnlocked: true })
-        }
-        return NextResponse.json(
-          { error: `Need ${game.coinsCost} coins 🪙 to unlock` },
-          { status: 403 }
-        )
-      }
-      await logCoinChange(db, studentId, { coins: -game.coinsCost, reason: 'arcade-unlock', meta: { gameId }, after })
-
-      return NextResponse.json({
-        success: true,
-        coinsSpent: game.coinsCost,
-        newCoins: after.coins,
-      })
-    }
-
     if (action === 'start') {
-      // Check if game is unlocked
-      const unlocked = student.unlockedGames || []
-      if (!unlocked.includes(gameId)) return NextResponse.json(
-        { error: 'Game not unlocked' }, { status: 403 }
-      )
-
-      // Check daily limits (per-child settings live on the children doc).
-      const arcadeSettings = student.arcadeSettings || {
-        dailyMinutes: 30, enabled: true
-      }
-      if (!arcadeSettings.enabled) return NextResponse.json(
+      // Parents control on/off only (default on). No per-game unlock anymore.
+      if (student.arcadeSettings?.enabled === false) return NextResponse.json(
         { error: 'Arcade disabled by parent' }, { status: 403 }
       )
 
-      const todayStart = getAESTMidnightUTC()
-      const todaySessions = await db.collection('arcade_sessions')
-        .find({ studentId, startedAt: { $gte: todayStart } })
-        .toArray()
-      const minutesToday = todaySessions.reduce(
-        (sum, s) => sum + (s.durationMinutes || 0), 0
-      )
+      // HERO Daily Task gate — if today's task exists and isn't done, block play.
+      // (When no task has been generated yet today we don't block here; the
+      // dashboard generates it on load.)
+      if (!needsNewTask(student.dailyTask) && !isTaskDoneToday(student.dailyTask)) {
+        return NextResponse.json(
+          { error: 'Finish today’s HERO task first to unlock the Arcade.', taskLocked: true },
+          { status: 403 }
+        )
+      }
 
-      if (minutesToday >= arcadeSettings.dailyMinutes) {
+      // Gate on the purchased time wallet — need at least 1 minute to play.
+      const minutesRemaining = Math.max(0, student.arcadeMinutesRemaining || 0)
+      if (minutesRemaining <= 0) {
         return NextResponse.json({
-          error: `Daily limit of ${arcadeSettings.dailyMinutes} minutes reached`,
+          error: 'No arcade time left — buy more with coins.',
           limitReached: true,
         }, { status: 403 })
       }
 
-      // Start session
+      // Start session. `minutesCharged` tracks how much of this session has
+      // already been deducted from the wallet, so heartbeats are idempotent.
       const session = await db.collection('arcade_sessions').insertOne({
         studentId,
         gameId,
         startedAt: new Date(),
         durationMinutes: 0,
+        minutesCharged: 0,
         active: true,
       })
 
       return NextResponse.json({
         success: true,
         sessionId: session.insertedId.toString(),
-        minutesRemaining: arcadeSettings.dailyMinutes - minutesToday,
+        minutesRemaining,
       })
     }
 
@@ -211,19 +180,44 @@ export async function POST(request) {
       } catch {
         return NextResponse.json({ error: 'Invalid sessionId' }, { status: 400 })
       }
+      const total = Math.max(0, Math.round(durationMinutes || 0))
+      // Charge the wallet for any minutes not already charged by heartbeats.
+      const sess = await db.collection('arcade_sessions').findOne({ _id: id })
+      const already = sess?.minutesCharged || 0
+      const toCharge = Math.max(0, total - already)
+      let minutesRemaining = Math.max(0, student.arcadeMinutesRemaining || 0)
+      if (toCharge > 0) {
+        const upd = await db.collection('children').findOneAndUpdate(
+          { id: studentId },
+          { $inc: { arcadeMinutesRemaining: -toCharge } },
+          { returnDocument: 'after' }
+        )
+        const doc = upd?.value || upd
+        // Never let the wallet go negative.
+        if ((doc?.arcadeMinutesRemaining || 0) < 0) {
+          await db.collection('children').updateOne(
+            { id: studentId }, { $set: { arcadeMinutesRemaining: 0 } }
+          )
+          minutesRemaining = 0
+        } else {
+          minutesRemaining = doc?.arcadeMinutesRemaining || 0
+        }
+      }
       await db.collection('arcade_sessions').updateOne(
         { _id: id },
         {
           $set: {
             endedAt: new Date(),
-            durationMinutes: durationMinutes || 0,
+            durationMinutes: total,
+            minutesCharged: total,
             active: false,
           }
         }
       )
       return NextResponse.json({
         success: true,
-        durationMinutes: durationMinutes || 0,
+        durationMinutes: total,
+        minutesRemaining,
       })
     }
 

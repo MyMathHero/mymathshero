@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo} from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, TextInput, Modal, ActivityIndicator,
+  ScrollView, Alert, TextInput, Modal, ActivityIndicator, Image,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
@@ -13,6 +13,7 @@ import SupportSheet from '../../components/SupportSheet'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
 import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
+import { VOUCHERS_ENABLED } from '../../lib/featureVisibility'
 
 export default function Profile() {
   const router = useRouter()
@@ -37,19 +38,74 @@ export default function Profile() {
 
   async function chooseAvatar(id: string) {
     if (avatarSaving) return
+    if (id === student?.avatar) { setShowAvatarModal(false); return } // no change → free
     const prev = student?.avatar
     setStudent((s: any) => ({ ...s, avatar: id }))  // optimistic
     setAvatarSaving(true)
     try {
       const sid = (await SecureStore.getItemAsync('user_id')) || ''
-      await studentAPI.setCharacter(sid, id)
-      setShowAvatarModal(false)
-    } catch {
+      const res = await studentAPI.setCharacter(sid, id)
+      const data = res?.data
+      if (data?.success) {
+        if (typeof data.newCoins === 'number') {
+          setStudent((s: any) => ({ ...s, coins: data.newCoins }))
+        }
+        setShowAvatarModal(false)
+      } else {
+        setStudent((s: any) => ({ ...s, avatar: prev }))
+        Alert.alert('Not enough coins', data?.error || 'You need more coins to change your hero.')
+      }
+    } catch (err: any) {
       setStudent((s: any) => ({ ...s, avatar: prev }))
-      Alert.alert('Oops', 'Could not save your hero. Please try again.')
+      const msg = err?.response?.data?.error || 'Could not save your hero. Please try again.'
+      Alert.alert('Oops', msg)
     } finally {
       setAvatarSaving(false)
     }
+  }
+
+  // Pick a personal profile photo (shown only to this student). Uses base64 so
+  // no separate upload/storage step is needed for now.
+  async function pickPhoto() {
+    if (avatarSaving) return
+    try {
+      // Dynamic import + `any` so tsc doesn't require the module to be installed
+      // in this checkout; it resolves at runtime after `npx expo install
+      // expo-image-picker` (already added to package.json).
+      const ImagePicker: any = await import('expo-image-picker' as any)
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        Alert.alert('Permission needed', 'Allow photo access to add a profile photo.')
+        return
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], base64: true, quality: 0.6,
+      })
+      if (result.canceled || !result.assets?.[0]?.base64) return
+      const dataUrl = 'data:image/jpeg;base64,' + result.assets[0].base64
+      setAvatarSaving(true)
+      const sid = (await SecureStore.getItemAsync('user_id')) || ''
+      const res = await studentAPI.setPhoto(sid, dataUrl)
+      if (res?.data?.success) {
+        setStudent((s: any) => ({ ...s, profilePhoto: dataUrl }))
+      } else {
+        Alert.alert('Oops', res?.data?.error || 'Could not save photo.')
+      }
+    } catch {
+      Alert.alert('Oops', 'Could not add that photo.')
+    } finally {
+      setAvatarSaving(false)
+    }
+  }
+
+  async function removePhoto() {
+    if (avatarSaving) return
+    setAvatarSaving(true)
+    try {
+      const sid = (await SecureStore.getItemAsync('user_id')) || ''
+      const res = await studentAPI.setPhoto(sid, null)
+      if (res?.data?.success) setStudent((s: any) => ({ ...s, profilePhoto: null }))
+    } catch {} finally { setAvatarSaving(false) }
   }
 
   async function loadProfile() {
@@ -144,11 +200,26 @@ export default function Profile() {
             onPress={() => setShowAvatarModal(true)}
             activeOpacity={0.85}
           >
-            <CharacterAvatar id={student?.avatar} size={96} />
+            {student?.profilePhoto ? (
+              <Image
+                source={{ uri: student.profilePhoto }}
+                style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: colors.accentGold }}
+              />
+            ) : (
+              <CharacterAvatar id={student?.avatar} size={96} />
+            )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowAvatarModal(true)} activeOpacity={0.7}>
-            <Text style={p.changeHero}>✨ Change Hero</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            <TouchableOpacity onPress={() => setShowAvatarModal(true)} activeOpacity={0.7}>
+              <Text style={p.changeHero}>✨ Change Hero</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={student?.profilePhoto ? removePhoto : pickPhoto} activeOpacity={0.7}>
+              <Text style={p.changeHero}>{student?.profilePhoto ? '🗑 Remove photo' : '📷 Add photo'}</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>
+            🔒 Your photo is private — only you see it
+          </Text>
           <Text style={p.heroName}>{student?.name || 'Hero'}</Text>
           <Text style={p.heroGrade}>
             Year {student?.grade ?? '—'} Maths Hero
@@ -192,7 +263,8 @@ export default function Profile() {
           </View>
         )}
 
-        {/* Rewards */}
+        {/* Rewards — hidden for now (VOUCHERS_ENABLED), code kept. */}
+        {VOUCHERS_ENABLED && (
         <TouchableOpacity
           style={p.voucherCard}
           onPress={() => router.push('/student/vouchers')}
@@ -207,6 +279,7 @@ export default function Profile() {
           </View>
           <Text style={p.voucherArrow}>›</Text>
         </TouchableOpacity>
+        )}
 
         {/* Account section */}
         <View style={p.section}>
@@ -320,7 +393,10 @@ export default function Profile() {
         <View style={p.modalOverlay}>
           <View style={p.avatarSheet}>
             <View style={p.avatarSheetHeader}>
-              <Text style={p.modalTitle}>Choose Your Hero</Text>
+              <View>
+                <Text style={p.modalTitle}>Choose Your Hero</Text>
+                <Text style={{ color: colors.accentGold, fontSize: 12, fontWeight: '700' }}>5 🪙 per change · you have {student?.coins ?? 0}</Text>
+              </View>
               <TouchableOpacity onPress={() => setShowAvatarModal(false)} hitSlop={10}>
                 <Text style={{ color: colors.textMuted, fontSize: 20, fontWeight: '700' }}>✕</Text>
               </TouchableOpacity>

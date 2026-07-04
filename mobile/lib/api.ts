@@ -84,6 +84,16 @@ export const studentAPI = {
     api.get(`/api/student/questions?skillId=${skillId}&mode=junior&limit=8${studentId ? `&studentId=${studentId}` : ''}`),
   recommendations: (studentId: string) =>
     api.get(`/api/student/recommendations?studentId=${studentId}`),
+  // HERO Daily Task — GET today's task, POST progress toward it.
+  dailyTask: (studentId: string) =>
+    api.get(`/api/student/daily-task?studentId=${studentId}`),
+  dailyTaskProgress: (studentId: string) =>
+    api.post('/api/student/daily-task', { studentId, action: 'progress' }),
+  // Monthly review exam — GET the 20-Q batch, POST answers to score + bonus.
+  monthlyExam: (studentId: string) =>
+    api.get(`/api/student/monthly-exam?studentId=${studentId}`),
+  monthlyExamSubmit: (studentId: string, answers: any[]) =>
+    api.post('/api/student/monthly-exam', { studentId, answers }),
   answer: (data: any) =>
     api.post('/api/student/answer', data),
   hint: (data: any) =>
@@ -107,6 +117,9 @@ export const studentAPI = {
     api.post('/api/student/change-pin', { studentId, newPin }),
   setCharacter: (studentId: string, itemId: string) =>
     api.post('/api/student/avatar', { studentId, action: 'setCharacter', itemId }),
+  // Personal profile photo (self-view only). Pass null to clear.
+  setPhoto: (studentId: string, photo: string | null) =>
+    api.post('/api/student/avatar', { studentId, action: 'setPhoto', photo }),
 }
 
 // Voucher API does NOT take a studentId — the server reads it from the
@@ -120,9 +133,10 @@ export const voucherAPI = {
 export const arcadeAPI = {
   getStatus: (studentId: string) =>
     api.get(`/api/student/arcade?studentId=${studentId}`),
-  unlockGame: (studentId: string, gameId: string) =>
+  // Buy a time pack ('5' or '10') with coins — credits arcadeMinutesRemaining.
+  buyTime: (studentId: string, pack: '5' | '10') =>
     api.post('/api/student/arcade', {
-      studentId, gameId, action: 'unlock'
+      studentId, action: 'buyTime', pack
     }),
   startGame: (studentId: string, gameId: string) =>
     api.post('/api/student/arcade', {

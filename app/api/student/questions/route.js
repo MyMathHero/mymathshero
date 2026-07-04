@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { normaliseGrade } from '@/lib/normaliseGrade'
 import { bandForDifficulty, bandForScore, adjacentBands, shiftBand } from '@/lib/difficulty'
 import { verifyQuestion } from '@/lib/verifyQuestion'
+import { parseFractionVisual } from '@/lib/fractionVisual'
 
 let client
 async function connectDB() {
@@ -182,7 +183,7 @@ export async function generateMoreQuestions(skillId, grade, subject, db) {
     const prompt = `Generate 10 multiple choice maths questions for Australian Year ${grade} students about "${skillName}".
 
 Return ONLY a JSON array. Each question must have:
-- question: the question text
+- question: the question text. IMPORTANT: questions are shown as TEXT ONLY — no image, diagram, shape or graph is displayed. Never ask something that needs a picture (e.g. "how many parts are shaded?"). State all shape/graph/data in words so it is answerable from the text alone.
 - options: array of exactly 4 plain text answer choices. DO NOT prefix with letters ("A)", "B)") — just the literal values.
 - correctAnswer: must EXACTLY match one of the options as a plain text value (no "A)" prefix).
 - explanation: brief explanation of the answer
@@ -238,6 +239,9 @@ Return only the JSON array, no other text.`
         hint: q.hint || '',
         difficulty,
         difficultyBand: bandForDifficulty(difficulty),
+        // Auto-attach a fraction diagram when the wording describes one, so
+        // shaded-parts questions are answerable on screen.
+        ...(parseFractionVisual(q.question) ? { visual: parseFractionVisual(q.question) } : {}),
         active: true,
         aiGenerated: true,
         unverified: true, // set false once the inline verify below passes

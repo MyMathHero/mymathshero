@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ScreenBackground } from '../../lib/ui'
 import { voucherAPI } from '../../lib/api'
 import { theme } from '../../lib/theme'
+import { VOUCHERS_ENABLED } from '../../lib/featureVisibility'
 
 // Mirror of web's lib/arcadeVouchers.js. The server is the source of truth —
 // it validates tier IDs and pricing on POST — but we need the labels locally
@@ -46,7 +47,11 @@ export default function VouchersScreen() {
   const [vouchers, setVouchers] = useState<Voucher[]>([])
   const [tiers, setTiers] = useState<Tier[]>([])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // Feature hidden — bounce anyone who reaches the route directly.
+    if (!VOUCHERS_ENABLED) { router.replace('/student/dashboard'); return }
+    load()
+  }, [])
 
   async function load() {
     try {

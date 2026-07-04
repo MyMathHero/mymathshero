@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, TextInput,
-  KeyboardAvoidingView, Platform, Animated,
+  KeyboardAvoidingView, Platform, Animated, Image,
 } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -16,7 +16,6 @@ import { File, Paths } from 'expo-file-system'
 import { uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy'
 import { fetch as expoFetch } from 'expo/fetch'
 import api, { API_URL } from '../lib/api'
-import HeroRobot from './HeroRobot'
 import Manipulative from './manipulatives/Manipulative'
 
 // Audio playback uses expo-audio + expo-file-system (SDK 56-correct).
@@ -259,17 +258,25 @@ export default function AskHeroSheet({
       playerRef.current = player
       player.play()
 
+      // Wait for playback to finish — but NEVER hang. didJustFinish can fail to
+      // fire (silent mode, a decode stall, playback error), which previously left
+      // the caller (and the "Thinking…" state) stuck forever. Resolve on finish,
+      // on error, or on a safety timeout derived from the audio duration.
       await new Promise<void>((resolve) => {
+        let done = false
+        const finish = () => { if (done) return; done = true; try { sub.remove() } catch {}; clearTimeout(guard); onProgress && onProgress(1); resolve() }
+        // Fallback cap in case we never learn the duration (~1s/12 chars, min 6s, max 30s).
+        let guard = setTimeout(finish, Math.min(30000, Math.max(6000, clean.length * 90)))
         const sub = player.addListener('playbackStatusUpdate', (status: any) => {
-          // Drive the caption reveal off real playback position.
           if (onProgress && status?.duration > 0) {
             onProgress(Math.min(1, (status.currentTime || 0) / status.duration))
           }
-          if (status?.didJustFinish) {
-            try { sub.remove() } catch {}
-            onProgress && onProgress(1)
-            resolve()
+          // Tighten the timeout once we know the real duration.
+          if (status?.duration > 0) {
+            clearTimeout(guard)
+            guard = setTimeout(finish, status.duration * 1000 + 1500)
           }
+          if (status?.didJustFinish) finish()
         })
       })
 
@@ -314,7 +321,9 @@ export default function AskHeroSheet({
   async function sendHeroMessage(explicitMsg?: string) {
     // explicitMsg lets voice input send a transcript directly (state is async).
     const userMsg = (typeof explicitMsg === 'string' ? explicitMsg : input).trim()
-    if (!userMsg || loading || speaking) return
+    if (!userMsg || loading) return
+    // Sending while Hero is still talking is fine — stop the current playback.
+    if (speaking) void stopAllAudio()
     setInput('')
     setMessages(prev => [...prev, { role: 'student', text: userMsg }])
     const updatedConversation = [...conversation, { role: 'user' as const, content: userMsg }]
@@ -340,12 +349,14 @@ export default function AskHeroSheet({
       setRobotMood('happy')
       // res.data.manipulative is a tool key when Hero chose to surface a visual.
       const idx = addHeroMessage(reply, false, res.data?.manipulative || null)
-      await speakReply(idx, reply)
+      // Clear "Thinking…" as soon as the reply is shown — speech plays
+      // independently so a slow/failed TTS can never leave the chat stuck.
+      setLoading(false)
+      void speakReply(idx, reply)
     } catch {
       setRobotMood('happy')
       const fallback = 'Connection issue — try again! 🤖'
       addHeroMessage(fallback)
-    } finally {
       setLoading(false)
     }
   }
@@ -458,10 +469,11 @@ export default function AskHeroSheet({
       <Animated.View style={[s.sheet, tab === 'teach' && s.sheetTall, { transform: [{ translateY: slideAnim }] }]}>
         <View style={s.handle} />
 
-        {/* Hero header */}
+        {/* Hero header — clean static chatbot avatar (matches web's AskHeroIcon).
+            The full-body animated robot looked cramped/messy in the small circle. */}
         <View style={s.header}>
           <View style={s.robotContainer}>
-            <HeroRobot mood={robotMood} size={48} containerStyle="circle" />
+            <Image source={require('../assets/askheroCHATBOT.png')} style={s.headerAvatar} resizeMode="cover" />
             {speaking && <View style={s.speakingRing} />}
           </View>
 
@@ -761,13 +773,22 @@ const s = StyleSheet.create({
   },
   robotContainer: {
     position: 'relative',
-    width: 56, height: 56,
+    width: 52, height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatar: {
+    width: 52, height: 52,
+    borderRadius: 26,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#C49A1A',
   },
   speakingRing: {
     position: 'absolute',
-    top: -4, left: -4,
-    width: 64, height: 64,
-    borderRadius: 32,
+    top: -3, left: -3,
+    width: 58, height: 58,
+    borderRadius: 29,
     borderWidth: 2,
     borderColor: '#22C55E',
   },

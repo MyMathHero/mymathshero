@@ -1,11 +1,10 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 
+// Parents control ONLY on/off now — play time is bought with coins by the
+// student (1 Jul 2026 update). Any legacy dailyMinutes/allowedDays are ignored.
 const DEFAULT_SETTINGS = {
   enabled: true,
-  dailyMinutes: 30,
-  allowedDays: ['Monday','Tuesday','Wednesday',
-    'Thursday','Friday','Saturday','Sunday'],
 }
 
 let client
@@ -65,9 +64,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
+    // Persist only the on/off flag; drop any legacy fields the client may send.
     await db.collection('children').updateOne(
       { id: studentId },
-      { $set: { arcadeSettings: settings } }
+      { $set: { arcadeSettings: { enabled: settings?.enabled !== false } } }
     )
     return NextResponse.json({ success: true })
   } catch (error) {

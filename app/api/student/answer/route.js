@@ -1,6 +1,7 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { adjustCoins } from '@/lib/coins'
+import { coinsForAnswer, accuracyBonus } from '@/lib/coinRules'
 import { updateSmartScore } from '@/lib/smartscore'
 import { classifyBehaviour, getBehaviourInsight } from '@/lib/behaviour'
 import { getRecommendations, getEffectiveCeiling } from '@/lib/recommender'
@@ -86,8 +87,14 @@ export async function POST(request) {
       correctAnswer,
       timeTakenMs,
       hintUsed,
+      aiHelpUsed,
       difficulty = 0.5,
     } = await request.json()
+
+    // "AI help" for coin purposes = the student opened Ask Hero or the Teach Me
+    // tutor on THIS question. `hintUsed` is kept as a fallback for older clients
+    // that only send that flag.
+    const usedAiHelp = aiHelpUsed === true || hintUsed === true
 
     if (!studentId || !skillId || !questionId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -227,6 +234,7 @@ export async function POST(request) {
 
     const newQuestionCount = updatedSession.questionCount
     let giftEarned = false
+    let accuracyBonusCoins = 0
 
     if (newQuestionCount === 10) {
       await db.collection('sessions').updateOne(
@@ -247,20 +255,35 @@ export async function POST(request) {
         )
         giftEarned = true
       }
+
+      // End-of-session accuracy bonus (85/90/100% → 10/20/30 coins). Awarded
+      // once per completed 10-question session. `correctCount` includes this
+      // answer because the session was $inc'd above before we read it back.
+      const sessionAccuracyPct = Math.round(
+        (updatedSession.correctCount / newQuestionCount) * 100
+      )
+      accuracyBonusCoins = accuracyBonus(sessionAccuracyPct)
+      if (accuracyBonusCoins > 0) {
+        await adjustCoins(db, studentId, {
+          coins: accuracyBonusCoins,
+          reason: 'accuracy-bonus',
+          meta: { accuracy: sessionAccuracyPct, sessionId: session._id?.toString() },
+        })
+      }
     }
 
     // 9. Update student XP and coins.
     // XP = leaderboard ranking only. Coins = the spending currency (arcade,
-    // vouchers, avatars). Coins are awarded at a lower rate than XP to deter
-    // farming: correct = 2, wrong = 0, plus a one-off +20 when a skill is
-    // mastered.
+    // avatars). Per the 1 Jul 2026 economy (lib/coinRules.js): correct = 10,
+    // correct WITH AI help (Ask Hero / Teach Me) = 5, wrong = 0, plus a one-off
+    // +20 when a skill is mastered.
     const xpGain = correct ? (mastered ? 50 : 10) : 2
-    let coinGain = correct ? 2 : 0
+    let coinGain = coinsForAnswer({ correct, aiHelpUsed: usedAiHelp })
     if (mastered) coinGain += 20
     await adjustCoins(db, studentId, {
       coins: coinGain, xp: xpGain,
       reason: mastered ? 'answer-mastered' : correct ? 'answer-correct' : 'answer-wrong',
-      meta: { skillId, questionId },
+      meta: { skillId, questionId, aiHelpUsed: usedAiHelp },
     })
 
     // Flag suspiciously fast correct answers (<2s) for moderation review.
@@ -335,6 +358,7 @@ export async function POST(request) {
       mastered,
       xpGained: xpGain,
       coinsGained: coinGain,
+      accuracyBonusCoins,
       insight,
       recommendations,
       // True when the student has just unlocked grade+1 work — UI can celebrate.
