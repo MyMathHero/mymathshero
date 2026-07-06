@@ -1,7 +1,26 @@
 /**
- * Hard on/off switches for whole student-facing features we want to hide from
- * the UI without deleting their code (mirror of web lib/featureVisibility.js).
+ * Feature visibility for student-facing features we can hide without deleting
+ * code. Visibility is now ADMIN-CONTROLLED via the shared feature-flags API
+ * (mirror of web lib/featureFlags.js), so the mymathsheroadmin console can flip
+ * a feature on/off for everyone without an app update.
  */
+import { useEffect, useState } from 'react'
+import { featureFlagsAPI } from './api'
 
-// Vouchers hidden for now (1 Jul 2026 update). Flip to true to bring them back.
+// Default OFF until the live flag loads (avoids a flash of hidden features).
 export const VOUCHERS_ENABLED = false
+
+// Live voucher-visibility flag. Returns { enabled, loaded }.
+export function useVouchersEnabled() {
+  const [enabled, setEnabled] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    featureFlagsAPI.get()
+      .then((r: any) => { if (!cancelled) setEnabled(r?.data?.vouchersEnabled === true) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoaded(true) })
+    return () => { cancelled = true }
+  }, [])
+  return { enabled, loaded }
+}

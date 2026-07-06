@@ -157,10 +157,18 @@ export async function GET(request) {
     }
 
     // Strip correctAnswer — validation happens server-side on POST /api/student/answer.
-    const safe = questions.slice(0, limit).map(({ correctAnswer, _id, ...rest }) => ({
-      ...rest,
-      questionId: rest.id || _id?.toString(),
-    }))
+    // Also RE-VALIDATE any stored `visual`: only keep the fraction diagram if the
+    // question wording still parses to one. This stops stale/incorrect `visual`
+    // fields (from earlier backfills) showing a fraction bar on unrelated
+    // questions — the diagram must always match the text.
+    const safe = questions.slice(0, limit).map(({ correctAnswer, _id, visual, ...rest }) => {
+      const validVisual = rest.question ? parseFractionVisual(rest.question) : null
+      return {
+        ...rest,
+        ...(validVisual ? { visual: validVisual } : {}),
+        questionId: rest.id || _id?.toString(),
+      }
+    })
 
     return NextResponse.json({ questions: safe, total: safe.length, fallbackUsed })
   } catch (error) {

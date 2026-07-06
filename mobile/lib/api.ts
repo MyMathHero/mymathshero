@@ -71,6 +71,12 @@ export const authAPI = {
   logout: () => api.post('/api/auth/logout'),
 }
 
+// Admin-controlled feature flags (voucher visibility, arcade, etc.). Read at
+// runtime so the admin console can toggle features without an app update.
+export const featureFlagsAPI = {
+  get: () => api.get('/api/admin/feature-flags'),
+}
+
 export const studentAPI = {
   progress: (studentId: string) =>
     api.get(`/api/student/progress?studentId=${studentId}`),

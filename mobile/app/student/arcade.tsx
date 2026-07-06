@@ -38,6 +38,7 @@ export default function ArcadeScreen() {
   const [sessionMinutes, setSessionMinutes] = useState(0)
   const [showEntrance, setShowEntrance] = useState(true)
   const [entranceDone, setEntranceDone] = useState(false)
+  const [showBuyTime, setShowBuyTime] = useState(true) // buy-time step before lobby
   const [webViewError, setWebViewError] = useState(false)
   const [gameLoading, setGameLoading] = useState(false)
   const [buyingTime, setBuyingTime] = useState<string | null>(null)
@@ -349,8 +350,65 @@ export default function ArcadeScreen() {
     )
   }
 
-  // Arcade is always enterable (games are free to browse); play TIME is bought
-  // with coins inside the lobby. No coin/time entry gate here anymore.
+  // Arcade is always enterable (games are free to browse). After the intro, the
+  // BUY-TIME step lets students top up their play-time wallet with coins before
+  // the game lobby (parity with web). If a parent has disabled the arcade we
+  // skip straight to the lobby's parent-paused messaging.
+  if (showBuyTime && arcadeData?.arcadeSettings?.enabled !== false) {
+    const mins = arcadeData?.minutesRemaining || 0
+    const coins = arcadeData?.coins || 0
+    return (
+      <View style={s.fullDark}>
+        <View style={{ padding: 28, alignItems: 'center', maxWidth: 440 }}>
+          <Text style={{ fontSize: 60, marginBottom: 10 }}>⏱️</Text>
+          <Text style={s.lockedTitle}>Get Play Time</Text>
+          <Text style={s.lockedSub}>
+            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
+          </Text>
+          <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 15, marginBottom: 20 }}>
+            You have {mins} min left · 🪙 {coins}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+            {[
+              { pack: '5' as const, minutes: 5, coins: 100 },
+              { pack: '10' as const, minutes: 10, coins: 200 },
+            ].map(p => {
+              const afford = coins >= p.coins
+              return (
+                <TouchableOpacity
+                  key={p.pack}
+                  onPress={() => buyTime(p.pack)}
+                  disabled={buyingTime === p.pack || !afford}
+                  style={{
+                    flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center',
+                    backgroundColor: afford ? '#C49A1A' : 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text style={{ color: afford ? '#0A0A1A' : 'rgba(255,255,255,0.4)', fontWeight: '800', fontSize: 18 }}>
+                    {buyingTime === p.pack ? '…' : `⏱️ ${p.minutes} min`}
+                  </Text>
+                  <Text style={{ color: afford ? '#0A0A1A' : 'rgba(255,255,255,0.4)', fontWeight: '700', fontSize: 13, marginTop: 4 }}>
+                    {p.coins} 🪙
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowBuyTime(false)}
+            style={{
+              width: '100%', paddingVertical: 15, borderRadius: 14, alignItems: 'center',
+              backgroundColor: mins > 0 ? '#16A34A' : 'rgba(255,255,255,0.08)',
+            }}
+          >
+            <Text style={{ color: mins > 0 ? 'white' : 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 15 }}>
+              {mins > 0 ? 'Continue to games →' : 'Browse games →'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
 
   // ==================
   // PLAYING GAME (Full Screen Modal)

@@ -1,9 +1,10 @@
 import { MongoClient, ObjectId } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { adjustCoins } from '@/lib/coins'
+import { parseFractionVisual } from '@/lib/fractionVisual'
 import {
   challengeQuestionCount, gradesMatch, displayFirstName,
-  simulateAiRun, decideWinner, challengeReward,
+  simulateAiRun, aiThinkMs, decideWinner, challengeReward,
 } from '@/lib/challenge'
 
 let client
@@ -41,7 +42,9 @@ async function sampleQuestions(db, grade, count) {
     options: d.options,
     correctAnswer: d.correctAnswer,
     skillId: d.skillId,
-    visual: d.visual || null,
+    // Re-validate: only attach a fraction diagram if the wording still parses to
+    // one, so stale stored visuals never render on unrelated questions.
+    visual: (d.question ? parseFractionVisual(d.question) : null) || null,
   }))
 }
 
@@ -147,12 +150,18 @@ export async function POST(request) {
       if (match.status === 'queued' && match.players[0].studentId === studentId) {
         const waited = Date.now() - new Date(match.createdAt).getTime()
         if (waited >= QUEUE_AI_FALLBACK_MS) {
-          const aiRun = simulateAiRun(match.players[0].grade, match.total)
+          const grade = match.players[0].grade
+          const aiRun = simulateAiRun(grade, match.total)
+          // Give the bot a REAL total time (sum of per-question think times) so
+          // the race is genuinely competitive: to win you must be more accurate
+          // OR (on a tie) actually faster than the bot — not just finish.
+          const perQ = aiRun.map(() => aiThinkMs(grade))
+          const aiTotalMs = perQ.reduce((a, b) => a + b, 0)
           const upd = await db.collection('challenge_matches').findOneAndUpdate(
             { _id: id, status: 'queued' },
             { $set: {
               status: 'active', mode: 'ai', startedAt: new Date(),
-              ai: { run: aiRun, correct: 0, answered: 0, finished: false },
+              ai: { run: aiRun, perQ, timeMs: aiTotalMs, correct: 0, answered: 0, finished: false },
             } },
             { returnDocument: 'after' }
           )
@@ -215,6 +224,19 @@ export async function POST(request) {
       )
       let match = await db.collection('challenge_matches').findOne({ _id: id })
 
+      // In an AI match, finalize the bot's FULL run when the player finishes —
+      // so even if the human raced ahead, the AI is scored on its whole
+      // simulated run (real opponent), not just the questions it had "mirrored".
+      if (match.mode === 'ai' && match.ai && !match.ai.finished) {
+        const run = match.ai.run || []
+        const fullCorrect = run.reduce((n, r) => n + (r?.correct ? 1 : 0), 0)
+        await db.collection('challenge_matches').updateOne(
+          { _id: id },
+          { $set: { 'ai.answered': match.total, 'ai.correct': fullCorrect, 'ai.finished': true } }
+        )
+        match = await db.collection('challenge_matches').findOne({ _id: id })
+      }
+
       const meDone = match.players.find(p => p.studentId === studentId)?.finished
       const opp = match.players.find(p => p.studentId !== studentId)
       const oppDone = match.mode === 'ai' ? (match.ai?.finished || (match.ai?.answered >= match.total)) : opp?.finished
@@ -222,8 +244,11 @@ export async function POST(request) {
 
       if (bothDone && match.status !== 'complete') {
         const mePlayer = match.players.find(p => p.studentId === studentId)
+        // Against the AI, use its REAL simulated total time so ties are decided
+        // by genuine speed — you only beat the bot by being more accurate, or
+        // faster when you're tied on correct answers.
         const oppStats = match.mode === 'ai'
-          ? { correct: match.ai?.correct || 0, timeMs: mePlayer.timeMs + 1 } // AI loses ties
+          ? { correct: match.ai?.correct || 0, timeMs: match.ai?.timeMs ?? Infinity }
           : { correct: opp?.correct || 0, timeMs: opp?.timeMs ?? Infinity }
         const outcome = decideWinner(
           { correct: mePlayer.correct, timeMs: mePlayer.timeMs },

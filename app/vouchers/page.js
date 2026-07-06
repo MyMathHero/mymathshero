@@ -2,18 +2,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { VOUCHER_TIERS } from '@/lib/arcadeVouchers'
-import { VOUCHERS_ENABLED } from '@/lib/featureVisibility'
+import { useFeatureFlags } from '@/lib/useFeatureFlags'
 
 export default function VouchersPage() {
   const router = useRouter()
+  const { flags, loaded: flagsLoaded } = useFeatureFlags()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [redeeming, setRedeeming] = useState(null)
   const [success, setSuccess] = useState(null)
 
   useEffect(() => {
-    // Feature hidden — bounce anyone who reaches the URL directly.
-    if (!VOUCHERS_ENABLED) {
+    // Visibility is admin-controlled. Wait for the live flag, then bounce anyone
+    // who reaches the URL directly while vouchers are turned off.
+    if (!flagsLoaded) return
+    if (!flags.vouchersEnabled) {
       router.replace('/student-dashboard')
       return
     }
@@ -41,7 +44,8 @@ export default function VouchersPage() {
       }
     }
     load()
-  }, [router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, flagsLoaded, flags.vouchersEnabled])
 
   async function handleRedeem(tier) {
     if ((data?.coins || 0) < tier.coinsCost) {

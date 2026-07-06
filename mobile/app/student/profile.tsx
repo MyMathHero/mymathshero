@@ -13,7 +13,7 @@ import SupportSheet from '../../components/SupportSheet'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
 import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
-import { VOUCHERS_ENABLED } from '../../lib/featureVisibility'
+import { useVouchersEnabled } from '../../lib/featureVisibility'
 
 export default function Profile() {
   const router = useRouter()
@@ -22,6 +22,7 @@ export default function Profile() {
   const [student, setStudent] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const { enabled: vouchersEnabled } = useVouchersEnabled()
 
   // PIN modal state
   const [showPinModal, setShowPinModal] = useState(false)
@@ -263,8 +264,8 @@ export default function Profile() {
           </View>
         )}
 
-        {/* Rewards — hidden for now (VOUCHERS_ENABLED), code kept. */}
-        {VOUCHERS_ENABLED && (
+        {/* Rewards — visibility controlled from the admin console. Code kept. */}
+        {vouchersEnabled && (
         <TouchableOpacity
           style={p.voucherCard}
           onPress={() => router.push('/student/vouchers')}

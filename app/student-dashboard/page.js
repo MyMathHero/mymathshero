@@ -14,7 +14,6 @@ import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
 import AskHeroLauncher from '@/components/AskHeroLauncher'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
-import { VOUCHERS_ENABLED } from '@/lib/featureVisibility'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -1347,8 +1346,26 @@ export default function StudentDashboard() {
         justifyContent: 'space-between',
         boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
       }}>
-        <img src="/assets/logos/logo-icon.png"
-          style={{ height: 36 }} alt="MyMathsHero" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img src="/assets/logos/logo-icon.png"
+            style={{ height: 36 }} alt="MyMathsHero" />
+          {/* Profile picture — uploaded photo if set, else the character avatar.
+              Tap to open the Profile tab. Only the student sees their own photo. */}
+          <button
+            onClick={() => setActiveTab('profile')}
+            title="Your profile"
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 0 }}
+          >
+            {student?.profilePhoto ? (
+              <img src={student.profilePhoto} alt="Your profile"
+                style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} />
+            ) : (
+              <div style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
+                <CharacterAvatar id={student?.avatar} size={34} />
+              </div>
+            )}
+          </button>
+        </div>
         <div style={{ textAlign: 'center', flex: 1, padding: '0 12px' }}>
           <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>
             {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
@@ -1909,8 +1926,9 @@ export default function StudentDashboard() {
                   </div>
                 )}
 
-                {/* HERO VOUCHERS — hidden for now (VOUCHERS_ENABLED), code kept. */}
-                {VOUCHERS_ENABLED && (
+                {/* HERO VOUCHERS — visibility controlled from the admin console
+                    (feature flag `vouchersEnabled`). Off = hidden, code kept. */}
+                {flags.vouchersEnabled && (
                 <div
                   onClick={() => router.push('/vouchers')}
                   style={{
@@ -2383,15 +2401,18 @@ export default function StudentDashboard() {
       {/* Practice Modal — FULLSCREEN work area */}
       {practiceModal && !practiceLoading && (
         <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm" onClick={closePractice}>
-          <div className="bg-white dark:bg-[#1C1C1C] w-full h-full relative pop-in overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-[#1C1C1C] w-full h-full relative pop-in overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Hero peeks in from the bottom-left of the modal. PNG has a transparent
                 bg, so no blend needed — works in light + dark mode. */}
             <img src="/assets/robot/Heropeekingfromsidewall.png" alt="" aria-hidden
               className="hidden lg:block pointer-events-none select-none"
               style={{ position: 'absolute', bottom: 0, left: -8, width: 128, height: 'auto', zIndex: 5 }} />
             {showCelebration && <CelebrationOverlay show={showCelebration} />}
-            <div className={`h-2 bg-gradient-to-r ${currentSubject?.gradient || 'from-blue-500 to-indigo-600'}`} />
-            <div className="p-6 sm:p-8 mx-auto w-full max-w-3xl">
+            <div className={`h-2 bg-gradient-to-r ${currentSubject?.gradient || 'from-blue-500 to-indigo-600'} shrink-0`} />
+            {/* Content column — vertically centered in the fullscreen area when it
+                fits, scrolls when it's taller than the viewport. */}
+            <div className="flex-1 flex flex-col justify-center min-h-0 py-6">
+            <div className="px-6 sm:px-8 mx-auto w-full max-w-3xl">
               <button onClick={closePractice} className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl z-50"><X size={18} className="text-gray-400 dark:text-slate-400" /></button>
 
               {/* Empty state */}
@@ -2733,6 +2754,7 @@ export default function StudentDashboard() {
                 </>
               )}
             </div>
+            </div>{/* /centered content column */}
           </div>
         </div>
       )}

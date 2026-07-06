@@ -105,10 +105,11 @@ export default function ArcadePage() {
   }, [phase])
 
   // Safety: never get stuck on the intro animation. If the video doesn't fire
-  // onEnded (slow load, codec issue, etc.) move to the lobby after 5s max.
+  // onEnded (slow load, codec issue, etc.) move on after 5s max. The intro now
+  // leads to the BUY-TIME step (buy play minutes) before the game lobby.
   useEffect(() => {
     if (phase !== 'entering') return
-    const t = setTimeout(() => setPhase('lobby'), 5000)
+    const t = setTimeout(() => setPhase('buytime'), 5000)
     return () => clearTimeout(t)
   }, [phase])
 
@@ -525,8 +526,8 @@ export default function ArcadePage() {
             autoPlay
             muted
             playsInline
-            onEnded={() => setPhase('lobby')}
-            onError={() => setPhase('lobby')}
+            onEnded={() => setPhase('buytime')}
+            onError={() => setPhase('buytime')}
             style={{
               width: '100%',
               height: '100%',
@@ -537,7 +538,7 @@ export default function ArcadePage() {
         </div>
         {/* Skip control */}
         <button
-          onClick={() => setPhase('lobby')}
+          onClick={() => setPhase('buytime')}
           style={{
             position: 'absolute', bottom: 40, zIndex: 2,
             background: 'rgba(255,255,255,0.12)',
@@ -549,6 +550,79 @@ export default function ArcadePage() {
         >
           Skip →
         </button>
+      </div>
+    )
+  }
+
+  // ==================
+  // BUY TIME — shown after the intro, before the game lobby. Students top up
+  // their play-time wallet with coins here first, then continue to the games.
+  // ==================
+  if (phase === 'buytime') {
+    const mins = arcadeData?.minutesRemaining || 0
+    const coins = arcadeData?.coins || 0
+    return (
+      <div style={styles.fullscreen()}>
+        {stars.map(star => (
+          <div key={star.id} style={{
+            position: 'absolute', left: `${star.x}%`, top: `${star.y}%`,
+            width: star.size, height: star.size, borderRadius: '50%',
+            backgroundColor: 'white', opacity: star.opacity * 0.3,
+          }} />
+        ))}
+        <div style={{ textAlign: 'center', padding: 32, position: 'relative', zIndex: 1, maxWidth: 460 }}>
+          <div style={{ fontSize: 64, marginBottom: 12 }}>⏱️</div>
+          <h2 style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Get Play Time</h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, margin: '0 auto 8px', maxWidth: 380 }}>
+            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
+          </p>
+          <p style={{ color: ARCADE_GOLD, fontWeight: 800, fontSize: 15, marginBottom: 24 }}>
+            You have {mins} min left · 🪙 {coins}
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+            {[
+              { pack: '5', minutes: 5, coins: 100 },
+              { pack: '10', minutes: 10, coins: 200 },
+            ].map(p => {
+              const afford = coins >= p.coins
+              return (
+                <button
+                  key={p.pack}
+                  onClick={() => handleBuyTime(p.pack)}
+                  disabled={buyingTime === p.pack || !afford}
+                  style={{
+                    flex: 1, padding: '18px 12px', borderRadius: 16,
+                    background: afford ? 'linear-gradient(135deg, #C49A1A, #FFD700)' : 'rgba(255,255,255,0.08)',
+                    color: afford ? ARCADE_INK : 'rgba(255,255,255,0.4)',
+                    border: 'none', fontWeight: 800, fontSize: 16,
+                    cursor: afford ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {buyingTime === p.pack ? '…' : (
+                    <>
+                      <div style={{ fontSize: 22 }}>⏱️ {p.minutes} min</div>
+                      <div style={{ fontSize: 14, marginTop: 4 }}>{p.coins} 🪙</div>
+                    </>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          <button
+            onClick={() => setPhase('lobby')}
+            style={{
+              width: '100%', padding: 16, borderRadius: 14,
+              background: mins > 0 ? 'linear-gradient(135deg, #22C55E, #16A34A)' : 'rgba(255,255,255,0.08)',
+              color: mins > 0 ? 'white' : 'rgba(255,255,255,0.6)',
+              border: mins > 0 ? 'none' : '1px solid rgba(255,255,255,0.15)',
+              fontWeight: 800, fontSize: 16, cursor: 'pointer',
+            }}
+          >
+            {mins > 0 ? 'Continue to games →' : 'Browse games (buy time to play) →'}
+          </button>
+        </div>
       </div>
     )
   }
