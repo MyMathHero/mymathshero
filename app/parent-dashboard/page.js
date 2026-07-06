@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
 import ArcadeSettings from '@/components/ArcadeSettings'
+import ChallengeSettings from '@/components/ChallengeSettings'
 import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
@@ -1587,11 +1588,21 @@ export default function ParentDashboard() {
               )}
 
               {accountView === 'arcade' && (
-                flags.arcadeEnabled && parentData?.id && (children?.length || 0) > 0
-                  ? <ArcadeSettings parentId={parentData.id} children={children} />
-                  : <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                      Arcade controls become available once at least one child is added and the Arcade feature is enabled.
-                    </p>
+                parentData?.id && (children?.length || 0) > 0 ? (
+                  <>
+                    {flags.arcadeEnabled
+                      ? <ArcadeSettings parentId={parentData.id} children={children} />
+                      : <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                          Arcade controls become available once the Arcade feature is enabled.
+                        </p>}
+                    {/* Hero Speed Challenge (1v1 online) — on/off + availability. */}
+                    <ChallengeSettings parentId={parentData.id} children={children} />
+                  </>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                    Controls become available once at least one child is added.
+                  </p>
+                )
               )}
             </div>
           </aside>

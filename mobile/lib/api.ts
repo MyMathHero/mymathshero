@@ -94,6 +94,11 @@ export const studentAPI = {
     api.get(`/api/student/monthly-exam?studentId=${studentId}`),
   monthlyExamSubmit: (studentId: string, answers: any[]) =>
     api.post('/api/student/monthly-exam', { studentId, answers }),
+  // Hero Speed Challenge — presence heartbeat + matchmaking actions.
+  presence: (studentId: string, available: boolean) =>
+    api.post('/api/student/presence', { studentId, available }),
+  challenge: (studentId: string, action: string, extra: any = {}) =>
+    api.post('/api/student/challenge', { studentId, action, ...extra }),
   answer: (data: any) =>
     api.post('/api/student/answer', data),
   hint: (data: any) =>

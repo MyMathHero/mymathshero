@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import HeroRobot from '../../components/HeroRobot'
 import FloatingTabBar from '../../components/FloatingTabBar'
 import CharacterAvatar from '../../components/CharacterAvatar'
+import ChallengeArena from '../../components/ChallengeArena'
 
 export default function League() {
   const { colors } = useTheme()
@@ -18,6 +19,8 @@ export default function League() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [myId, setMyId] = useState('')
+  const [grade, setGrade] = useState(3)
+  const [view, setView] = useState<'arena' | 'leaderboard'>('arena')
   const medals = ['🥇', '🥈', '🥉']
 
   useEffect(() => {
@@ -27,6 +30,8 @@ export default function League() {
       try {
         const res = await studentAPI.leaderboard(id)
         setData(res.data)
+        const mine = (res.data?.leaderboard || []).find((e: any) => e.studentId === id)
+        if (mine?.grade != null) setGrade(mine.grade)
       } catch {}
       finally { setLoading(false) }
     }
@@ -49,15 +54,28 @@ export default function League() {
         <View style={{ width: 48 }} />
       </View>
 
-      {/* Celebratory header with robot — celebrating if top 3 */}
+      {/* Header with robot */}
       <View style={styles.heroHeader}>
         <HeroRobot mood={topThree ? 'celebrating' : 'waving'} size={70} containerStyle="circle" />
-        <Text style={styles.heroHeaderTitle}>Hero League 🏆</Text>
-        <Text style={styles.heroHeaderSub}>
-          {topThree ? `You're #${userRank} this month — keep it up!` : 'Top heroes this month'}
-        </Text>
+        <Text style={styles.heroHeaderTitle}>Hero Challenge ⚔️</Text>
+        <Text style={styles.heroHeaderSub}>Race other Heroes · climb the leaderboard</Text>
       </View>
-      {loading ? (
+
+      {/* Sub-view toggle */}
+      <View style={styles.toggleRow}>
+        {([['arena', '⚔️ Challenge'], ['leaderboard', '🏆 Leaderboard']] as const).map(([id, label]) => (
+          <TouchableOpacity key={id} onPress={() => setView(id)}
+            style={[styles.togglePill, view === id && styles.togglePillActive]}>
+            <Text style={[styles.toggleText, view === id && styles.toggleTextActive]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {view === 'arena' ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 110 }}>
+          <ChallengeArena grade={grade} />
+        </ScrollView>
+      ) : loading ? (
         <View style={styles.center}>
           <ActivityIndicator color="#C49A1A" size="large" />
         </View>
@@ -103,6 +121,11 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   heroHeaderTitle: { color: c.textPrimary, fontWeight: '800', fontSize: 20, marginTop: 8, letterSpacing: -0.3 },
   heroHeaderSub: { color: c.accentGold, fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  toggleRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', paddingBottom: 12 },
+  togglePill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: c.bgCard, borderWidth: 1, borderColor: c.cardBorder },
+  togglePillActive: { backgroundColor: c.accentGold, borderColor: c.accentGold },
+  toggleText: { color: c.textSecondary, fontWeight: '700', fontSize: 13 },
+  toggleTextActive: { color: '#1B2B4B' },
   scroll: { flex: 1, padding: 16 },
   resetText: { color: c.textSecondary, fontSize: 13,
     textAlign: 'center', marginBottom: 16 },

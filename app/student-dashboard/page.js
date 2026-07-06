@@ -21,6 +21,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
 import MonthlyExam from '@/components/MonthlyExam'
+import ChallengeArena from '@/components/ChallengeArena'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -242,6 +243,8 @@ export default function StudentDashboard() {
   const [rightTab, setRightTab] = useState('progress')
   // Main bottom-nav tab (home / league / badges / profile).
   const [activeTab, setActiveTab] = useState('home')
+  // Challenge tab sub-view: the 1v1 arena (primary) or the leaderboard.
+  const [challengeView, setChallengeView] = useState('arena')
 
   // Speed Round mode — null when inactive, else { count, total, startTime, correct, finished, elapsedSec }
   const [speedRound, setSpeedRound] = useState(null)
@@ -2070,9 +2073,30 @@ export default function StudentDashboard() {
       </div>
       )}
 
-      {/* League tab — focused leaderboard view */}
+      {/* Challenge tab — 1v1 Hero Speed Challenge (primary) + leaderboard */}
       {activeTab === 'league' && (
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
+          {/* Sub-view toggle */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
+            {[{ id: 'arena', label: '⚔️ Challenge' }, { id: 'leaderboard', label: '🏆 Leaderboard' }].map(v => (
+              <button key={v.id} onClick={() => setChallengeView(v.id)} style={{
+                padding: '8px 18px', borderRadius: 20, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                border: 'none',
+                background: challengeView === v.id ? 'var(--bg-header)' : 'var(--bg-primary)',
+                color: challengeView === v.id ? 'var(--text-on-dark)' : 'var(--text-secondary)',
+              }}>{v.label}</button>
+            ))}
+          </div>
+
+          {challengeView === 'arena' && (
+            <ChallengeArena
+              studentId={authStudentId}
+              grade={student?.grade ?? 3}
+              onCoins={(c) => { if (c) setCoins(prev => prev + c) }}
+            />
+          )}
+
+          {challengeView === 'leaderboard' && (
           <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-5 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-base flex items-center gap-2">
@@ -2140,6 +2164,7 @@ export default function StudentDashboard() {
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -3354,7 +3379,7 @@ export default function StudentDashboard() {
       }}>
         {[
           { emoji: '🏠', label: 'Home', tab: 'home' },
-          { emoji: '🏆', label: 'League', tab: 'league' },
+          { emoji: '⚔️', label: 'Challenge', tab: 'league' },
           // Hero Arcade — only shown when the arcadeEnabled flag is on.
           ...(flags.arcadeEnabled ? [{ emoji: '🕹️', label: 'Arcade', href: '/arcade' }] : []),
           { emoji: '🎖️', label: 'Badges', tab: 'badges' },
