@@ -41,6 +41,16 @@ function spawn(){
   const bomb = Math.random()<0.22;
   items.push({ x:rnd(20,cv.width-20), y:-20, vy:rnd(1.6,2.6)*speed, bomb, r:14 });
 }
+// Draw a "tap to start" still frame; only kick off the animation loop on the
+// first tap (auto-running rAF on load stalls while the iframe mounts).
+function prepare(){
+  items=[]; score=0; lives=3; running=false; spawnT=0; speed=1; bx=cv.width/2;
+  scoreEl.textContent=0; livesEl.textContent='❤️❤️❤️'; btn.style.display='none';
+  msg.textContent='Tap to start!';
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#C49A1A'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🪙 Tap to start', cv.width/2, cv.height/2);
+}
 function start(){
   items=[]; score=0; lives=3; running=true; spawnT=0; speed=1; bx=cv.width/2;
   scoreEl.textContent=0; livesEl.textContent='❤️❤️❤️'; msg.textContent=''; btn.style.display='none';
@@ -80,11 +90,12 @@ function loop(t){
 function moveTo(px){ bx=Math.max(BW/2, Math.min(cv.width-BW/2, px)); }
 function coordX(e){ const r=cv.getBoundingClientRect(), t=e.touches?e.touches[0]:e; return (t.clientX-r.left)*(cv.width/r.width); }
 cv.addEventListener('mousemove', e=>{ if(running) moveTo(coordX(e)); });
+cv.addEventListener('mousedown', ()=>{ if(!running) start(); });
 cv.addEventListener('touchmove', e=>{ e.preventDefault(); if(running) moveTo(coordX(e)); }, {passive:false});
-cv.addEventListener('touchstart', e=>{ e.preventDefault(); if(running) moveTo(coordX(e)); }, {passive:false});
-document.addEventListener('keydown', e=>{ if(!running) return; if(e.key==='ArrowLeft') moveTo(bx-28); if(e.key==='ArrowRight') moveTo(bx+28); });
-btn.addEventListener('click', start);
-start();
+cv.addEventListener('touchstart', e=>{ e.preventDefault(); if(!running){ start(); return; } moveTo(coordX(e)); }, {passive:false});
+document.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); if(!running){ start(); return; } moveTo(bx+(e.key==='ArrowLeft'?-28:28)); } });
+btn.addEventListener('click', prepare);
+prepare();
 </script>
 </body>
 </html>

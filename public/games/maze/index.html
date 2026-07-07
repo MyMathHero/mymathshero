@@ -58,14 +58,23 @@ const ROWS=MAP.length, COLS=MAP[0].length, TS=cv.width/COLS;
 let dots, total, eaten, running, best=+(localStorage.getItem('maze_best')||0);
 let px, py, dir, ndir, ghost;
 bestEl.textContent=best;
-function reset(){
+function prepare(){
+  // Set up the board and DRAW it immediately (a still frame), but DON'T start
+  // the animation loop until the player makes a move. Auto-starting a
+  // requestAnimationFrame loop on load breaks inside an iframe (rAF is throttled
+  // while the frame mounts), so we wait for a user gesture like the other games.
   dots = MAP.map(r=>r.slice());
   total=0; eaten=0;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++) if(dots[y][x]===1){ total++; }
-  // player start
   px=9; py=1; dir=[0,0]; ndir=[0,0]; dots[1][9]=2; eaten=0;
   ghost={ x:9, y:9, dir:[0,1], mt:0 };
-  running=true; dotsEl.textContent=0; msg.textContent=''; btn.style.display='none';
+  running=false; dotsEl.textContent=0; btn.style.display='none';
+  msg.textContent='Press an arrow key or swipe to start!';
+  draw();
+}
+function begin(){
+  if(running) return;
+  running=true; msg.textContent='';
   last=performance.now(); moveAcc=0; ghostAcc=0; requestAnimationFrame(loop);
 }
 function can(x,y){ return x>=0&&x<COLS&&y>=0&&y<ROWS && MAP[y][x]!==0; }
@@ -111,23 +120,26 @@ function loop(t){
 function draw(){
   ctx.clearRect(0,0,cv.width,cv.height);
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
-    if(MAP[y][x]===0){ ctx.fillStyle='#1B2B4B'; ctx.fillRect(x*TS,y*TS,TS,TS); }
-    else if(dots[y][x]===1){ ctx.fillStyle='#C49A1A'; ctx.beginPath(); ctx.arc(x*TS+TS/2,y*TS+TS/2,TS*0.12,0,6.2832); ctx.fill(); }
+    if(MAP[y][x]===0){ ctx.fillStyle='#2D4A7A'; ctx.fillRect(x*TS+1,y*TS+1,TS-2,TS-2); }
+    else if(dots[y][x]===1){ ctx.fillStyle='#C49A1A'; ctx.beginPath(); ctx.arc(x*TS+TS/2,y*TS+TS/2,TS*0.16,0,6.2832); ctx.fill(); }
   }
   ctx.font=TS+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText('👻', ghost.x*TS+TS/2, ghost.y*TS+TS/2);
   ctx.fillStyle='#FBBF24'; ctx.beginPath(); ctx.arc(px*TS+TS/2,py*TS+TS/2,TS*0.42,0.25,6.03); ctx.lineTo(px*TS+TS/2,py*TS+TS/2); ctx.fill();
 }
 document.addEventListener('keydown', e=>{
+  let handled=true;
   if(e.key==='ArrowLeft')ndir=[-1,0]; else if(e.key==='ArrowRight')ndir=[1,0];
   else if(e.key==='ArrowUp')ndir=[0,-1]; else if(e.key==='ArrowDown')ndir=[0,1];
+  else handled=false;
+  if(handled){ e.preventDefault(); begin(); }
 });
 let ts=null;
-cv.addEventListener('touchstart', e=>{ const t=e.touches[0]; ts=[t.clientX,t.clientY]; }, {passive:true});
+cv.addEventListener('touchstart', e=>{ const t=e.touches[0]; ts=[t.clientX,t.clientY]; begin(); }, {passive:true});
 cv.addEventListener('touchmove', e=>{ e.preventDefault(); if(!ts) return; const t=e.touches[0], dx=t.clientX-ts[0], dy=t.clientY-ts[1];
   if(Math.abs(dx)+Math.abs(dy)>24){ if(Math.abs(dx)>Math.abs(dy)) ndir=[dx>0?1:-1,0]; else ndir=[0,dy>0?1:-1]; ts=[t.clientX,t.clientY]; } }, {passive:false});
-btn.addEventListener('click', reset);
-reset();
+btn.addEventListener('click', prepare);
+prepare();
 </script>
 </body>
 </html>
