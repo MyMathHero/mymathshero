@@ -37,11 +37,12 @@
 <div id="instructions">Repeat the sequence Hero shows you. It gets longer each round!</div>
 <button class="play" id="btn">Start</button>
 <script>
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
 const pads=[...document.querySelectorAll('.btn')];
 const levelEl=document.getElementById('level'), bestEl=document.getElementById('best'),
       msg=document.getElementById('message'), btn=document.getElementById('btn');
 const FREQ=[329,392,261,440];
-let seq=[], step=0, playing=false, accepting=false, best=+(localStorage.getItem('simon_best')||0);
+let seq=[], step=0, playing=false, accepting=false, best=+(LS.get('simon_best')||0);
 bestEl.textContent=best;
 let actx;
 function tone(i){
@@ -70,7 +71,7 @@ async function next(){
 function start(){ seq=[]; step=0; playing=true; btn.style.display='none'; next(); }
 function fail(){
   playing=false; accepting=false;
-  if(seq.length-1>best){ best=seq.length-1; localStorage.setItem('simon_best',best); bestEl.textContent=best; }
+  if(seq.length-1>best){ best=seq.length-1; LS.set('simon_best',best); bestEl.textContent=best; }
   msg.textContent='Oops! You reached level '+(seq.length-1)+' 🎉'; btn.textContent='Play Again'; btn.style.display='inline-block';
 }
 pads.forEach(p=>{

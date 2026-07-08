@@ -120,6 +120,7 @@
 </div>
 
 <script>
+const LS={ get:function(k){try{return localStorage.getItem(k)}catch(e){return null}}, set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
 const MOLES = ['🐭','🐹','🐱','🐸','🐻','🦊']
 const TOTAL_TIME = 30
 
@@ -131,7 +132,7 @@ let speed = 1200
 function startGame() {
   document.getElementById('overlay').style.display = 'none'
   holes = document.querySelectorAll('.hole')
-  best = parseInt(localStorage.getItem('whack_best') || '0')
+  best = parseInt(LS.get('whack_best') || '0')
   document.getElementById('best').textContent = best
   score = 0; timeLeft = TOTAL_TIME; speed = 1200
   active = Array(9).fill(false)
@@ -198,7 +199,7 @@ function whack(idx) {
   score += 10
   if (score > best) {
     best = score
-    localStorage.setItem('whack_best', best)
+    LS.set('whack_best', best)
     document.getElementById('best').textContent = best
   }
   document.getElementById('score').textContent = score

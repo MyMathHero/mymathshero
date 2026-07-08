@@ -55,7 +55,11 @@ const MAP = [
  "1111111111111111111",
 ].map(r=>r.split('').map(Number));
 const ROWS=MAP.length, COLS=MAP[0].length, TS=cv.width/COLS;
-let dots, total, eaten, running, best=+(localStorage.getItem('maze_best')||0);
+// Safe storage — the arcade iframe is sandboxed without allow-same-origin, so
+// localStorage THROWS a SecurityError. Guard it so high-scores are best-effort
+// and never crash the game (which left the canvas blank).
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
+let dots, total, eaten, running, best=+(LS.get('maze_best')||0);
 let px, py, dir, ndir, ghost;
 bestEl.textContent=best;
 function prepare(){
@@ -96,8 +100,8 @@ function step(){
   }
   if(ghost.x===px && ghost.y===py){ lose(); }
 }
-function win(){ running=false; if(eaten>best){best=eaten;localStorage.setItem('maze_best',best);bestEl.textContent=best;} msg.textContent='You cleared the maze! 🏆'; btn.style.display='inline-block'; }
-function lose(){ running=false; if(eaten>best){best=eaten;localStorage.setItem('maze_best',best);bestEl.textContent=best;} msg.textContent='Caught! You ate '+eaten+' dots.'; btn.style.display='inline-block'; }
+function win(){ running=false; if(eaten>best){best=eaten;LS.set('maze_best',best);bestEl.textContent=best;} msg.textContent='You cleared the maze! 🏆'; btn.style.display='inline-block'; }
+function lose(){ running=false; if(eaten>best){best=eaten;LS.set('maze_best',best);bestEl.textContent=best;} msg.textContent='Caught! You ate '+eaten+' dots.'; btn.style.display='inline-block'; }
 function loop(t){
   if(!running) return;
   const dt=t-last; last=t; moveAcc+=dt; ghostAcc+=dt;

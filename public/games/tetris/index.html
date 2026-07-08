@@ -158,6 +158,7 @@
 </div>
 
 <script>
+const LS={ get:function(k){try{return localStorage.getItem(k)}catch(e){return null}}, set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
 const COLS = 10, ROWS = 20, SZ = 20
 const board = document.getElementById('board')
 const bc = board.getContext('2d')
@@ -245,7 +246,7 @@ function clearLines() {
     document.getElementById('level').textContent = level
     if (score > hiScore) {
       hiScore = score
-      localStorage.setItem('tetris_hi', hiScore)
+      LS.set('tetris_hi', hiScore)
       document.getElementById('best').textContent = hiScore
     }
   }
@@ -355,7 +356,7 @@ function tick() {
 
 function startGame() {
   document.getElementById('overlay').style.display = 'none'
-  hiScore = parseInt(localStorage.getItem('tetris_hi') || '0')
+  hiScore = parseInt(LS.get('tetris_hi') || '0')
   document.getElementById('best').textContent = hiScore
   grid = newGrid()
   score = 0; lines = 0; level = 1

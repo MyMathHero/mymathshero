@@ -34,11 +34,12 @@
 <div id="instructions">Tap the bubbles to pop them before time runs out!</div>
 <button id="btn" style="display:none">Play Again</button>
 <script>
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const scoreEl = document.getElementById('score'), timeEl = document.getElementById('time'),
       bestEl = document.getElementById('best'), msg = document.getElementById('message'), btn = document.getElementById('btn');
 const COLORS = ['#C49A1A','#60A5FA','#34D399','#F87171','#A78BFA','#FBBF24'];
-let bubbles = [], score = 0, time = 30, running = false, best = +(localStorage.getItem('bubblepop_best')||0), spawnT = 0;
+let bubbles = [], score = 0, time = 30, running = false, best = +(LS.get('bubblepop_best')||0), spawnT = 0;
 bestEl.textContent = best;
 
 function rnd(a,b){ return a + Math.random()*(b-a); }
@@ -67,7 +68,7 @@ function start(){
 }
 function end(){
   running = false; clearInterval(timer);
-  if(score>best){ best=score; localStorage.setItem('bubblepop_best',best); bestEl.textContent=best; }
+  if(score>best){ best=score; LS.set('bubblepop_best',best); bestEl.textContent=best; }
   msg.textContent = 'Time! You popped ' + score + ' 🎉'; btn.style.display='inline-block';
 }
 let last = 0, timer;

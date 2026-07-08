@@ -30,10 +30,11 @@
 <div id="instructions">Move to catch 🪙 — avoid 💣! (drag or ← →)</div>
 <button id="btn" style="display:none">Play Again</button>
 <script>
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const scoreEl=document.getElementById('score'), livesEl=document.getElementById('lives'),
       bestEl=document.getElementById('best'), msg=document.getElementById('message'), btn=document.getElementById('btn');
-let items=[], score=0, lives=3, running=false, bx=cv.width/2, spawnT=0, speed=1, best=+(localStorage.getItem('coincatch_best')||0);
+let items=[], score=0, lives=3, running=false, bx=cv.width/2, spawnT=0, speed=1, best=+(LS.get('coincatch_best')||0);
 const BW=64, BH=18;
 bestEl.textContent=best;
 function rnd(a,b){ return a+Math.random()*(b-a); }
@@ -58,7 +59,7 @@ function start(){
 }
 function end(){
   running=false;
-  if(score>best){ best=score; localStorage.setItem('coincatch_best',best); bestEl.textContent=best; }
+  if(score>best){ best=score; LS.set('coincatch_best',best); bestEl.textContent=best; }
   msg.textContent='Game Over — '+score+' coins! 🎉'; btn.style.display='inline-block';
 }
 let last=0;
