@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Catcher</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background:#0A0A1A; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; font-family:-apple-system,sans-serif; color:white; overflow:hidden; user-select:none; }
+  h1 { color:#C49A1A; font-size:22px; font-weight:900; margin-bottom:8px; letter-spacing:2px; text-transform:uppercase; }
+  #score-bar { display:flex; gap:28px; margin-bottom:10px; font-size:15px; font-weight:700; }
+  #score { color:#C49A1A; } #best { color:rgba(255,255,255,0.5); } #lives { color:#F87171; }
+  canvas { border:2px solid rgba(196,154,26,0.4); border-radius:12px; display:block; touch-action:none; background:#10162B; }
+  #message { margin-top:14px; font-size:17px; font-weight:700; color:#C49A1A; min-height:26px; text-align:center; }
+  #instructions { margin-top:8px; font-size:12px; color:rgba(255,255,255,0.35); text-align:center; }
+  button { margin-top:12px; background:linear-gradient(135deg,#C49A1A,#FFD700); color:#1B2B4B; border:none;
+    border-radius:12px; padding:12px 28px; font-weight:800; font-size:15px; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>🪙 Coin Catcher</h1>
+<div id="score-bar">
+  <span>Score: <span id="score">0</span></span>
+  <span>Lives: <span id="lives">❤️❤️❤️</span></span>
+  <span>Best: <span id="best">0</span></span>
+</div>
+<canvas id="c" width="340" height="440"></canvas>
+<div id="message"></div>
+<div id="instructions">Move to catch 🪙 — avoid 💣! (drag or ← →)</div>
+<button id="btn" style="display:none">Play Again</button>
+<script>
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'), livesEl=document.getElementById('lives'),
+      bestEl=document.getElementById('best'), msg=document.getElementById('message'), btn=document.getElementById('btn');
+let items=[], score=0, lives=3, running=false, bx=cv.width/2, spawnT=0, speed=1, best=+(LS.get('coincatch_best')||0);
+const BW=64, BH=18;
+bestEl.textContent=best;
+function rnd(a,b){ return a+Math.random()*(b-a); }
+function spawn(){
+  const bomb = Math.random()<0.22;
+  items.push({ x:rnd(20,cv.width-20), y:-20, vy:rnd(1.6,2.6)*speed, bomb, r:14 });
+}
+// Draw a "tap to start" still frame; only kick off the animation loop on the
+// first tap (auto-running rAF on load stalls while the iframe mounts).
+function prepare(){
+  items=[]; score=0; lives=3; running=false; spawnT=0; speed=1; bx=cv.width/2;
+  scoreEl.textContent=0; livesEl.textContent='❤️❤️❤️'; btn.style.display='none';
+  msg.textContent='Tap to start!';
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#C49A1A'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🪙 Tap to start', cv.width/2, cv.height/2);
+}
+function start(){
+  items=[]; score=0; lives=3; running=true; spawnT=0; speed=1; bx=cv.width/2;
+  scoreEl.textContent=0; livesEl.textContent='❤️❤️❤️'; msg.textContent=''; btn.style.display='none';
+  last=performance.now(); requestAnimationFrame(loop);
+}
+function end(){
+  running=false;
+  if(score>best){ best=score; LS.set('coincatch_best',best); bestEl.textContent=best; }
+  msg.textContent='Game Over — '+score+' coins! 🎉'; btn.style.display='inline-block';
+}
+let last=0;
+function loop(t){
+  if(!running) return;
+  const dt=Math.min(40,t-last); last=t;
+  spawnT+=dt; const rate = Math.max(360, 720 - score*6);
+  if(spawnT>rate){ spawnT=0; spawn(); }
+  speed = 1 + score*0.012;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // basket
+  const by=cv.height-30;
+  ctx.fillStyle='#C49A1A'; ctx.beginPath();
+  ctx.roundRect(bx-BW/2, by, BW, BH, 6); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.fillRect(bx-BW/2, by, BW, 5);
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i]; it.y += it.vy*dt/16;
+    ctx.font='26px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(it.bomb?'💣':'🪙', it.x, it.y);
+    if(it.y>by-6 && it.y<by+BH+6 && Math.abs(it.x-bx)<BW/2+10){
+      if(it.bomb){ lives--; livesEl.textContent='❤️'.repeat(Math.max(0,lives)); if(lives<=0){ items.splice(i,1); end(); return; } }
+      else { score++; scoreEl.textContent=score; }
+      items.splice(i,1); continue;
+    }
+    if(it.y>cv.height+20){ if(!it.bomb){ /* missed coin, no penalty */ } items.splice(i,1); }
+  }
+  requestAnimationFrame(loop);
+}
+function moveTo(px){ bx=Math.max(BW/2, Math.min(cv.width-BW/2, px)); }
+function coordX(e){ const r=cv.getBoundingClientRect(), t=e.touches?e.touches[0]:e; return (t.clientX-r.left)*(cv.width/r.width); }
+cv.addEventListener('mousemove', e=>{ if(running) moveTo(coordX(e)); });
+cv.addEventListener('mousedown', ()=>{ if(!running) start(); });
+cv.addEventListener('touchmove', e=>{ e.preventDefault(); if(running) moveTo(coordX(e)); }, {passive:false});
+cv.addEventListener('touchstart', e=>{ e.preventDefault(); if(!running){ start(); return; } moveTo(coordX(e)); }, {passive:false});
+document.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); if(!running){ start(); return; } moveTo(bx+(e.key==='ArrowLeft'?-28:28)); } });
+btn.addEventListener('click', prepare);
+prepare();
+</script>
+</body>
+</html>

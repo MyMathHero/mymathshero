@@ -138,6 +138,7 @@
 <button id="new-btn" onclick="newGame()">New Game</button>
 
 <script>
+const LS={ get:function(k){try{return localStorage.getItem(k)}catch(e){return null}}, set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
 const TILE_COLORS = {
   2:    { bg: '#1B2B4B', fg: 'white' },
   4:    { bg: '#2D4A7A', fg: 'white' },
@@ -159,7 +160,7 @@ function newGame() {
   score = 0
   won = false
   document.getElementById('msg').style.display = 'none'
-  best = parseInt(localStorage.getItem('2048_best') || '0')
+  best = parseInt(LS.get('2048_best') || '0')
   document.getElementById('best').textContent = best
   addTile(); addTile()
   render()
@@ -195,7 +196,7 @@ function render() {
   document.getElementById('score').textContent = score
   if (score > best) {
     best = score
-    localStorage.setItem('2048_best', best)
+    LS.set('2048_best', best)
     document.getElementById('best').textContent = best
   }
 }

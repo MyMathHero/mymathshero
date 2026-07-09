@@ -21,6 +21,7 @@ export interface ArcadeGame {
   embedUrl: string | null
   comingSoon: boolean
   tags: string[]
+  provider?: 'crazygames'
 }
 
 export interface ArcadeCategory {
@@ -180,6 +181,105 @@ export const ARCADE_GAMES: ArcadeGame[] = [
     embedUrl: null,
     comingSoon: true,
     tags: ['strategy', 'premium'],
+  },
+
+  // More self-hosted games (free, ad-free, no licensing). Served from the site.
+  {
+    id: 'bubble_pop',
+    title: 'Bubble Pop',
+    category: 'Action',
+    emoji: '🫧',
+    description: 'Pop as many bubbles as you can before time runs out!',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '4+',
+    embedUrl: '/games/bubblepop/index.html',
+    comingSoon: false,
+    tags: ['action', 'casual', 'free'],
+  },
+  {
+    id: 'coin_catch',
+    title: 'Coin Catcher',
+    category: 'Action',
+    emoji: '🪙',
+    description: 'Catch the falling coins — dodge the bombs!',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '5+',
+    embedUrl: '/games/coincatch/index.html',
+    comingSoon: false,
+    tags: ['action', 'arcade', 'free'],
+  },
+  {
+    id: 'hero_memory',
+    title: 'Hero Memory',
+    category: 'Puzzle',
+    emoji: '🧠',
+    description: 'Watch and repeat the pattern — how far can you go?',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '5+',
+    embedUrl: '/games/simon/index.html',
+    comingSoon: false,
+    tags: ['puzzle', 'memory', 'free'],
+  },
+  {
+    id: 'maze_muncher',
+    title: 'Maze Muncher',
+    category: 'Classic',
+    emoji: '🟡',
+    description: 'Eat all the dots and dodge the ghost!',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '5+',
+    embedUrl: '/games/maze/index.html',
+    comingSoon: false,
+    tags: ['classic', 'maze', 'free'],
+  },
+
+  // CrazyGames placeholders (embedded, ad-free). Swap embedUrl for licensed
+  // titles: 'https://www.crazygames.com/embed/<slug>'. Mirror of web config.
+  {
+    id: 'cg_placeholder_1',
+    title: 'CrazyGames Pick #1',
+    category: 'Action',
+    emoji: '🎯',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'action'],
+  },
+  {
+    id: 'cg_placeholder_2',
+    title: 'CrazyGames Pick #2',
+    category: 'Racing',
+    emoji: '🏎️',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'racing'],
+  },
+  {
+    id: 'cg_placeholder_3',
+    title: 'CrazyGames Pick #3',
+    category: 'Puzzle',
+    emoji: '🧩',
+    description: 'A licensed CrazyGames title (add embed URL).',
+    provider: 'crazygames',
+    coinsCost: 0,
+    premiumOnly: false,
+    ageRating: '7+',
+    embedUrl: null,
+    comingSoon: true,
+    tags: ['crazygames', 'puzzle'],
   },
 ]
 

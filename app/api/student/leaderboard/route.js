@@ -42,6 +42,10 @@ export async function GET(request) {
     }
     // 'class' and 'school' fall back to all students (no class/school grouping yet)
 
+    // A student's photo is shown to OTHERS on the leaderboard only when their
+    // parent approved it (challengeSettings.photoPublic). Otherwise → null.
+    const photoFor = (s) => (s.challengeSettings?.photoPublic === true ? (s.profilePhoto || null) : null)
+
     let rankedEntries
 
     if (period === 'monthly') {
@@ -62,12 +66,12 @@ export async function GET(request) {
       rankedEntries = cohort.map(s => {
         const ev = eventsByStudent[s.id] || { total: 0, correct: 0 }
         const monthlyXp = ev.correct * 10 + ev.total * 2
-        return { id: s.id, name: s.name, avatar: s.avatar || '🦊', xp: monthlyXp, grade: s.grade }
+        return { id: s.id, name: s.name, avatar: s.avatar || '🦊', photo: photoFor(s), xp: monthlyXp, grade: s.grade }
       })
     } else {
       // All-time: use xp field
       rankedEntries = cohort.map(s => ({
-        id: s.id, name: s.name, avatar: s.avatar || '🦊', xp: s.xp || 0, grade: s.grade,
+        id: s.id, name: s.name, avatar: s.avatar || '🦊', photo: photoFor(s), xp: s.xp || 0, grade: s.grade,
       }))
     }
 
@@ -85,11 +89,13 @@ export async function GET(request) {
     const currentStudentEntry = rankedEntries.find(e => e.id === studentId)
     const currentStudentRank = currentStudentEntry?.rank ?? null
 
-    // Top 10 with isCurrentStudent flag
+    // Top 10 with isCurrentStudent flag. `photo` is only present when a parent
+    // approved it (photoFor); otherwise rows show avatar + first name only.
     const top10 = rankedEntries.slice(0, 10).map(e => ({
       rank: e.rank,
       name: e.name,
       avatar: e.avatar,
+      photo: e.photo || null,
       xp: e.xp,
       grade: e.grade,
       isCurrentStudent: e.id === studentId,
@@ -102,6 +108,7 @@ export async function GET(request) {
           rank: currentStudentEntry.rank,
           name: currentStudentEntry.name,
           avatar: currentStudentEntry.avatar,
+          photo: currentStudentEntry.photo || null,
           xp: currentStudentEntry.xp,
           grade: currentStudentEntry.grade,
           isCurrentStudent: true,

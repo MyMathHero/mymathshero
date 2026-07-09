@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, TextInput,
-  KeyboardAvoidingView, Platform, Animated,
+  KeyboardAvoidingView, Platform, Animated, Image,
 } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -10,9 +10,12 @@ import {
   useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync,
 } from 'expo-audio'
 import { File, Paths } from 'expo-file-system'
+// Legacy namespace has uploadAsync — the reliable multipart file upload. expo/fetch
+// does NOT properly send a FormData file (uri) body, which is why mic transcription
+// silently failed on device.
+import { uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy'
 import { fetch as expoFetch } from 'expo/fetch'
 import api, { API_URL } from '../lib/api'
-import HeroRobot from './HeroRobot'
 import Manipulative from './manipulatives/Manipulative'
 
 // Audio playback uses expo-audio + expo-file-system (SDK 56-correct).
@@ -67,6 +70,13 @@ export default function AskHeroSheet({
   const [reveal, setReveal] = useState<{ index: number; chars: number }>({ index: -1, chars: 0 })
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
+  // Separate scroller for the Teach Me whiteboard — auto-scrolls to the newest
+  // step so students never have to scroll manually to follow along.
+  const boardRef = useRef<ScrollView>(null)
+  useEffect(() => {
+    const id = setTimeout(() => boardRef.current?.scrollToEnd({ animated: true }), 120)
+    return () => clearTimeout(id)
+  }, [stepIndex, lesson])
   const playerRef = useRef<AudioPlayer | null>(null)
   // Voice input — talk to Hero (speech-to-speech, report #6).
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
@@ -255,17 +265,25 @@ export default function AskHeroSheet({
       playerRef.current = player
       player.play()
 
+      // Wait for playback to finish — but NEVER hang. didJustFinish can fail to
+      // fire (silent mode, a decode stall, playback error), which previously left
+      // the caller (and the "Thinking…" state) stuck forever. Resolve on finish,
+      // on error, or on a safety timeout derived from the audio duration.
       await new Promise<void>((resolve) => {
+        let done = false
+        const finish = () => { if (done) return; done = true; try { sub.remove() } catch {}; clearTimeout(guard); onProgress && onProgress(1); resolve() }
+        // Fallback cap in case we never learn the duration (~1s/12 chars, min 6s, max 30s).
+        let guard = setTimeout(finish, Math.min(30000, Math.max(6000, clean.length * 90)))
         const sub = player.addListener('playbackStatusUpdate', (status: any) => {
-          // Drive the caption reveal off real playback position.
           if (onProgress && status?.duration > 0) {
             onProgress(Math.min(1, (status.currentTime || 0) / status.duration))
           }
-          if (status?.didJustFinish) {
-            try { sub.remove() } catch {}
-            onProgress && onProgress(1)
-            resolve()
+          // Tighten the timeout once we know the real duration.
+          if (status?.duration > 0) {
+            clearTimeout(guard)
+            guard = setTimeout(finish, status.duration * 1000 + 1500)
           }
+          if (status?.didJustFinish) finish()
         })
       })
 
@@ -310,7 +328,9 @@ export default function AskHeroSheet({
   async function sendHeroMessage(explicitMsg?: string) {
     // explicitMsg lets voice input send a transcript directly (state is async).
     const userMsg = (typeof explicitMsg === 'string' ? explicitMsg : input).trim()
-    if (!userMsg || loading || speaking) return
+    if (!userMsg || loading) return
+    // Sending while Hero is still talking is fine — stop the current playback.
+    if (speaking) void stopAllAudio()
     setInput('')
     setMessages(prev => [...prev, { role: 'student', text: userMsg }])
     const updatedConversation = [...conversation, { role: 'user' as const, content: userMsg }]
@@ -336,12 +356,14 @@ export default function AskHeroSheet({
       setRobotMood('happy')
       // res.data.manipulative is a tool key when Hero chose to surface a visual.
       const idx = addHeroMessage(reply, false, res.data?.manipulative || null)
-      await speakReply(idx, reply)
+      // Clear "Thinking…" as soon as the reply is shown — speech plays
+      // independently so a slow/failed TTS can never leave the chat stuck.
+      setLoading(false)
+      void speakReply(idx, reply)
     } catch {
       setRobotMood('happy')
       const fallback = 'Connection issue — try again! 🤖'
       addHeroMessage(fallback)
-    } finally {
       setLoading(false)
     }
   }
@@ -355,29 +377,46 @@ export default function AskHeroSheet({
       try {
         await audioRecorder.stop()
         const uri = audioRecorder.uri
-        if (!uri) { setVoiceState('idle'); return }
+        if (!uri) {
+          setVoiceState('idle')
+          addHeroMessage("I didn't catch that recording — try again! 🎤")
+          return
+        }
         const token = await SecureStore.getItemAsync('auth_token')
         const studentId = (await SecureStore.getItemAsync('user_id')) || ''
-        const form = new FormData()
-        // React Native FormData file shape.
-        form.append('audio', { uri, name: 'speech.m4a', type: 'audio/m4a' } as any)
-        if (studentId) form.append('studentId', studentId)
-        const res = await expoFetch(`${API_URL}/api/student/voice-transcribe`, {
-          method: 'POST',
-          headers: token ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` } : {},
-          body: form as any,
+
+        // MULTIPART upload of the recorded m4a — uploadAsync actually sends the
+        // file bytes (unlike expo/fetch + FormData, which sent an empty body).
+        const res = await uploadAsync(`${API_URL}/api/student/voice-transcribe`, uri, {
+          httpMethod: 'POST',
+          uploadType: FileSystemUploadType.MULTIPART,
+          fieldName: 'audio',
+          mimeType: 'audio/m4a',
+          parameters: studentId ? { studentId } : {},
+          headers: token
+            ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` }
+            : {},
         })
         setVoiceState('idle')
+
         if (res.status === 403) {
           addHeroMessage('Talking to me is a Premium feature 💎 You can still type your question!')
           return
         }
-        if (!res.ok) return
-        const data = await res.json()
-        const text = (data.text || '').trim()
-        if (text) sendHeroMessage(text)
+        if (res.status < 200 || res.status >= 300) {
+          addHeroMessage("I couldn't hear that clearly — please try again, or type your question. 🤖")
+          return
+        }
+        let text = ''
+        try { text = (JSON.parse(res.body)?.text || '').trim() } catch { /* bad json */ }
+        if (text) {
+          sendHeroMessage(text)
+        } else {
+          addHeroMessage("I didn't quite catch that — try speaking again, or type it. 🎤")
+        }
       } catch {
         setVoiceState('idle')
+        addHeroMessage('Something went wrong hearing you — please try again. 🤖')
       }
       return
     }
@@ -437,10 +476,11 @@ export default function AskHeroSheet({
       <Animated.View style={[s.sheet, tab === 'teach' && s.sheetTall, { transform: [{ translateY: slideAnim }] }]}>
         <View style={s.handle} />
 
-        {/* Hero header */}
+        {/* Hero header — clean static chatbot avatar (matches web's AskHeroIcon).
+            The full-body animated robot looked cramped/messy in the small circle. */}
         <View style={s.header}>
           <View style={s.robotContainer}>
-            <HeroRobot mood={robotMood} size={48} containerStyle="circle" />
+            <Image source={require('../assets/askheroCHATBOT.png')} style={s.headerAvatar} resizeMode="cover" />
             {speaking && <View style={s.speakingRing} />}
           </View>
 
@@ -515,7 +555,12 @@ export default function AskHeroSheet({
             ) : (
               /* Lesson whiteboard */
               <>
-                <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
+                <ScrollView
+                  ref={boardRef}
+                  style={s.whiteboard}
+                  contentContainerStyle={{ padding: 18 }}
+                  onContentSizeChange={() => boardRef.current?.scrollToEnd({ animated: true })}
+                >
                   {lessonLoading && !lesson && (
                     <Text style={s.wbHint}>Hero is preparing your lesson… ✦✦✦</Text>
                   )}
@@ -707,18 +752,19 @@ const s = StyleSheet.create({
   tabActive: { backgroundColor: '#C49A1A' },
   tabText: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 13 },
   tabTextActive: { color: 'white' },
-  whiteboard: { flex: 1, backgroundColor: '#10243F' },
-  wbHint: { color: '#9DB4D4', fontSize: 17 },
-  wbError: { color: '#FCA5A5', fontSize: 16 },
-  wbSay: { color: '#EAF2FF', fontSize: 18, lineHeight: 25, marginBottom: 6 },
-  wbWrite: { color: '#BFD8FF', fontSize: 22, fontWeight: '600' },
-  wbResult: { color: '#5EE6A8', fontSize: 26, fontWeight: '800', backgroundColor: 'rgba(94,230,168,0.14)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  // White whiteboard + navy text (matches web HeroTutor).
+  whiteboard: { flex: 1, backgroundColor: '#FFFFFF' },
+  wbHint: { color: '#64748B', fontSize: 17 },
+  wbError: { color: '#DC2626', fontSize: 16 },
+  wbSay: { color: '#1B2B4B', fontSize: 18, lineHeight: 25, marginBottom: 6 },
+  wbWrite: { color: '#2D4A7A', fontSize: 22, fontWeight: '600' },
+  wbResult: { color: '#059669', fontSize: 26, fontWeight: '800', backgroundColor: 'rgba(5,150,105,0.12)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
   lessonControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: 14, borderTopWidth: 1, borderColor: '#E2E8F0' },
   lessonBtn: { backgroundColor: '#1B2B4B', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   lessonBtnText: { color: 'white', fontWeight: '800', fontSize: 14 },
   lessonStep: { color: '#64748B', fontSize: 13, fontWeight: '600' },
-  exampleOpt: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: '#C49A1A', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center' },
-  exampleOptText: { color: '#EAF2FF', fontSize: 20, fontWeight: '800' },
+  exampleOpt: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#C49A1A', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center' },
+  exampleOptText: { color: '#1B2B4B', fontSize: 20, fontWeight: '800' },
   backToQ: { backgroundColor: '#C49A1A', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 18 },
   backToQBtnText: { color: '#1B2B4B', fontWeight: '800', fontSize: 15 },
   backToQText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
@@ -740,13 +786,22 @@ const s = StyleSheet.create({
   },
   robotContainer: {
     position: 'relative',
-    width: 56, height: 56,
+    width: 52, height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatar: {
+    width: 52, height: 52,
+    borderRadius: 26,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#C49A1A',
   },
   speakingRing: {
     position: 'absolute',
-    top: -4, left: -4,
-    width: 64, height: 64,
-    borderRadius: 32,
+    top: -3, left: -3,
+    width: 58, height: 58,
+    borderRadius: 29,
     borderWidth: 2,
     borderColor: '#22C55E',
   },

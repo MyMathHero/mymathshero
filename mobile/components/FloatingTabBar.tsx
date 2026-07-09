@@ -10,7 +10,7 @@ type Tab = { key: string; label: string; emoji: string; route: string }
 
 const TABS: Tab[] = [
   { key: 'home',    label: 'Home',    emoji: '🏠', route: '/student/dashboard' },
-  { key: 'league',  label: 'League',  emoji: '🏆', route: '/student/league' },
+  { key: 'league',  label: 'Challenge', emoji: '⚔️', route: '/student/league' },
   { key: 'arcade',  label: 'Arcade',  emoji: '🕹️', route: '/student/arcade' },
   { key: 'profile', label: 'Profile', emoji: '👤', route: '/student/profile' },
 ]

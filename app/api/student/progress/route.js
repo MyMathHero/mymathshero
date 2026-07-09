@@ -133,6 +133,9 @@ export async function GET(request) {
         name: student.name,
         grade: student.grade,
         avatar: student.avatar,
+        // Personal profile photo — self-view ONLY. Never expose this on any
+        // endpoint that lists OTHER students (leaderboard, challenge).
+        profilePhoto: student.profilePhoto || null,
         xp: student.xp || 0,
         coins: student.coins || 0,
         level: student.level || 1,

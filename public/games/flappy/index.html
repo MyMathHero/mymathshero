@@ -28,6 +28,7 @@
 <canvas id="c" width="360" height="560"></canvas>
 
 <script>
+const LS={ get:function(k){try{return localStorage.getItem(k)}catch(e){return null}}, set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
 const canvas = document.getElementById('c')
 const ctx = canvas.getContext('2d')
 const W = canvas.width, H = canvas.height
@@ -46,7 +47,7 @@ function init() {
   pipes = []
   score = 0
   hiScore = parseInt(
-    localStorage.getItem('flappy_hi') || '0'
+    LS.get('flappy_hi') || '0'
   )
   state = 'start'
 }
@@ -104,7 +105,7 @@ function update() {
       score++
       if (score > hiScore) {
         hiScore = score
-        localStorage.setItem('flappy_hi', hiScore)
+        LS.set('flappy_hi', hiScore)
       }
     }
 

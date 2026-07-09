@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hero Memory</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:#0A0A1A; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; font-family:-apple-system,sans-serif; color:white; overflow:hidden; user-select:none; }
+  h1 { color:#C49A1A; font-size:22px; font-weight:900; margin-bottom:8px; letter-spacing:2px; text-transform:uppercase; }
+  #score-bar { display:flex; gap:28px; margin-bottom:14px; font-size:15px; font-weight:700; }
+  #level { color:#C49A1A; } #best { color:rgba(255,255,255,0.5); }
+  #pad { display:grid; grid-template-columns:1fr 1fr; gap:14px; width:300px; height:300px; }
+  .btn { border-radius:18px; cursor:pointer; opacity:0.55; transition:opacity .1s, transform .05s; border:3px solid rgba(255,255,255,0.08); }
+  .btn.lit { opacity:1; transform:scale(0.97); }
+  #g{ background:#34D399; } #r{ background:#F87171; } #b{ background:#60A5FA; } #y{ background:#FBBF24; }
+  #message { margin-top:16px; font-size:17px; font-weight:700; color:#C49A1A; min-height:26px; text-align:center; }
+  #instructions { margin-top:8px; font-size:12px; color:rgba(255,255,255,0.35); text-align:center; }
+  button.play { margin-top:12px; background:linear-gradient(135deg,#C49A1A,#FFD700); color:#1B2B4B; border:none;
+    border-radius:12px; padding:12px 28px; font-weight:800; font-size:15px; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>🧠 Hero Memory</h1>
+<div id="score-bar">
+  <span>Level: <span id="level">0</span></span>
+  <span>Best: <span id="best">0</span></span>
+</div>
+<div id="pad">
+  <div class="btn" id="g" data-i="0"></div>
+  <div class="btn" id="r" data-i="1"></div>
+  <div class="btn" id="b" data-i="2"></div>
+  <div class="btn" id="y" data-i="3"></div>
+</div>
+<div id="message">Watch the pattern…</div>
+<div id="instructions">Repeat the sequence Hero shows you. It gets longer each round!</div>
+<button class="play" id="btn">Start</button>
+<script>
+const LS={ get:k=>{try{return localStorage.getItem(k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}} };
+const pads=[...document.querySelectorAll('.btn')];
+const levelEl=document.getElementById('level'), bestEl=document.getElementById('best'),
+      msg=document.getElementById('message'), btn=document.getElementById('btn');
+const FREQ=[329,392,261,440];
+let seq=[], step=0, playing=false, accepting=false, best=+(LS.get('simon_best')||0);
+bestEl.textContent=best;
+let actx;
+function tone(i){
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.frequency.value=FREQ[i]; o.type='sine'; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.2, actx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+0.32);
+    o.start(); o.stop(actx.currentTime+0.34);
+  }catch(e){}
+}
+function light(i){ pads[i].classList.add('lit'); tone(i); setTimeout(()=>pads[i].classList.remove('lit'), 320); }
+function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function playSeq(){
+  accepting=false; msg.textContent='Watch…';
+  await wait(500);
+  for(const i of seq){ light(i); await wait(560); }
+  accepting=true; step=0; msg.textContent='Your turn!';
+}
+async function next(){
+  seq.push((Math.random()*4)|0);
+  levelEl.textContent=seq.length;
+  await playSeq();
+}
+function start(){ seq=[]; step=0; playing=true; btn.style.display='none'; next(); }
+function fail(){
+  playing=false; accepting=false;
+  if(seq.length-1>best){ best=seq.length-1; LS.set('simon_best',best); bestEl.textContent=best; }
+  msg.textContent='Oops! You reached level '+(seq.length-1)+' 🎉'; btn.textContent='Play Again'; btn.style.display='inline-block';
+}
+pads.forEach(p=>{
+  const press=()=>{
+    if(!accepting) return;
+    const i=+p.dataset.i; light(i);
+    if(i===seq[step]){ step++; if(step===seq.length){ accepting=false; msg.textContent='Nice! ✨'; setTimeout(next,700); } }
+    else fail();
+  };
+  p.addEventListener('mousedown', press);
+  p.addEventListener('touchstart', e=>{ e.preventDefault(); press(); }, {passive:false});
+});
+btn.addEventListener('click', start);
+</script>
+</body>
+</html>

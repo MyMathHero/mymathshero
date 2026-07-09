@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import {
-  ARCADE_GAMES, ARCADE_CATEGORIES, canPlayGame
+  ARCADE_GAMES, ARCADE_CATEGORIES
 } from '@/lib/arcadeGames'
 import { Analytics } from '@/lib/analytics'
 
@@ -24,7 +24,8 @@ export default function ArcadePage() {
   const [selectedGame, setSelectedGame] = useState(null)
   const [playingGame, setPlayingGame] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [unlocking, setUnlocking] = useState(null)
+  const [buyingTime, setBuyingTime] = useState(null)
+  const [gameLoading, setGameLoading] = useState(false)
   const [sessionId, setSessionId] = useState(null)
   const [sessionMinutes, setSessionMinutes] = useState(0)
   const [showLimitWarning, setShowLimitWarning] = useState(false)
@@ -104,10 +105,11 @@ export default function ArcadePage() {
   }, [phase])
 
   // Safety: never get stuck on the intro animation. If the video doesn't fire
-  // onEnded (slow load, codec issue, etc.) move to the lobby after 5s max.
+  // onEnded (slow load, codec issue, etc.) move on after 5s max. The intro now
+  // leads to the BUY-TIME step (buy play minutes) before the game lobby.
   useEffect(() => {
     if (phase !== 'entering') return
-    const t = setTimeout(() => setPhase('lobby'), 5000)
+    const t = setTimeout(() => setPhase('buytime'), 5000)
     return () => clearTimeout(t)
   }, [phase])
 
@@ -136,21 +138,10 @@ export default function ArcadePage() {
   async function handleEnterArcade() {
     if (!arcadeData) return
 
-    // Check if student has enough coins to enter (minimum 20 coins)
-    if ((arcadeData.coins || 0) < 20) {
-      setPhase('locked')
-      return
-    }
-
-    // Check parent settings
+    // Arcade is always open (games are free to browse). The only gate is the
+    // parent on/off switch; PLAY TIME is bought with coins inside the lobby.
     if (!arcadeData.arcadeSettings?.enabled) {
       setPhase('parentLocked')
-      return
-    }
-
-    // Check daily limit
-    if (arcadeData.minutesToday >= (arcadeData.arcadeSettings?.dailyMinutes || 30)) {
-      setPhase('limitReached')
       return
     }
 
@@ -160,50 +151,67 @@ export default function ArcadePage() {
     setPhase('entering')
   }
 
-  async function handleUnlockGame(game) {
-    if (unlocking) return
-    const check = canPlayGame(game, arcadeData?.coins || 0, arcadeData?.plan)
-    if (!check.allowed) {
-      alert(check.reason)
-      return
-    }
-
-    setUnlocking(game.id)
+  // Buy an arcade time pack ('5' or '10') with coins. Credits the wallet.
+  async function handleBuyTime(pack) {
+    if (buyingTime) return
+    setBuyingTime(pack)
     try {
       const res = await fetch('/api/student/arcade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: student.userId,
-          gameId: game.id,
-          action: 'unlock',
-        }),
+        body: JSON.stringify({ studentId: student.userId, action: 'buyTime', pack }),
       })
       const data = await res.json()
       if (data.success) {
-        Analytics.gameUnlocked(game.id, game.title, game.coinsCost)
         setArcadeData(prev => ({
           ...prev,
           coins: data.newCoins ?? prev.coins,
-          unlockedGames: [...(prev.unlockedGames || []), game.id],
+          minutesRemaining: data.minutesRemaining ?? prev.minutesRemaining,
+          timeLimitReached: (data.minutesRemaining ?? 0) <= 0,
         }))
-        handlePlayGame(game)
       } else {
-        alert(data.error || 'Could not unlock game')
+        alert(data.error || 'Could not buy time')
       }
     } catch {
       alert('Connection error')
     } finally {
-      setUnlocking(null)
+      setBuyingTime(null)
     }
   }
 
+  // Open a game. There's no unlock/coin cost per game anymore — the gate is the
+  // purchased time wallet + the parent on/off switch. We DON'T start the timer
+  // here: we mount the game and the iframe's onLoad fires `startSession`, so the
+  // paid minutes only begin counting once the game has actually loaded (no time
+  // burned during loading).
   async function handlePlayGame(game) {
-    // Standard plan can't play games beyond the first 3, even if previously unlocked.
+    // Standard plan can't play games beyond the first 3.
     if (isGamePlanBlocked(game.id)) {
       router.push('/subscribe')
       return
     }
+    if ((arcadeData?.minutesRemaining || 0) <= 0) {
+      setShowLimitWarning(true) // out of time — prompt to buy more
+      return
+    }
+    // Mount the game in a loading state; the session starts on iframe load.
+    setSessionId(null)
+    sessionIdRef.current = null
+    setPlayingGame(game)
+    playingGameRef.current = game
+    setSessionMinutes(0)
+    sessionMinutesRef.current = 0
+    setGameLoading(true)
+    setPhase('playing')
+    setSelectedGame(null)
+  }
+
+  // Called by the game iframe's onLoad — the game is now on screen, so start the
+  // billed session + the 60s heartbeat that counts down the purchased wallet.
+  async function startSession() {
+    const game = playingGameRef.current
+    if (!game || sessionIdRef.current) return // already started / no game
+    setGameLoading(false)
     try {
       const res = await fetch('/api/student/arcade', {
         method: 'POST',
@@ -222,15 +230,12 @@ export default function ArcadePage() {
       if (data.success) {
         setSessionId(data.sessionId)
         sessionIdRef.current = data.sessionId
-        setPlayingGame(game)
-        playingGameRef.current = game
-        setPhase('playing')
-        setSessionMinutes(0)
-        sessionMinutesRef.current = 0
+        if (typeof data.minutesRemaining === 'number') {
+          setArcadeData(prev => ({ ...prev, minutesRemaining: data.minutesRemaining }))
+        }
 
-        // Heartbeat every 60s — persists durationMinutes to the DB and pulls
-        // back the server's authoritative minutesToday so it stays in sync
-        // across devices. Refs avoid stale-closure bugs in the interval.
+        // Heartbeat every 60s — persists this session's duration and deducts the
+        // elapsed minute from the purchased wallet. Refs avoid stale closures.
         sessionTimerRef.current = setInterval(async () => {
           const newMinutes = sessionMinutesRef.current + 1
           sessionMinutesRef.current = newMinutes
@@ -247,26 +252,24 @@ export default function ArcadePage() {
               }),
             })
             const hb = await hbRes.json()
-            if (hb.minutesToday !== undefined) {
-              setArcadeData(prev => ({
-                ...prev,
-                minutesToday: hb.minutesToday,
-                minutesRemaining: hb.minutesRemaining,
-              }))
+            if (hb.minutesRemaining !== undefined) {
+              setArcadeData(prev => ({ ...prev, minutesRemaining: hb.minutesRemaining }))
             }
             if (hb.limitReached) {
               setShowLimitWarning(true)
-              setTimeout(() => handleExitGame(), 30000)
+              setTimeout(() => handleExitGame(), 15000)
             }
           } catch {
-            // Heartbeat failed — keep playing, time tracked locally for now.
+            // Heartbeat failed — keep playing, time reconciled on exit.
           }
         }, 60000)
       } else {
         alert(data.error || 'Could not start game')
+        handleExitGame()
       }
     } catch {
       alert('Connection error. Try again.')
+      handleExitGame()
     }
   }
 
@@ -301,9 +304,6 @@ export default function ArcadePage() {
   const filteredGames = ARCADE_GAMES.filter(g =>
     activeCategory === 'all' || g.category === activeCategory
   )
-
-  const isUnlocked = (gameId) =>
-    (arcadeData?.unlockedGames || []).includes(gameId)
 
   // Standard plan unlocks only the first 3 games (by their fixed position in
   // the full game list, so it's stable no matter which category is filtered).
@@ -461,27 +461,13 @@ export default function ArcadePage() {
           <div style={{ marginBottom: 40 }}>
             <p style={{ color: 'rgba(255,255,255,0.4)',
               fontSize: 13, marginBottom: 8 }}>
-              Today&apos;s Play Time
+              Arcade Time Left
             </p>
-            <div style={{
-              width: 200, height: 8,
-              background: 'rgba(255,255,255,0.1)',
-              borderRadius: 4, margin: '0 auto 8px',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%',
-                width: `${Math.min(100,
-                  ((arcadeData?.minutesToday || 0) /
-                  (arcadeData?.arcadeSettings?.dailyMinutes || 30)) * 100
-                )}%`,
-                background: 'linear-gradient(90deg, #22C55E, #C49A1A)',
-                borderRadius: 4,
-              }} />
-            </div>
+            <p style={{ color: '#C49A1A', fontWeight: 900, fontSize: 40, margin: '0 0 4px' }}>
+              {arcadeData?.minutesRemaining || 0}<span style={{ fontSize: 18, fontWeight: 700 }}> min</span>
+            </p>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
-              {arcadeData?.minutesToday || 0} /
-              {arcadeData?.arcadeSettings?.dailyMinutes || 30} mins used today
+              Buy more with coins inside · 🪙 {arcadeData?.coins || 0}
             </p>
           </div>
 
@@ -540,8 +526,8 @@ export default function ArcadePage() {
             autoPlay
             muted
             playsInline
-            onEnded={() => setPhase('lobby')}
-            onError={() => setPhase('lobby')}
+            onEnded={() => setPhase('buytime')}
+            onError={() => setPhase('buytime')}
             style={{
               width: '100%',
               height: '100%',
@@ -552,7 +538,7 @@ export default function ArcadePage() {
         </div>
         {/* Skip control */}
         <button
-          onClick={() => setPhase('lobby')}
+          onClick={() => setPhase('buytime')}
           style={{
             position: 'absolute', bottom: 40, zIndex: 2,
             background: 'rgba(255,255,255,0.12)',
@@ -569,63 +555,72 @@ export default function ArcadePage() {
   }
 
   // ==================
-  // LOCKED — not enough XP
+  // BUY TIME — shown after the intro, before the game lobby. Students top up
+  // their play-time wallet with coins here first, then continue to the games.
   // ==================
-  if (phase === 'locked') {
+  if (phase === 'buytime') {
+    const mins = arcadeData?.minutesRemaining || 0
+    const coins = arcadeData?.coins || 0
     return (
       <div style={styles.fullscreen()}>
         {stars.map(star => (
           <div key={star.id} style={{
-            position: 'absolute',
-            left: `${star.x}%`, top: `${star.y}%`,
-            width: star.size, height: star.size,
-            borderRadius: '50%', backgroundColor: 'white',
-            opacity: star.opacity * 0.3,
+            position: 'absolute', left: `${star.x}%`, top: `${star.y}%`,
+            width: star.size, height: star.size, borderRadius: '50%',
+            backgroundColor: 'white', opacity: star.opacity * 0.3,
           }} />
         ))}
-        <div style={{ textAlign: 'center', padding: 32,
-          position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 80, marginBottom: 16 }}>🔒</div>
-          <h2 style={{ color: 'white', fontSize: 32,
-            fontWeight: 800, marginBottom: 16 }}>
-            Arcade Locked
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)',
-            fontSize: 16, maxWidth: 400,
-            margin: '0 auto 32px' }}>
-            You need at least <strong style={{ color: '#C49A1A' }}>
-              20 coins 🪙
-            </strong> to enter the Arcade.
-            Answer Maths questions to earn coins!
+        <div style={{ textAlign: 'center', padding: 32, position: 'relative', zIndex: 1, maxWidth: 460 }}>
+          <div style={{ fontSize: 64, marginBottom: 12 }}>⏱️</div>
+          <h2 style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Get Play Time</h2>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, margin: '0 auto 8px', maxWidth: 380 }}>
+            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
           </p>
-          <div style={{
-            background: 'rgba(196,154,26,0.1)',
-            border: '2px solid #C49A1A', borderRadius: 20,
-            padding: '20px 40px', marginBottom: 32,
-            display: 'inline-block',
-          }}>
-            <p style={{ color: '#C49A1A', fontSize: 14,
-              margin: 0 }}>Your Coins 🪙</p>
-            <p style={{ color: 'white', fontSize: 48,
-              fontWeight: 900, margin: '8px 0' }}>
-              {arcadeData?.coins || 0}
-            </p>
-            <p style={{ color: 'rgba(255,255,255,0.5)',
-              fontSize: 13, margin: 0 }}>
-              Need 20 coins to unlock
-            </p>
+          <p style={{ color: ARCADE_GOLD, fontWeight: 800, fontSize: 15, marginBottom: 24 }}>
+            You have {mins} min left · 🪙 {coins}
+          </p>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+            {[
+              { pack: '5', minutes: 5, coins: 100 },
+              { pack: '10', minutes: 10, coins: 200 },
+            ].map(p => {
+              const afford = coins >= p.coins
+              return (
+                <button
+                  key={p.pack}
+                  onClick={() => handleBuyTime(p.pack)}
+                  disabled={buyingTime === p.pack || !afford}
+                  style={{
+                    flex: 1, padding: '18px 12px', borderRadius: 16,
+                    background: afford ? 'linear-gradient(135deg, #C49A1A, #FFD700)' : 'rgba(255,255,255,0.08)',
+                    color: afford ? ARCADE_INK : 'rgba(255,255,255,0.4)',
+                    border: 'none', fontWeight: 800, fontSize: 16,
+                    cursor: afford ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {buyingTime === p.pack ? '…' : (
+                    <>
+                      <div style={{ fontSize: 22 }}>⏱️ {p.minutes} min</div>
+                      <div style={{ fontSize: 14, marginTop: 4 }}>{p.coins} 🪙</div>
+                    </>
+                  )}
+                </button>
+              )
+            })}
           </div>
-          <br />
+
           <button
-            onClick={() => router.push('/student-dashboard')}
+            onClick={() => setPhase('lobby')}
             style={{
-              background: 'linear-gradient(135deg, #1B2B4B, #2D4A7A)',
-              color: 'white', border: '2px solid #C49A1A',
-              borderRadius: 14, padding: '16px 40px',
-              fontSize: 16, fontWeight: 700, cursor: 'pointer',
+              width: '100%', padding: 16, borderRadius: 14,
+              background: mins > 0 ? 'linear-gradient(135deg, #22C55E, #16A34A)' : 'rgba(255,255,255,0.08)',
+              color: mins > 0 ? 'white' : 'rgba(255,255,255,0.6)',
+              border: mins > 0 ? 'none' : '1px solid rgba(255,255,255,0.15)',
+              fontWeight: 800, fontSize: 16, cursor: 'pointer',
             }}
           >
-            ✦ Go Practice Maths →
+            {mins > 0 ? 'Continue to games →' : 'Browse games (buy time to play) →'}
           </button>
         </div>
       </div>
@@ -655,38 +650,6 @@ export default function ArcadePage() {
             onClick={() => router.push('/student-dashboard')}
             style={styles.goldButton}>
             ← Back to Hero HQ
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ==================
-  // DAILY LIMIT
-  // ==================
-  if (phase === 'limitReached') {
-    return (
-      <div style={styles.fullscreen()}>
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 80, marginBottom: 16 }}>⏰</div>
-          <h2 style={{ color: 'white', fontSize: 28,
-            fontWeight: 800, marginBottom: 16 }}>
-            Daily Arcade Time Used!
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)',
-            fontSize: 16, maxWidth: 360,
-            margin: '0 auto 32px' }}>
-            You have used your{' '}
-            <strong style={{ color: '#C49A1A' }}>
-              {arcadeData?.arcadeSettings?.dailyMinutes || 30} minutes
-            </strong>{' '}
-            of Arcade time today.
-            Come back tomorrow or ask your parent to increase your limit!
-          </p>
-          <button
-            onClick={() => router.push('/student-dashboard')}
-            style={styles.goldButton}>
-            ✦ Go Practice More Maths →
           </button>
         </div>
       </div>
@@ -750,6 +713,7 @@ export default function ArcadePage() {
         <iframe
           ref={iframeRef}
           src={playingGame.embedUrl}
+          onLoad={startSession}
           style={{
             flex: 1, border: 'none',
             width: '100%', height: '100%',
@@ -767,6 +731,20 @@ export default function ArcadePage() {
           }
         />
 
+        {/* Loading overlay — shown until the game loads. Your paid time only
+            starts counting AFTER this disappears (no time wasted on loading). */}
+        {gameLoading && (
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.88)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            justifyContent: 'center', zIndex: 20, gap: 14,
+          }}>
+            <div style={{ fontSize: 46 }}>🎮</div>
+            <p style={{ color: ARCADE_GOLD, fontWeight: 800, fontSize: 18, margin: 0 }}>Loading {playingGame.title}…</p>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, margin: 0 }}>Your time starts when the game loads ⏱️</p>
+          </div>
+        )}
+
         {/* Time limit warning */}
         {showLimitWarning && (
           <div style={{
@@ -779,7 +757,7 @@ export default function ArcadePage() {
           }}>
             <p style={{ fontWeight: 800, color: '#1B2B4B',
               margin: '0 0 8px' }}>
-              ⏰ Almost at your daily limit!
+              ⏰ You&apos;re out of arcade time! Buy more with coins.
             </p>
             <button onClick={handleExitGame}
               style={{ background: '#F59E0B', color: 'white',
@@ -886,13 +864,12 @@ export default function ArcadePage() {
               fontSize: 10, margin: 0 }}>Coins</p>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ color: 'white', fontWeight: 700,
-              fontSize: 14, margin: 0 }}>
-              {arcadeData?.minutesToday || 0}/
-              {arcadeData?.arcadeSettings?.dailyMinutes || 30}m
+            <p style={{ color: '#22C55E', fontWeight: 800,
+              fontSize: 16, margin: 0 }}>
+              ⏱️ {arcadeData?.minutesRemaining || 0}m
             </p>
             <p style={{ color: 'rgba(255,255,255,0.4)',
-              fontSize: 10, margin: 0 }}>Today</p>
+              fontSize: 10, margin: 0 }}>Time left</p>
           </div>
           <button
             onClick={() => router.push('/student-dashboard')}
@@ -935,15 +912,38 @@ export default function ArcadePage() {
               </span>! 🕹️
             </h2>
             <p style={{ color: 'rgba(255,255,255,0.6)',
-              margin: 0, fontSize: 15 }}>
-              {(arcadeData?.unlockedGames || []).length} games unlocked
+              margin: '0 0 12px', fontSize: 15 }}>
+              ⏱️ {arcadeData?.minutesRemaining || 0} min of play time left
               · {arcadeData?.minutesToday || 0} mins played today
             </p>
+            {/* Buy more time — right in the lobby, not just when you run out. */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { pack: '5', minutes: 5, coins: 100 },
+                { pack: '10', minutes: 10, coins: 200 },
+              ].map(p => (
+                <button
+                  key={p.pack}
+                  onClick={() => handleBuyTime(p.pack)}
+                  disabled={buyingTime === p.pack || (arcadeData?.coins || 0) < p.coins}
+                  style={{
+                    padding: '8px 14px',
+                    background: (arcadeData?.coins || 0) < p.coins
+                      ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #C49A1A, #FFD700)',
+                    color: (arcadeData?.coins || 0) < p.coins ? 'rgba(255,255,255,0.4)' : ARCADE_INK,
+                    border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 13,
+                    cursor: (arcadeData?.coins || 0) < p.coins ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {buyingTime === p.pack ? '…' : `+${p.minutes}m · ${p.coins}🪙`}
+                </button>
+              ))}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             {[
               { label: 'Coins', value: arcadeData?.coins || 0, emoji: '🪙', color: '#C49A1A' },
-              { label: 'Games Unlocked', value: (arcadeData?.unlockedGames || []).length, emoji: '🔓', color: '#22C55E' },
+              { label: 'Time Left', value: `${arcadeData?.minutesRemaining || 0}m`, emoji: '⏱️', color: '#22C55E' },
               { label: 'Games Available', value: ARCADE_GAMES.filter(g => !g.comingSoon && g.embedUrl).length, emoji: '🎮', color: '#60A5FA' },
             ].map((s, i) => (
               <div key={i} style={{
@@ -1002,7 +1002,6 @@ export default function ArcadePage() {
           gap: 20,
         }}>
           {filteredGames.map((game) => {
-            const unlocked = isUnlocked(game.id)
             const comingSoon = game.comingSoon || !game.embedUrl
             const isPremiumBlocked = !comingSoon && game.premiumOnly &&
               arcadeData?.plan !== 'premium'
@@ -1022,9 +1021,7 @@ export default function ArcadePage() {
                 }}
                 style={{
                   background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${unlocked && !isPlanBlocked
-                    ? 'rgba(34,197,94,0.4)'
-                    : 'rgba(255,255,255,0.08)'}`,
+                  border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: 18,
                   overflow: 'hidden',
                   cursor: 'pointer',
@@ -1065,16 +1062,6 @@ export default function ArcadePage() {
                       COMING SOON
                     </div>
                   )}
-                  {!comingSoon && unlocked && (
-                    <div style={{
-                      position: 'absolute', top: 8, right: 8,
-                      background: '#22C55E', borderRadius: 10,
-                      padding: '2px 8px', fontSize: 10,
-                      fontWeight: 800, color: 'white',
-                    }}>
-                      UNLOCKED
-                    </div>
-                  )}
                   {isPremiumBlocked && (
                     <div style={{
                       position: 'absolute', top: 8, right: 8,
@@ -1085,16 +1072,16 @@ export default function ArcadePage() {
                       PREMIUM
                     </div>
                   )}
-                  {!comingSoon && !unlocked && !isPremiumBlocked && (
+                  {!comingSoon && !isPremiumBlocked && (
                     <div style={{
                       position: 'absolute', bottom: 0,
                       left: 0, right: 0,
                       background: 'rgba(0,0,0,0.6)',
                       padding: '6px', textAlign: 'center',
                     }}>
-                      <span style={{ color: '#C49A1A',
+                      <span style={{ color: '#22C55E',
                         fontSize: 12, fontWeight: 700 }}>
-                        🪙 {game.coinsCost} coins to unlock
+                        ✅ Free to play
                       </span>
                     </div>
                   )}
@@ -1174,7 +1161,7 @@ export default function ArcadePage() {
               {[
                 { label: 'Category', value: selectedGame.category },
                 { label: 'Age', value: selectedGame.ageRating },
-                { label: 'Cost', value: `${selectedGame.coinsCost} 🪙` },
+                { label: 'Time left', value: `${arcadeData?.minutesRemaining || 0} min` },
               ].map((s, i) => (
                 <div key={i} style={{
                   background: 'rgba(255,255,255,0.06)',
@@ -1234,22 +1221,6 @@ export default function ArcadePage() {
                   Coming Soon
                 </button>
               </div>
-            ) : isUnlocked(selectedGame.id) ? (
-              <button
-                onClick={() => {
-                  setSelectedGame(null)
-                  handlePlayGame(selectedGame)
-                }}
-                style={{
-                  width: '100%', padding: 16,
-                  background: 'linear-gradient(135deg, #22C55E, #16A34A)',
-                  color: 'white', border: 'none',
-                  borderRadius: 14, fontWeight: 800,
-                  fontSize: 18, cursor: 'pointer',
-                }}
-              >
-                🎮 PLAY NOW!
-              </button>
             ) : selectedGame.premiumOnly &&
               arcadeData?.plan !== 'premium' ? (
               <div style={{ textAlign: 'center' }}>
@@ -1263,48 +1234,54 @@ export default function ArcadePage() {
                   Upgrade to Premium →
                 </button>
               </div>
-            ) : (arcadeData?.coins || 0) >= selectedGame.coinsCost ? (
+            ) : (arcadeData?.minutesRemaining || 0) > 0 ? (
+              // Have play time → free to play. Time counts down once it loads.
+              <button
+                onClick={() => {
+                  setSelectedGame(null)
+                  handlePlayGame(selectedGame)
+                }}
+                style={{
+                  width: '100%', padding: 16,
+                  background: 'linear-gradient(135deg, #22C55E, #16A34A)',
+                  color: 'white', border: 'none',
+                  borderRadius: 14, fontWeight: 800,
+                  fontSize: 18, cursor: 'pointer',
+                }}
+              >
+                🎮 PLAY NOW! · {arcadeData?.minutesRemaining} min left
+              </button>
+            ) : (
+              // Out of time → buy a pack with coins.
               <div>
                 <p style={{ color: 'rgba(255,255,255,0.6)',
-                  textAlign: 'center', fontSize: 14,
-                  marginBottom: 12 }}>
-                  Spend <strong style={{ color: '#C49A1A' }}>
-                    {selectedGame.coinsCost} coins 🪙
-                  </strong> to unlock this game forever
+                  textAlign: 'center', fontSize: 14, marginBottom: 12 }}>
+                  You&apos;re out of arcade time. Buy more with coins 🪙 <br />
+                  <span style={{ color: '#C49A1A', fontWeight: 700 }}>You have {arcadeData?.coins || 0} coins</span>
                 </p>
-                <button
-                  onClick={() => {
-                    setSelectedGame(null)
-                    handleUnlockGame(selectedGame)
-                  }}
-                  disabled={unlocking === selectedGame.id}
-                  style={{
-                    width: '100%', padding: 16,
-                    background: 'linear-gradient(135deg, #C49A1A, #FFD700)',
-                    color: ARCADE_INK, border: 'none',
-                    borderRadius: 14, fontWeight: 800,
-                    fontSize: 16, cursor: 'pointer',
-                  }}
-                >
-                  🔓 UNLOCK FOR {selectedGame.coinsCost} COINS
-                </button>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ color: 'rgba(255,255,255,0.5)',
-                  marginBottom: 16 }}>
-                  Need <strong style={{ color: '#EF4444' }}>
-                    {selectedGame.coinsCost - (arcadeData?.coins || 0)} more coins
-                  </strong> to unlock
-                </p>
-                <button
-                  onClick={() => {
-                    setSelectedGame(null)
-                    router.push('/student-dashboard')
-                  }}
-                  style={styles.goldButton}>
-                  ✦ Earn More Coins →
-                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {[
+                    { pack: '5', minutes: 5, coins: 100 },
+                    { pack: '10', minutes: 10, coins: 200 },
+                  ].map(p => (
+                    <button
+                      key={p.pack}
+                      onClick={() => handleBuyTime(p.pack)}
+                      disabled={buyingTime === p.pack || (arcadeData?.coins || 0) < p.coins}
+                      style={{
+                        flex: 1, padding: 14,
+                        background: (arcadeData?.coins || 0) < p.coins
+                          ? 'rgba(255,255,255,0.08)'
+                          : 'linear-gradient(135deg, #C49A1A, #FFD700)',
+                        color: (arcadeData?.coins || 0) < p.coins ? 'rgba(255,255,255,0.4)' : ARCADE_INK,
+                        border: 'none', borderRadius: 14, fontWeight: 800,
+                        fontSize: 15, cursor: (arcadeData?.coins || 0) < p.coins ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {buyingTime === p.pack ? '…' : `⏱️ ${p.minutes} min · ${p.coins} 🪙`}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

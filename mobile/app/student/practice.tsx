@@ -15,6 +15,8 @@ import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
 import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
 import { formatMath } from '../../components/MathText'
+import ColumnMath from '../../components/ColumnMath'
+import { columnMathFor } from '../../lib/columnMath'
 import { shouldAutoNarrate } from '../../lib/juniorMode'
 import { speak, stopSpeaking } from '../../lib/heroVoice'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
@@ -23,12 +25,13 @@ export default function Practice() {
   const router = useRouter()
   const { colors } = useTheme()
   const styles = useMemo(() => makeStyles(colors), [colors])
-  const { skillId, skillName, grade, speedRound } = useLocalSearchParams<{
+  const { skillId, skillName, grade, speedRound, dailyTask } = useLocalSearchParams<{
     skillId: string, skillName: string,
-    grade: string, speedRound: string
+    grade: string, speedRound: string, dailyTask: string
   }>()
 
   const isSpeedRound = speedRound === 'true'
+  const isDailyTask = dailyTask === 'true'
   const SPEED_ROUND_TOTAL = 5
 
   // Older questions stored their options with the letter baked in ("A) 3 rows
@@ -46,6 +49,9 @@ export default function Practice() {
   const [reward, setReward] = useState<Burst>(null)
   const comboRef = useRef(0)
   const bestComboRef = useRef(0)
+  // True once the student opened Ask Hero / Teach Me on the CURRENT question, so
+  // the answer earns 5 coins instead of 10. Reset when advancing to the next Q.
+  const aiHelpUsedRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [timer, setTimer] = useState(0)
@@ -94,6 +100,7 @@ export default function Practice() {
       )
       return
     }
+    aiHelpUsedRef.current = true
     setShowAskHero(true)
   }
 
@@ -229,11 +236,27 @@ export default function Practice() {
         answer: option,
         timeTakenMs: timer * 1000,
         hintUsed: false,
+        aiHelpUsed: aiHelpUsedRef.current,
         difficulty: q.difficulty || 0.5,
       })
       setResult(res.data)
       if (res.data.correct && isSpeedRound) {
         setSpeedCorrect(c => c + 1)
+      }
+
+      // HERO Daily Task — count this question toward today's target. On finish,
+      // tell the student they've unlocked the rest of the app + earned the bonus.
+      if (isDailyTask && studentId) {
+        studentAPI.dailyTaskProgress(studentId).then((dtRes: any) => {
+          const dt = dtRes?.data
+          if (dt?.justFinished) {
+            Alert.alert(
+              '🦸 HERO Task complete!',
+              `You've unlocked freestyle practice and the arcade!${dt.bonusAwarded ? `\n\n+${dt.bonusAwarded} 🪙 bonus` : ''}`,
+              [{ text: 'Awesome!', onPress: () => router.back() }]
+            )
+          }
+        }).catch(() => {})
       }
 
       // Combo streak + reward burst (feedback #2/#3).
@@ -313,6 +336,7 @@ export default function Practice() {
   }
 
   function handleNext(wasCorrect?: boolean) {
+    aiHelpUsedRef.current = false // fresh question → no AI help yet
     const nextIndex = currentIndex + 1
     // Trigger every 5 questions completed (5, 10, 15, …). Skip during speed
     // rounds — they're short and have their own completion screen.
@@ -458,6 +482,13 @@ export default function Practice() {
         <View style={styles.questionCard}>
           <Text style={styles.questionText}>{formatMath(q.question)}</Text>
         </View>
+
+        {/* Column-arithmetic visual (worksheet style) for Prep–3 on +,−,×,÷.
+            Derived from the question text; re-animates per question via key. */}
+        {(() => {
+          const cm = columnMathFor(q.question, parseInt(grade || '3', 10))
+          return cm ? <ColumnMath key={q.questionId || q.id} a={cm.a} b={cm.b} op={cm.op} /> : null
+        })()}
 
         {/* Result */}
         {result && (

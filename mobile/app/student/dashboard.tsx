@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator, Alert,
+  StyleSheet, RefreshControl, ActivityIndicator, Alert, Image,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
 import * as Haptics from 'expo-haptics'
 import api, { studentAPI } from '../../lib/api'
@@ -54,7 +54,7 @@ function buildNudges(
       if (info) {
         nudges.push({
           emoji: '🎯',
-          title: 'Weak Spot Alert!',
+          title: 'Development Spot Alert!',
           message: `Your ${info.name} needs work (${Math.round(weakest.currentScore || 0)}/100). Let's improve it!`,
           action: 'Practice Now',
           skill: weakest,
@@ -129,6 +129,9 @@ export default function StudentDashboard() {
   const [showReview, setShowReview] = useState(false) // pre-launch review survey (#8)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
+  const [dailyTask, setDailyTask] = useState<any>(null)
+  // Availability: "Available" (matchable in Challenge) vs "Busy studying".
+  const [available, setAvailable] = useState(true)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<SkillCategoryKey | null>(null)
@@ -143,6 +146,24 @@ export default function StudentDashboard() {
   const [showHeroSheet, setShowHeroSheet] = useState(false)
 
   useEffect(() => { loadData() }, [])
+
+  // Presence heartbeat — keep this student "online" with their availability so
+  // peers can (or can't) challenge them. Pings on mount + every 30s.
+  async function sendPresence(isAvailable: boolean) {
+    try {
+      const id = await SecureStore.getItemAsync('user_id')
+      if (id) await studentAPI.presence(id, isAvailable)
+    } catch { /* best-effort */ }
+  }
+  function toggleAvailability() {
+    setAvailable(prev => { const next = !prev; sendPresence(next); return next })
+  }
+  useEffect(() => {
+    sendPresence(available)
+    const t = setInterval(() => sendPresence(available), 30000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available])
 
   // Junior Mode (Prep–3): the Standard dashboard isn't age-appropriate — send the
   // youngest students to the Hero-first Junior home instead.
@@ -236,6 +257,12 @@ export default function StudentDashboard() {
       })
       setRecommendations(mathsRecs)
       setStats(data.stats || null)
+
+      // HERO Daily Task — gate categories + arcade until it's done.
+      try {
+        const dt = await studentAPI.dailyTask(id)
+        setDailyTask(dt?.data?.task || null)
+      } catch { /* non-fatal — leave unlocked if it can't load */ }
     } catch (err) {
       console.error('Dashboard load error:', err)
       setStudent(null)
@@ -271,6 +298,10 @@ export default function StudentDashboard() {
   }, [student?.id, recommendations.length, stats?.mastered])
 
   function openCategoryPractice(categoryKey: SkillCategoryKey) {
+    if (dailyTaskLocked) {
+      Alert.alert('🦸 HERO Daily Task', 'Finish today’s HERO task first to unlock freestyle practice and the arcade!')
+      return
+    }
     // Find a SKILL_ID_MAP entry in this category, prefer the student's grade.
     const matchingIds = (Object.entries(SKILL_ID_MAP) as Array<[string, { category: SkillCategoryKey; name: string }]>)
       .filter(([, data]) => data.category === categoryKey)
@@ -321,18 +352,56 @@ export default function StudentDashboard() {
     })
   }
 
+  // Refresh the daily-task state each time the dashboard regains focus (e.g.
+  // returning from a practice run that completed the task) so the gate updates.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      ;(async () => {
+        const id = await SecureStore.getItemAsync('user_id')
+        if (!id) return
+        try {
+          const dt = await studentAPI.dailyTask(id)
+          if (active) setDailyTask(dt?.data?.task || null)
+        } catch {}
+      })()
+      return () => { active = false }
+    }, [])
+  )
+
+  const dailyTaskLocked = !!dailyTask && dailyTask.done !== true
+
+  function openDailyTask() {
+    if (!dailyTask?.skillId) return
+    pushPractice(
+      { id: dailyTask.skillId, name: dailyTask.skillName },
+      { dailyTask: 'true', title: '🦸 HERO Daily Task' }
+    )
+  }
+
+  // Guard freestyle entry points while the task is locked.
+  function guardedOpen(fn: () => void) {
+    if (dailyTaskLocked) {
+      Alert.alert('🦸 HERO Daily Task', 'Finish today’s HERO task first to unlock freestyle practice and the arcade!')
+      return
+    }
+    fn()
+  }
+
   function openDailyPuzzle() {
-    const hardest = [...recommendations].sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0))[0]
-    pushPractice(hardest)
+    guardedOpen(() => {
+      const hardest = [...recommendations].sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0))[0]
+      pushPractice(hardest)
+    })
   }
   function openSpeedRound() {
-    pushPractice(recommendations[0], { speedRound: 'true' })
+    guardedOpen(() => pushPractice(recommendations[0], { speedRound: 'true' }))
   }
   function openHeroPick() {
-    pushPractice(recommendations[0])
+    guardedOpen(() => pushPractice(recommendations[0]))
   }
   function openWeakSpot() {
-    pushPractice(weakestSkill)
+    guardedOpen(() => pushPractice(weakestSkill))
   }
 
   if (loading) {
@@ -386,19 +455,39 @@ export default function StudentDashboard() {
 
       {/* A) Header — brand + theme toggle, then avatar/greeting with coins+streak */}
       <View style={s.header}>
-        {/* Top row: brand left, theme toggle right */}
+        {/* Top row: brand left, availability + theme toggle right */}
         <View style={s.topRow}>
           <Text style={s.brand}>
             MyMaths<Text style={{ color: colors.accentGold }}>Hero</Text>
           </Text>
-          <ThemeToggle compact />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {/* Available / Busy studying — controls Challenge matchmaking. */}
+            <TouchableOpacity
+              onPress={toggleAvailability}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: 'rgba(127,127,127,0.14)', borderRadius: 999,
+                paddingHorizontal: 10, paddingVertical: 5,
+              }}
+            >
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: available ? '#34D399' : '#F59E0B' }} />
+              <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: '700' }}>
+                {available ? 'Available' : 'Busy'}
+              </Text>
+            </TouchableOpacity>
+            <ThemeToggle compact />
+          </View>
         </View>
 
         {/* Avatar + greeting; coins + streak pills sit under the toggle (right). */}
         <View style={s.greetingRow}>
           <TouchableOpacity onPress={() => router.push('/student/profile')} activeOpacity={0.85}>
             <View style={s.avatarRing}>
-              <CharacterAvatar id={student?.avatar} size={60} />
+              {/* Uploaded profile photo (self-view) if set, else the avatar. */}
+              {student?.profilePhoto
+                ? <Image source={{ uri: student.profilePhoto }} style={{ width: 60, height: 60, borderRadius: 30 }} />
+                : <CharacterAvatar id={student?.avatar} size={60} />}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -441,6 +530,48 @@ export default function StudentDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />
         }
       >
+        {/* HERO Daily Task — locks freestyle + arcade until completed */}
+        {dailyTask && (
+          <View style={{
+            marginHorizontal: 16, marginTop: 12, borderRadius: 18, padding: 18,
+            backgroundColor: dailyTaskLocked ? '#1B2B4B' : '#065F46',
+            borderWidth: 2, borderColor: dailyTaskLocked ? theme.colors.gold : '#34D399',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Text style={{ fontSize: 30 }}>🦸</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>
+                  {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete! 🎉'}
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
+                  {dailyTaskLocked
+                    ? `${dailyTask.skillName} · ${dailyTask.progress || 0}/${dailyTask.target}`
+                    : 'Freestyle + arcade unlocked. Nice work!'}
+                </Text>
+              </View>
+              {dailyTask.bonus > 0 && (
+                <Text style={{ color: theme.colors.gold, fontWeight: '800', fontSize: 13 }}>+{dailyTask.bonus} 🪙</Text>
+              )}
+            </View>
+            <View style={{ height: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginBottom: dailyTaskLocked ? 12 : 0 }}>
+              <View style={{
+                height: '100%', borderRadius: 4,
+                backgroundColor: dailyTaskLocked ? theme.colors.gold : '#34D399',
+                width: `${Math.min(100, ((dailyTask.progress || 0) / (dailyTask.target || 1)) * 100)}%` as any,
+              }} />
+            </View>
+            {dailyTaskLocked && (
+              <TouchableOpacity onPress={openDailyTask} activeOpacity={0.85} style={{
+                backgroundColor: theme.colors.gold, borderRadius: 12, paddingVertical: 12, alignItems: 'center',
+              }}>
+                <Text style={{ color: '#1B2B4B', fontWeight: '800', fontSize: 14 }}>
+                  {(dailyTask.progress || 0) > 0 ? 'Continue task →' : 'Start today’s task →'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* C) Today's Challenges — horizontal cards */}
         <View style={s.section}>
           <Text style={[s.sectionTitle, { color: colors.textPrimary }]}>Today&apos;s Challenges ✦</Text>
@@ -487,12 +618,24 @@ export default function StudentDashboard() {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Weak Spot */}
+            {/* Monthly Review Exam */}
+            <TouchableOpacity onPress={() => router.push('/student/monthly-exam')} activeOpacity={0.85}>
+              <LinearGradient colors={['#7C2D12', '#B45309']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
+                <Text style={s.challengeEmoji}>📅</Text>
+                <Text style={s.challengeTitle}>Monthly Review</Text>
+                <Text style={s.challengeSub} numberOfLines={1}>20-Q check-up</Text>
+                <View style={s.pointsPill}>
+                  <Text style={s.pointsText}>up to 100 🪙</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Development Spot */}
             {weakestSkill && (
               <TouchableOpacity onPress={openWeakSpot} activeOpacity={0.85}>
                 <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
                 <Text style={s.challengeEmoji}>🎯</Text>
-                <Text style={s.challengeTitle}>Weak Spot</Text>
+                <Text style={s.challengeTitle}>Development Spot</Text>
                 <Text style={s.challengeSub} numberOfLines={1}>{weakestSkill.name}</Text>
                 <View style={s.pointsPill}>
                   <Text style={s.pointsText}>+25 pts</Text>

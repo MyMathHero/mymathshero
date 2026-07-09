@@ -10,7 +10,7 @@ import * as SecureStore from 'expo-secure-store'
 import { WebView } from 'react-native-webview'
 import { useVideoPlayer, VideoView } from 'expo-video'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { arcadeAPI } from '../../lib/api'
+import { arcadeAPI, studentAPI } from '../../lib/api'
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../lib/arcadeGames'
 
 const { width, height } = Dimensions.get('window')
@@ -38,8 +38,14 @@ export default function ArcadeScreen() {
   const [sessionMinutes, setSessionMinutes] = useState(0)
   const [showEntrance, setShowEntrance] = useState(true)
   const [entranceDone, setEntranceDone] = useState(false)
+  const [showBuyTime, setShowBuyTime] = useState(true) // buy-time step before lobby
   const [webViewError, setWebViewError] = useState(false)
+  const [gameLoading, setGameLoading] = useState(false)
+  const [buyingTime, setBuyingTime] = useState<string | null>(null)
+  const [taskLocked, setTaskLocked] = useState(false)
   const timerRef = useRef<any>(null)
+  const sessionIdRef = useRef<string | null>(null)
+  const playingGameRef = useRef<any>(null)
   const entranceScale = useRef(new Animated.Value(0.8)).current
   const entranceOpacity = useRef(new Animated.Value(0)).current
 
@@ -114,6 +120,12 @@ export default function ArcadeScreen() {
       setStudentId(id)
       const res = await arcadeAPI.getStatus(id)
       setArcadeData(res.data)
+      // HERO Daily Task gate — arcade stays locked until today's task is done.
+      try {
+        const dt = await studentAPI.dailyTask(id)
+        const task = dt?.data?.task
+        setTaskLocked(!!task && task.done !== true)
+      } catch { setTaskLocked(false) }
     } catch {
       Alert.alert('Error', 'Could not load arcade data')
     } finally {
@@ -121,29 +133,54 @@ export default function ArcadeScreen() {
     }
   }
 
-  // Check if daily time limit is reached
-  function isTimeLimitReached(): boolean {
-    const used = arcadeData?.minutesToday || 0
-    const limit = arcadeData?.arcadeSettings?.dailyMinutes || 30
-    return used >= limit
+  // The gate is the purchased time wallet now, not a daily cap.
+  function timeLeft(): number {
+    return Math.max(0, arcadeData?.minutesRemaining || 0)
   }
 
-  // Get unlock time (24h from first play today)
-  function getUnlockTime(): string {
-    // Calculate when limit resets (midnight AEST)
-    const now = new Date()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(0, 0, 0, 0)
-    const hoursLeft = Math.ceil(
-      (tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)
+  // Buy a time pack ('5' or '10') with coins → credits the wallet.
+  async function buyTime(pack: '5' | '10') {
+    if (buyingTime) return
+    setBuyingTime(pack)
+    try {
+      const res = await arcadeAPI.buyTime(studentId, pack)
+      const data = res.data
+      if (data.success) {
+        setArcadeData((prev: any) => ({
+          ...prev,
+          coins: data.newCoins ?? prev.coins,
+          minutesRemaining: data.minutesRemaining ?? prev.minutesRemaining,
+        }))
+      } else {
+        Alert.alert('Not enough coins', data.error || 'Could not buy time.')
+      }
+    } catch (err: any) {
+      Alert.alert('Oops', err?.response?.data?.error || 'Connection error. Try again.')
+    } finally {
+      setBuyingTime(null)
+    }
+  }
+
+  function promptBuyTime() {
+    Alert.alert(
+      '⏱️ Out of arcade time',
+      `Buy more play time with your coins.\n\nYou have ${arcadeData?.coins || 0} coins 🪙`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: '5 min · 100 🪙', onPress: () => buyTime('5') },
+        { text: '10 min · 200 🪙', onPress: () => buyTime('10') },
+      ]
     )
-    return `${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}`
   }
 
   async function handleGameTap(game: any) {
-    // Check parent disabled
-    if (!arcadeData?.arcadeSettings?.enabled) {
+    // HERO Daily Task gate — must finish today's task before playing.
+    if (taskLocked) {
+      Alert.alert('🦸 HERO Daily Task', 'Finish today’s HERO task first to unlock the Arcade!')
+      return
+    }
+    // Parent on/off gate.
+    if (arcadeData?.arcadeSettings?.enabled === false) {
       Alert.alert(
         '🔒 Arcade Paused',
         'Your parent has paused Arcade access. Ask them to turn it on in the Parent Hub.',
@@ -152,174 +189,102 @@ export default function ArcadeScreen() {
       return
     }
 
-    // Check daily time limit
-    if (isTimeLimitReached()) {
-      Alert.alert(
-        '⏰ Time is Up for Today!',
-        `You have used all your arcade time today. Come back in ${getUnlockTime()}! Keep practising Maths to earn more play time.`,
-        [
-          { text: 'OK' },
-          { text: '✦ Practice Maths', onPress: () => router.back() },
-        ]
-      )
-      return
-    }
-
-    // Coming soon
+    // Coming soon.
     if (game.comingSoon || !game.embedUrl) {
-      Alert.alert(
-        '🎮 Coming Soon!',
-        `${game.title} is coming very soon. Stay tuned!`,
-        [{ text: 'OK' }]
-      )
+      Alert.alert('🎮 Coming Soon!', `${game.title} is coming very soon. Stay tuned!`, [{ text: 'OK' }])
       return
     }
 
-    const isUnlocked = (arcadeData?.unlockedGames || []).includes(game.id)
-
-    if (!isUnlocked) {
-      if ((arcadeData?.coins || 0) < game.coinsCost) {
-        Alert.alert(
-          '🪙 Not Enough Coins',
-          `Need ${game.coinsCost} coins to unlock ${game.title}.\n\nYou have ${arcadeData?.coins || 0} coins.\n\nKeep answering Maths questions to earn coins!`,
-          [
-            { text: 'OK' },
-            { text: '✦ Go Practice', onPress: () => router.back() },
-          ]
-        )
-        return
-      }
-      Alert.alert(
-        `🔓 Unlock ${game.title}?`,
-        `Spend ${game.coinsCost} coins 🪙 to unlock this game forever!\n\nYou have ${arcadeData?.coins || 0} coins.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: `Unlock (${game.coinsCost} 🪙) →`,
-            onPress: () => unlockAndPlay(game),
-          },
-        ]
-      )
+    // Need purchased play time.
+    if (timeLeft() <= 0) {
+      promptBuyTime()
       return
     }
 
-    await startPlayingGame(game)
+    // Open the game in a loading state — the WebView's onLoad starts the billed
+    // session, so no purchased time is spent while the game loads.
+    playingGameRef.current = game
+    sessionIdRef.current = null
+    setSessionId(null)
+    setPlayingGame(game)
+    setSessionMinutes(0)
+    setWebViewError(false)
+    setGameLoading(true)
+    clearInterval(timerRef.current)
   }
 
-  async function unlockAndPlay(game: any) {
-    try {
-      const res = await arcadeAPI.unlockGame(studentId, game.id)
-      const data = res.data
-      if (data.success || data.alreadyUnlocked) {
-        setArcadeData((prev: any) => ({
-          ...prev,
-          coins: data.newCoins ?? prev.coins,
-          unlockedGames: [...(prev.unlockedGames || []), game.id],
-        }))
-        await startPlayingGame(game)
-      } else {
-        Alert.alert('Error', data.error || 'Could not unlock game')
-      }
-    } catch {
-      Alert.alert('Error', 'Connection error. Please try again.')
-    }
-  }
-
-  async function startPlayingGame(game: any) {
+  // Called by the WebView onLoadEnd — the game is on screen, so begin the billed
+  // session + the heartbeat that counts the purchased time wallet down.
+  async function startBilledSession() {
+    const game = playingGameRef.current
+    if (!game || sessionIdRef.current) return
+    setGameLoading(false)
     try {
       const res = await arcadeAPI.startGame(studentId, game.id)
       const data = res.data
-
       if (data.limitReached) {
-        Alert.alert(
-          '⏰ Daily Limit Reached',
-          `You have used all your arcade time today. Come back in ${getUnlockTime()}!`,
-          [
-            { text: 'OK' },
-            { text: '✦ Practice Maths', onPress: () => router.back() },
-          ]
-        )
+        promptBuyTime()
+        exitGame()
         return
       }
-
       if (data.success) {
-        const newSessionId = data.sessionId
-        setSessionId(newSessionId)
-        setPlayingGame(game)
-        setSessionMinutes(0)
-        setWebViewError(false)
-        clearInterval(timerRef.current)
-
+        sessionIdRef.current = data.sessionId
+        setSessionId(data.sessionId)
+        if (typeof data.minutesRemaining === 'number') {
+          setArcadeData((prev: any) => ({ ...prev, minutesRemaining: data.minutesRemaining }))
+        }
         let localMinutes = 0
-
-        // Heartbeat every 60s — persists durationMinutes to the DB and pulls
-        // back the server's authoritative minutesToday so time stays in sync
-        // across devices even if the app is later closed mid-game.
         timerRef.current = setInterval(async () => {
           localMinutes += 1
           setSessionMinutes(localMinutes)
-
           try {
-            const hbRes = await arcadeAPI.heartbeat(
-              newSessionId,
-              studentId,
-              localMinutes
-            )
+            const hbRes = await arcadeAPI.heartbeat(sessionIdRef.current!, studentId, localMinutes)
             const hbData = hbRes.data
-
-            if (hbData.minutesToday !== undefined) {
-              setArcadeData((prev: any) => ({
-                ...prev,
-                minutesToday: hbData.minutesToday,
-                minutesRemaining: hbData.minutesRemaining,
-              }))
+            if (hbData.minutesRemaining !== undefined) {
+              setArcadeData((prev: any) => ({ ...prev, minutesRemaining: hbData.minutesRemaining }))
             }
-
             if (hbData.limitReached) {
               clearInterval(timerRef.current)
               Alert.alert(
                 '⏰ Time is Up!',
-                'You have reached your daily arcade limit. Great gaming today!',
-                [{ text: 'OK', onPress: () => exitGame(true) }]
+                'You’re out of arcade time. Buy more with coins to keep playing!',
+                [{ text: 'OK', onPress: () => exitGame() }]
               )
             }
           } catch {
-            // Heartbeat failed — keep playing, time tracked locally for now.
+            // Heartbeat failed — keep playing, reconciled on exit.
           }
         }, 60000)
       } else {
         Alert.alert('Error', data.error || 'Could not start game')
+        exitGame()
       }
     } catch {
       Alert.alert('Error', 'Connection error. Please try again.')
+      exitGame()
     }
   }
 
-  function exitGame(fromLimit = false) {
+  function exitGame(_fromLimit = false) {
     clearInterval(timerRef.current)
-    if (sessionId) {
-      arcadeAPI.endGame(
-        studentId,
-        playingGame?.id || '',
-        sessionId,
-        sessionMinutes
-      ).then(() => {
-        // Refresh arcade data after ending session
-        loadData()
-      }).catch(() => {})
+    const sid = sessionIdRef.current
+    if (sid) {
+      arcadeAPI.endGame(studentId, playingGameRef.current?.id || '', sid, sessionMinutes)
+        .then(() => loadData())
+        .catch(() => {})
     }
     setPlayingGame(null)
+    playingGameRef.current = null
     setSessionId(null)
+    sessionIdRef.current = null
     setSessionMinutes(0)
+    setGameLoading(false)
     setWebViewError(false)
   }
 
   const filteredGames = ARCADE_GAMES.filter(g =>
     activeCategory === 'all' || g.category === activeCategory
   )
-
-  const isUnlocked = (gameId: string) =>
-    (arcadeData?.unlockedGames || []).includes(gameId)
 
   // ==================
   // LOADING
@@ -385,95 +350,63 @@ export default function ArcadeScreen() {
     )
   }
 
-  // ==================
-  // COIN LOCKED
-  // ==================
-  if ((arcadeData?.coins || 0) < 20) {
+  // Arcade is always enterable (games are free to browse). After the intro, the
+  // BUY-TIME step lets students top up their play-time wallet with coins before
+  // the game lobby (parity with web). If a parent has disabled the arcade we
+  // skip straight to the lobby's parent-paused messaging.
+  if (showBuyTime && arcadeData?.arcadeSettings?.enabled !== false) {
+    const mins = arcadeData?.minutesRemaining || 0
+    const coins = arcadeData?.coins || 0
     return (
-      <SafeAreaView style={s.fullDark}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ padding: 16 }}>
-          <Text style={{ color: '#C49A1A', fontWeight: '700' }}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: 'center',
-          justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 64, marginBottom: 16 }}>🔒</Text>
-          <Text style={s.lockedTitle}>Arcade Locked</Text>
+      <View style={s.fullDark}>
+        <View style={{ padding: 28, alignItems: 'center', maxWidth: 440 }}>
+          <Text style={{ fontSize: 60, marginBottom: 10 }}>⏱️</Text>
+          <Text style={s.lockedTitle}>Get Play Time</Text>
           <Text style={s.lockedSub}>
-            You need at least{' '}
-            <Text style={{ color: '#C49A1A', fontWeight: '800' }}>
-              20 coins 🪙
-            </Text>{' '}
-            to enter the Arcade. Answer Maths questions to earn coins!
+            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
           </Text>
-          <View style={s.xpBox}>
-            <Text style={{ color: '#C49A1A', fontSize: 13,
-              marginBottom: 4 }}>Your Coins 🪙</Text>
-            <Text style={{ color: 'white', fontSize: 52,
-              fontWeight: '900' }}>
-              {arcadeData?.coins || 0}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)',
-              fontSize: 12, marginTop: 4 }}>
-              Need 20 coins to unlock
-            </Text>
+          <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 15, marginBottom: 20 }}>
+            You have {mins} min left · 🪙 {coins}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+            {[
+              { pack: '5' as const, minutes: 5, coins: 100 },
+              { pack: '10' as const, minutes: 10, coins: 200 },
+            ].map(p => {
+              const afford = coins >= p.coins
+              return (
+                <TouchableOpacity
+                  key={p.pack}
+                  onPress={() => buyTime(p.pack)}
+                  disabled={buyingTime === p.pack || !afford}
+                  style={{
+                    flex: 1, paddingVertical: 18, borderRadius: 16, alignItems: 'center',
+                    backgroundColor: afford ? '#C49A1A' : 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text style={{ color: afford ? '#0A0A1A' : 'rgba(255,255,255,0.4)', fontWeight: '800', fontSize: 18 }}>
+                    {buyingTime === p.pack ? '…' : `⏱️ ${p.minutes} min`}
+                  </Text>
+                  <Text style={{ color: afford ? '#0A0A1A' : 'rgba(255,255,255,0.4)', fontWeight: '700', fontSize: 13, marginTop: 4 }}>
+                    {p.coins} 🪙
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
           <TouchableOpacity
-            style={s.goldBtn}
-            onPress={() => router.back()}
+            onPress={() => setShowBuyTime(false)}
+            style={{
+              width: '100%', paddingVertical: 15, borderRadius: 14, alignItems: 'center',
+              backgroundColor: mins > 0 ? '#16A34A' : 'rgba(255,255,255,0.08)',
+            }}
           >
-            <Text style={s.goldBtnText}>✦ Go Practice Maths →</Text>
+            <Text style={{ color: mins > 0 ? 'white' : 'rgba(255,255,255,0.6)', fontWeight: '800', fontSize: 15 }}>
+              {mins > 0 ? 'Continue to games →' : 'Browse games →'}
+            </Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    )
-  }
-
-  // ==================
-  // TIME LIMIT SCREEN
-  // ==================
-  if (isTimeLimitReached()) {
-    return (
-      <SafeAreaView style={s.fullDark}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ padding: 16 }}>
-          <Text style={{ color: '#C49A1A', fontWeight: '700' }}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: 'center',
-          justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 64, marginBottom: 16 }}>⏰</Text>
-          <Text style={s.lockedTitle}>Time&apos;s Up!</Text>
-          <Text style={s.lockedSub}>
-            You have used your{' '}
-            <Text style={{ color: '#C49A1A', fontWeight: '800' }}>
-              {arcadeData?.arcadeSettings?.dailyMinutes || 30} minutes
-            </Text>{' '}
-            of Arcade time today.
-          </Text>
-          <View style={s.xpBox}>
-            <Text style={{ color: '#C49A1A', fontSize: 14,
-              fontWeight: '700', marginBottom: 4 }}>
-              Come back in
-            </Text>
-            <Text style={{ color: 'white', fontSize: 40,
-              fontWeight: '900' }}>
-              {getUnlockTime()}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={s.goldBtn}
-            onPress={() => router.back()}
-          >
-            <Text style={s.goldBtnText}>✦ Practice More Maths →</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      </View>
     )
   }
 
@@ -546,6 +479,8 @@ export default function ArcadeScreen() {
             <WebView
               source={{ uri: getGameUrl(playingGame.embedUrl) }}
               style={{ flex: 1 }}
+              // Start billing time only once the game has finished loading.
+              onLoadEnd={startBilledSession}
               // Critical settings for inline game playback
               allowsInlineMediaPlayback
               allowsFullscreenVideo
@@ -586,6 +521,24 @@ export default function ArcadeScreen() {
               `}
               userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
             />
+          )}
+
+          {/* Loading overlay — your paid time only starts once the game loads. */}
+          {gameLoading && !webViewError && (
+            <View style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center',
+              justifyContent: 'center', gap: 12,
+            }}>
+              <Text style={{ fontSize: 44 }}>🎮</Text>
+              <ActivityIndicator color="#C49A1A" size="large" />
+              <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 16 }}>
+                Loading {playingGame?.title}…
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>
+                Your time starts when the game loads ⏱️
+              </Text>
+            </View>
           )}
 
           {/* WebView error fallback */}
@@ -658,35 +611,49 @@ export default function ArcadeScreen() {
           </View>
         </View>
 
-        {/* Daily time progress bar */}
+        {/* Time wallet + buy-time */}
         <View style={s.timeBar}>
           <View style={{ flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginBottom: 6 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.6)',
-              fontSize: 12, fontWeight: '600' }}>
-              ⏱ Today&apos;s Play Time
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.6)',
-              fontSize: 12 }}>
-              {arcadeData?.minutesToday || 0}/
-              {arcadeData?.arcadeSettings?.dailyMinutes || 30} min
+            justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 8 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.7)',
+              fontSize: 13, fontWeight: '700' }}>
+              ⏱ {arcadeData?.minutesRemaining || 0} min of play time left
             </Text>
           </View>
-          <View style={s.timeBarBg}>
-            <View style={[s.timeBarFill, {
-              width: `${Math.min(100,
-                ((arcadeData?.minutesToday || 0) /
-                (arcadeData?.arcadeSettings?.dailyMinutes || 30)) * 100
-              )}%` as any,
-            }]} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {[
+              { pack: '5' as const, minutes: 5, coins: 100 },
+              { pack: '10' as const, minutes: 10, coins: 200 },
+            ].map(p => {
+              const afford = (arcadeData?.coins || 0) >= p.coins
+              return (
+                <TouchableOpacity
+                  key={p.pack}
+                  onPress={() => buyTime(p.pack)}
+                  disabled={buyingTime === p.pack || !afford}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 10,
+                    alignItems: 'center',
+                    backgroundColor: afford ? '#C49A1A' : 'rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <Text style={{
+                    color: afford ? '#0A0A1A' : 'rgba(255,255,255,0.4)',
+                    fontWeight: '800', fontSize: 13,
+                  }}>
+                    {buyingTime === p.pack ? '…' : `+${p.minutes}m · ${p.coins}🪙`}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </View>
 
         {/* Stats row */}
         <View style={s.statsRow}>
           {[
-            { label: 'Unlocked', value: (arcadeData?.unlockedGames || []).length, emoji: '🔓' },
+            { label: 'Time Left', value: `${arcadeData?.minutesRemaining || 0}m`, emoji: '⏱️' },
             { label: 'Available', value: ARCADE_GAMES.filter(g => !g.comingSoon).length, emoji: '🎮' },
             { label: 'Streak', value: arcadeData?.streak || 0, emoji: '🔥' },
           ].map((s2, i) => (
@@ -735,9 +702,7 @@ export default function ArcadeScreen() {
           showsVerticalScrollIndicator={false}
         >
           {filteredGames.map(game => {
-            const unlocked = isUnlocked(game.id)
-            const canAffordIt = (arcadeData?.coins || 0) >= game.coinsCost
-            const limitHit = isTimeLimitReached()
+            const hasTime = (arcadeData?.minutesRemaining || 0) > 0
 
             return (
               <TouchableOpacity
@@ -745,8 +710,7 @@ export default function ArcadeScreen() {
                 onPress={() => handleGameTap(game)}
                 style={[
                   s.gameCard,
-                  unlocked && !game.comingSoon && s.gameCardUnlocked,
-                  (game.comingSoon || limitHit) && s.gameCardDim,
+                  game.comingSoon && s.gameCardDim,
                 ]}
                 activeOpacity={0.75}
               >
@@ -770,9 +734,9 @@ export default function ArcadeScreen() {
                         <Text style={s.soonText}>SOON</Text>
                       </View>
                     )}
-                    {!game.comingSoon && unlocked && (
+                    {!game.comingSoon && (
                       <View style={s.unlockedBadge}>
-                        <Text style={s.unlockedText}>✓ UNLOCKED</Text>
+                        <Text style={s.unlockedText}>FREE</Text>
                       </View>
                     )}
                     {game.premiumOnly && (
@@ -797,22 +761,14 @@ export default function ArcadeScreen() {
                   {game.comingSoon ? (
                     <Text style={{ color: 'rgba(255,255,255,0.25)',
                       fontSize: 20 }}>🔜</Text>
-                  ) : limitHit ? (
-                    <Text style={{ color: 'rgba(255,255,255,0.25)',
-                      fontSize: 20 }}>⏰</Text>
-                  ) : unlocked ? (
+                  ) : !hasTime ? (
+                    <Text style={{ color: 'rgba(255,255,255,0.35)',
+                      fontSize: 20 }}>⏱️</Text>
+                  ) : (
                     <View style={s.playBtn}>
                       <Text style={{ color: 'white',
                         fontSize: 16, fontWeight: '900' }}>
                         ▶
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={[s.costPill,
-                      !canAffordIt && s.costPillPoor]}>
-                      <Text style={[s.costText,
-                        !canAffordIt && s.costTextPoor]}>
-                        🪙{game.coinsCost}
                       </Text>
                     </View>
                   )}

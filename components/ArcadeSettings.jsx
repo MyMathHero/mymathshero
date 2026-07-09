@@ -2,14 +2,11 @@
 import { useState, useEffect } from 'react'
 import { Gamepad2 } from 'lucide-react'
 
-const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const DAY_LABELS = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' }
-const MINUTE_OPTIONS = [15, 30, 45, 60, 90, 120]
-
+// Parents now control ONLY whether the arcade is on/off. Play time is bought by
+// the student with coins (100c → 5 min, 200c → 10 min), so the daily-minutes cap
+// and allowed-days controls were removed (1 Jul 2026 update).
 const DEFAULT_SETTINGS = {
   enabled: true,
-  dailyMinutes: 30,
-  allowedDays: [...ALL_DAYS],
 }
 
 // Self-contained parent control panel for Hero Arcade limits. Settings are
@@ -84,14 +81,6 @@ export default function ArcadeSettings({ parentId, children = [] }) {
     }
   }
 
-  function toggleDay(day) {
-    const has = settings.allowedDays?.includes(day)
-    const allowedDays = has
-      ? settings.allowedDays.filter(d => d !== day)
-      : [...(settings.allowedDays || []), day]
-    save({ ...settings, allowedDays })
-  }
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 mt-6">
       <div className="flex items-center justify-between mb-4">
@@ -102,7 +91,7 @@ export default function ArcadeSettings({ parentId, children = [] }) {
           <div>
             <h3 className="font-bold text-navy text-sm">Hero Arcade Controls</h3>
             <p className="text-[11px] text-gray-400">
-              {selectedChild?.name ? `Manage ${selectedChild.name}'s` : 'Manage'} game-time limits
+              Turn the Arcade on or off for {selectedChild?.name || 'your child'}
             </p>
           </div>
         </div>
@@ -143,56 +132,11 @@ export default function ArcadeSettings({ parentId, children = [] }) {
       ) : !selectedChildId ? (
         <p className="text-xs text-gray-400 py-2">No child selected.</p>
       ) : (
-      <div className={settings.enabled ? '' : 'opacity-40 pointer-events-none'}>
-        {/* Daily time limit */}
-        <div className="mb-4">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            Daily time limit
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {MINUTE_OPTIONS.map(m => (
-              <button
-                key={m}
-                onClick={() => save({ ...settings, dailyMinutes: m })}
-                disabled={saving}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                  settings.dailyMinutes === m
-                    ? 'bg-[#1B2B4B] text-white border-[#1B2B4B]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {m} min
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Allowed days */}
-        <div>
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            Allowed days
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {ALL_DAYS.map(day => {
-              const on = settings.allowedDays?.includes(day)
-              return (
-                <button
-                  key={day}
-                  onClick={() => toggleDay(day)}
-                  disabled={saving}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                    on
-                      ? 'bg-[#C49A1A] text-white border-[#C49A1A]'
-                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {DAY_LABELS[day]}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+        <p className="text-xs text-gray-500 py-1">
+          {settings.enabled
+            ? 'Arcade is ON. Your child buys play time with the coins they earn (100 coins = 5 min, 200 coins = 10 min).'
+            : 'Arcade is OFF. Your child can’t open games until you turn it back on.'}
+        </p>
       )}
 
       {/* Status line */}

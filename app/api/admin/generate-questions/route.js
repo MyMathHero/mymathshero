@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getSkillGraph } from '@/lib/recommender'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
 import { bandForDifficulty, BAND_ORDER, BAND_RANGE } from '@/lib/difficulty'
+import { parseFractionVisual } from '@/lib/fractionVisual'
 
 // Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
 // taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
@@ -56,6 +57,7 @@ async function generateForSkill(skill, count, band = null) {
     ...(band ? [BAND_INSTRUCTION[band], ''] : []),
     `Each question needs:`,
     `- question: clear, age-appropriate question string`,
+    `- CRITICAL: the question is shown as TEXT ONLY — there is NO image, diagram, shape, or graph displayed. NEVER write a question that requires seeing a picture (e.g. "how many parts are shaded?", "which shape below…", "the graph shows…"). If a shape/graph/data is involved, state ALL of it in words (e.g. "A rectangle with 4 equal parts, 3 shaded — what fraction is shaded?") so it is fully answerable from the text alone.`,
     `- correctAnswer: plain text of the correct answer. DO NOT prefix with a letter like "A)" or "A." — return the literal answer value only (e.g. "45", "Pentagon", "0.5").`,
     `- distractors: array of exactly 3 wrong answers, ALSO as plain text values with NO "A)"/"B)" letter prefixes.`,
     `- difficulty: number between 0.1 and 0.9`,
@@ -140,6 +142,8 @@ function buildQuestionDoc(q, skill, index, band = null) {
     difficultyBand: band || bandForDifficulty(difficulty),
     hint: q.hint || '',
     explanation: q.explanation || '',
+    // Auto-attach a fraction diagram when the wording describes one.
+    ...(parseFractionVisual(q.question) ? { visual: parseFractionVisual(q.question) } : {}),
     active: true,
     source: 'AI-Generated',
     unverified: true, // cleared by verifyDocs() once the inline verifier passes
