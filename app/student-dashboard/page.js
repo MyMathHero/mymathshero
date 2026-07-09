@@ -302,7 +302,9 @@ export default function StudentDashboard() {
   // HERO Daily Task — until it's done, freestyle categories + arcade are locked.
   const [dailyTask, setDailyTask] = useState(null)
   const [dailyTaskCelebration, setDailyTaskCelebration] = useState(null) // {bonus} on finish
-  const dailyTaskLocked = !!dailyTask && dailyTask.done !== true
+  // A due monthly exam supersedes the daily task — it locks everything until done.
+  const [examDue, setExamDue] = useState(false)
+  const dailyTaskLocked = examDue || (!!dailyTask && dailyTask.done !== true)
   const [showMonthlyExam, setShowMonthlyExam] = useState(false)
 
   // ── Fetch progress on mount ─────────────────────────────────────────────────
@@ -390,6 +392,7 @@ export default function StudentDashboard() {
       const res = await fetch(`/api/student/daily-task?studentId=${studentId}`)
       if (!res.ok) return
       const data = await res.json()
+      setExamDue(!!data.examDue)
       setDailyTask(data.task || null)
     } catch { /* non-fatal — leave unlocked if the task can't load */ }
   }
@@ -1556,8 +1559,34 @@ export default function StudentDashboard() {
 
       {activeTab === 'home' && (
       <div className="mx-auto px-4 sm:px-6 lg:px-8 py-6" style={{ paddingBottom: 96, maxWidth: 1080 }}>
+        {/* === HERO MONTHLY EXAM === (due → replaces the daily task, locks all) */}
+        {examDue && (
+          <div style={{ maxWidth: 672, margin: '0 auto 20px' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #7C2D12, #B45309)',
+              borderRadius: 20, padding: 22, border: '2px solid #F59E0B',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <span style={{ fontSize: 34 }}>📅</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ color: 'white', fontWeight: 800, fontSize: 18, margin: 0 }}>Your HERO Monthly Exam is ready!</p>
+                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, margin: '2px 0 0' }}>
+                    A 20-question review from Hero. Finish it to unlock everything — earn up to 100 🪙.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setShowMonthlyExam(true)} style={{
+                width: '100%', padding: '13px', borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, var(--accent-gold), #FFD700)',
+                color: '#1B2B4B', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+              }}>Start my exam →</button>
+            </div>
+          </div>
+        )}
+
         {/* === HERO DAILY TASK === (blocks the rest until completed) */}
-        {dailyTask && (
+        {!examDue && dailyTask && (
           <div style={{ maxWidth: 672, margin: '0 auto 20px' }}>
               <div style={{
                 background: dailyTaskLocked
@@ -2967,7 +2996,12 @@ export default function StudentDashboard() {
         <MonthlyExam
           studentId={authStudentId}
           onClose={() => setShowMonthlyExam(false)}
-          onDone={(r) => { if (r?.bonusAwarded) setCoins(prev => prev + r.bonusAwarded) }}
+          onDone={(r) => {
+            if (r?.bonusAwarded) setCoins(prev => prev + r.bonusAwarded)
+            // Exam done → clears examDue + marks today's task done → unlocks app.
+            setExamDue(false)
+            fetchDailyTask()
+          }}
         />
       )}
 

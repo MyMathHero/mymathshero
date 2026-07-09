@@ -18,6 +18,7 @@ import { formatMath } from '../../components/MathText'
 import ColumnMath from '../../components/ColumnMath'
 import { columnMathFor } from '../../lib/columnMath'
 import { shouldAutoNarrate } from '../../lib/juniorMode'
+import { checkHeroGate } from '../../lib/heroGate'
 import { speak, stopSpeaking } from '../../lib/heroVoice'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 
@@ -68,7 +69,25 @@ export default function Practice() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const cheatCountRef = useRef(0)
 
-  useEffect(() => { loadQuestions(); loadPlan() }, [])
+  useEffect(() => {
+    // HERO gate — freestyle practice is locked until today's task / monthly exam
+    // is done. The daily-task run itself (dailyTask=true) is always allowed.
+    if (isDailyTask) { loadQuestions(); loadPlan(); return }
+    let cancelled = false
+    ;(async () => {
+      const gate = await checkHeroGate()
+      if (cancelled) return
+      if (gate.locked) {
+        Alert.alert('🦸 HERO Task', gate.reason.replace('this', 'practice'), [
+          { text: 'OK', onPress: () => router.replace('/student/dashboard') },
+        ])
+        return
+      }
+      loadQuestions(); loadPlan()
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Resolve the subscription plan. /api/student/progress returns the plan on
   // the student object (resolved server-side from the parent record).

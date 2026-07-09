@@ -42,7 +42,11 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   useEffect(() => () => stopPoll(), [])
 
   const call = useCallback((action: string, extra: any = {}) =>
-    studentAPI.challenge(studentId, action, extra).then(r => r.data).catch(() => null), [studentId])
+    studentAPI.challenge(studentId, action, extra)
+      .then((r: any) => r.data)
+      // Surface the server's error body (e.g. HERO-task/exam lock, parent off)
+      // instead of swallowing it, so the student sees why they can't start.
+      .catch((e: any) => e?.response?.data || null), [studentId])
 
   const startPolling = useCallback((matchId: string) => {
     stopPoll()

@@ -800,6 +800,8 @@ export default function ParentDashboard() {
   const student = progress?.student
   const stats = progress?.stats || {}
   const weeklyActivity = progress?.weeklyActivity || []
+  const heroReviews = progress?.heroReviews || []          // monthly exams + Hero summaries
+  const dailyTaskStatus = progress?.dailyTaskStatus || null
   const skillTree = progress?.skillTree || []
   const mathsSkills = skillTree.filter(s => s.subject === 'Maths' || s.subject === 'Mathematics')
 
@@ -1037,6 +1039,70 @@ export default function ParentDashboard() {
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-6">No activity recorded this week yet.</p>
+                )}
+              </div>
+            </div>
+
+            {/* HERO Monthly Exams — Hero tells the parent how their child did,
+                with a small score trend. Daily-task status shown lightly. */}
+            <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mt-6">
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center gap-2">
+                <span className="text-base">🦸</span>
+                <h2 className="font-semibold text-navy dark:text-slate-100 colorblind:text-[#1A1A1A] text-sm">HERO Monthly Exams</h2>
+              </div>
+              <div className="p-4">
+                {heroReviews.length > 0 ? (
+                  <>
+                    {/* Latest: Hero's summary + score */}
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 dark:bg-amber-500/5 p-3 mb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Latest review</span>
+                        <span className="text-sm font-extrabold text-navy dark:text-slate-100">{heroReviews[0].score}%</span>
+                      </div>
+                      <p className="text-[13px] text-gray-700 dark:text-slate-200 leading-relaxed">
+                        {heroReviews[0].heroSummary || `Scored ${heroReviews[0].score}% (${heroReviews[0].correct}/${heroReviews[0].total}).`}
+                      </p>
+                      {heroReviews[0].at && (
+                        <p className="text-[10px] text-gray-400 dark:text-slate-400 mt-1">
+                          {new Date(heroReviews[0].at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Score trend (last ~6 exams) */}
+                    {heroReviews.length > 1 && (
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2">Score trend</p>
+                        <div className="flex items-end gap-2 h-20">
+                          {[...heroReviews].reverse().map((e, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                              <div className="w-full rounded-t min-h-[3px]" style={{
+                                height: `${Math.max(3, (e.score / 100) * 64)}px`,
+                                background: e.score >= 90 ? '#16a34a' : e.score >= 70 ? 'var(--accent-gold)' : '#f87171',
+                              }} title={`${e.score}%`} />
+                              <span className="text-[9px] text-gray-400 dark:text-slate-400">{e.score}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-slate-400 text-center py-4">
+                    No monthly exams yet — Hero sets the first review about a month after joining.
+                  </p>
+                )}
+
+                {/* Daily task — light status line */}
+                {dailyTaskStatus && (
+                  <div className="mt-4 pt-3 border-t border-gray-100 dark:border-white/10 flex items-center gap-2">
+                    <span className="text-sm">🦸</span>
+                    <span className="text-[12px] text-gray-600 dark:text-slate-300">
+                      Today&apos;s HERO task: {dailyTaskStatus.done
+                        ? <strong className="text-emerald-600">done ✓</strong>
+                        : <span className="text-amber-600 font-semibold">{dailyTaskStatus.progress}/{dailyTaskStatus.target}</span>}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>

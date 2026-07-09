@@ -127,6 +127,32 @@ export async function GET(request) {
       .sort({ earnedAt: -1 })
       .toArray()
 
+    // HERO Monthly Exams — the last several, newest first, with Hero's summary
+    // for the parent. (The exam is our headline: Hero tells parents how the
+    // child did.) Plus today's daily-task status (lighter — just done/target).
+    const examDocs = await db.collection('monthly_exams')
+      .find({ studentId }, { projection: { _id: 0, score: 1, correct: 1, total: 1, bonus: 1, heroSummary: 1, takenAt: 1, createdAt: 1 } })
+      .sort({ takenAt: -1, createdAt: -1 })
+      .limit(6)
+      .toArray()
+    const heroReviews = examDocs.map(e => ({
+      score: e.score ?? 0,
+      correct: e.correct ?? 0,
+      total: e.total ?? 0,
+      bonus: e.bonus ?? 0,
+      heroSummary: e.heroSummary || '',
+      at: e.takenAt || e.createdAt || null,
+    }))
+    const dailyTaskStatus = student.dailyTask
+      ? {
+          date: student.dailyTask.date || null,
+          done: student.dailyTask.done === true,
+          progress: student.dailyTask.progress || 0,
+          target: student.dailyTask.target || 0,
+          skillName: student.dailyTask.skillName || null,
+        }
+      : null
+
     return NextResponse.json({
       student: {
         id: student.id,
@@ -159,6 +185,8 @@ export async function GET(request) {
       strandBreakdown,
       giftMilestone,
       recentBadges,
+      heroReviews,       // monthly-exam history + Hero summaries (for the parent)
+      dailyTaskStatus,   // today's daily-task status (lighter)
     })
 
   } catch (error) {

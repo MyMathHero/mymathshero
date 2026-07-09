@@ -4,7 +4,8 @@ import { ARCADE_GAMES } from '@/lib/arcadeGames'
 import { adjustCoins } from '@/lib/coins'
 import { getAESTMidnightUTC, TIME_PACKS, timePackCost, timePackMinutes } from '@/lib/arcadeTime'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
-import { isTaskDoneToday, needsNewTask } from '@/lib/dailyTask'
+import { isTaskDoneToday } from '@/lib/dailyTask'
+import { isExamDue } from '@/lib/monthlyExam'
 
 let client
 async function connectDB() {
@@ -131,10 +132,19 @@ export async function POST(request) {
         { error: 'Arcade disabled by parent' }, { status: 403 }
       )
 
-      // HERO Daily Task gate — if today's task exists and isn't done, block play.
-      // (When no task has been generated yet today we don't block here; the
-      // dashboard generates it on load.)
-      if (!needsNewTask(student.dailyTask) && !isTaskDoneToday(student.dailyTask)) {
+      // HERO gate — block the arcade unless today's requirement is DONE.
+      //   • A due monthly exam takes priority (it replaces the daily task).
+      //   • Otherwise today's daily task must be complete.
+      // We block whenever it isn't explicitly done (including a fresh day where
+      // no task has been generated yet) so the arcade can't be reached early.
+      const examDue = isExamDue(student.createdAt, student.lastExamAt || null)
+      if (examDue && !isTaskDoneToday(student.dailyTask)) {
+        return NextResponse.json(
+          { error: 'Finish this month’s HERO exam first to unlock the Arcade.', taskLocked: true, examDue: true },
+          { status: 403 }
+        )
+      }
+      if (!isTaskDoneToday(student.dailyTask)) {
         return NextResponse.json(
           { error: 'Finish today’s HERO task first to unlock the Arcade.', taskLocked: true },
           { status: 403 }

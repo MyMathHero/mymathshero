@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { adjustCoins } from '@/lib/coins'
 import { monthlyExamBonus } from '@/lib/coinRules'
 import { getEffectiveCeiling, getRecommendations } from '@/lib/recommender'
+import { isExamDue, daysUntilExam } from '@/lib/monthlyExam'
+import { getSkillInfo } from '@/lib/skillNames'
+import { todayKeyAEST } from '@/lib/dailyTask'
 
 let client
 async function connectDB() {
@@ -15,14 +18,6 @@ async function connectDB() {
 
 const EXAM_SIZE = 20 // "20+ questions" review
 
-// Calendar-month key in Sydney time (yyyy-mm) — the exam is once per month.
-function monthKeyAEST(now = new Date()) {
-  const [d, m, y] = now.toLocaleDateString('en-AU', {
-    timeZone: 'Australia/Sydney', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).split('/')
-  return `${y}-${m}`
-}
-
 function buildQuestionMatch(questionId) {
   const or = [{ id: questionId }]
   if (typeof questionId === 'string' && /^[a-fA-F0-9]{24}$/.test(questionId)) {
@@ -31,8 +26,10 @@ function buildQuestionMatch(questionId) {
   return { $or: or }
 }
 
-// GET — has this month's exam been taken? If not, serve a 20-question review
-// drawn from the skills the student has been working on (across the month).
+// GET — is a review exam DUE (per the student's ~monthly cycle from join date)?
+// If due, serve a 20-question review from the skills they've been working on.
+// If not due, report when the next one lands. `due` is sticky: once overdue it
+// stays true until an exam is completed.
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -43,12 +40,13 @@ export async function GET(request) {
     const student = await db.collection('children').findOne({ id: studentId })
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
-    const monthKey = monthKeyAEST()
-    const existing = await db.collection('monthly_exams').findOne({ studentId, monthKey })
-    if (existing) {
+    const lastExamAt = student.lastExamAt || null
+    const due = isExamDue(student.createdAt, lastExamAt)
+
+    if (!due) {
       return NextResponse.json({
-        available: false, alreadyTaken: true, monthKey,
-        lastScore: existing.score, lastBonus: existing.bonus || 0,
+        due: false, available: false,
+        daysUntil: daysUntilExam(student.createdAt, lastExamAt),
       })
     }
 
@@ -77,9 +75,8 @@ export async function GET(request) {
     }))
 
     return NextResponse.json({
+      due: true,
       available: questions.length > 0,
-      alreadyTaken: false,
-      monthKey,
       total: questions.length,
       questions,
       bonusTiers: { 85: 50, 90: 80, 95: 100 },
@@ -90,8 +87,27 @@ export async function GET(request) {
   }
 }
 
-// POST — score the submitted answers, record the monthly exam once, and award
-// the accuracy bonus (85→50, 90→80, 95→100). Idempotent per calendar month.
+// A warm, Hero-voiced note to the PARENT about how their child did on the exam.
+// Kept deterministic (per score band + strongest/weakest skill) so it's fast and
+// always sensible — this is the summary the parent sees in their dashboard.
+function heroExamSummary(firstName, score, correct, total, best, worst) {
+  const name = firstName || 'Your child'
+  const strong = best ? ` ${name} was strongest in ${best}.` : ''
+  const grow = worst && worst !== best ? ` We'll keep building ${worst} together.` : ''
+  let head
+  if (score >= 95) head = `Outstanding! ${name} aced this month's review — ${correct}/${total} correct.`
+  else if (score >= 90) head = `Brilliant work — ${name} scored ${score}% (${correct}/${total}) on this month's review.`
+  else if (score >= 85) head = `Great effort! ${name} scored ${score}% (${correct}/${total}) this month.`
+  else if (score >= 70) head = `Solid progress — ${name} got ${correct}/${total} (${score}%) on this month's review.`
+  else if (score >= 50) head = `${name} completed this month's review with ${correct}/${total} (${score}%). A good base to build on.`
+  else head = `${name} finished this month's review (${correct}/${total}). Let's turn this into next month's win.`
+  return `${head}${strong}${grow}`
+}
+
+// POST — score the submitted answers, record the exam, award the accuracy bonus
+// (85→50, 90→80, 95→100), reset the monthly cycle (lastExamAt), mark today's
+// HERO daily task done (the exam REPLACES the daily task that day), and produce
+// a Hero summary for the parent.
 export async function POST(request) {
   try {
     const { studentId, answers } = await request.json()
@@ -103,42 +119,70 @@ export async function POST(request) {
     const student = await db.collection('children').findOne({ id: studentId })
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
-    const monthKey = monthKeyAEST()
-
-    // Guard: reserve this month's slot atomically so a double-submit can't
-    // double-pay. If it already exists, return the stored result.
-    const existing = await db.collection('monthly_exams').findOne({ studentId, monthKey })
-    if (existing) {
+    // Guard against a double-submit finalizing twice: if a completed exam was
+    // recorded in the last minute, return it instead of scoring again.
+    const recent = await db.collection('monthly_exams').findOne(
+      { studentId }, { sort: { takenAt: -1 } }
+    )
+    if (recent && recent.takenAt && (Date.now() - new Date(recent.takenAt).getTime()) < 60_000) {
       return NextResponse.json({
-        alreadyTaken: true, score: existing.score, bonusAwarded: existing.bonus || 0,
+        alreadyTaken: true, score: recent.score, bonusAwarded: recent.bonus || 0,
+        heroSummary: recent.heroSummary || '',
       })
     }
 
+    // Score, tallying per-skill so we can name the strongest/weakest area.
     let correct = 0
+    const bySkill = {} // skillId → { correct, total }
     for (const a of answers) {
       if (!a?.questionId) continue
       const q = await db.collection('questions').findOne(buildQuestionMatch(a.questionId))
-      if (q && a.answer?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase()) {
-        correct++
-      }
+      if (!q) continue
+      const ok = a.answer?.toString().trim().toLowerCase() === q.correctAnswer?.toString().trim().toLowerCase()
+      if (ok) correct++
+      const sid = q.skillId || 'unknown'
+      bySkill[sid] = bySkill[sid] || { correct: 0, total: 0 }
+      bySkill[sid].total++
+      if (ok) bySkill[sid].correct++
     }
     const denom = Math.max(answers.length, 1)
     const score = Math.round((correct / denom) * 100)
     const bonus = monthlyExamBonus(score)
 
-    // Insert the record first (unique-ish guard on studentId+monthKey via the
-    // pre-check above). Then pay the bonus once.
+    // Strongest / weakest skill names (only where there were enough questions).
+    const ranked = Object.entries(bySkill)
+      .filter(([, v]) => v.total > 0)
+      .map(([sid, v]) => ({ sid, rate: v.correct / v.total }))
+      .sort((a, b) => b.rate - a.rate)
+    const nameOf = (sid) => getSkillInfo(sid)?.name || null
+    const best = ranked.length ? nameOf(ranked[0].sid) : null
+    const worst = ranked.length ? nameOf(ranked[ranked.length - 1].sid) : null
+
+    const firstName = String(student.name || '').trim().split(/\s+/)[0]
+    const heroSummary = heroExamSummary(firstName, score, correct, denom, best, worst)
+
+    const takenAt = new Date()
     await db.collection('monthly_exams').insertOne({
-      studentId, monthKey, score, correct, total: denom, bonus, createdAt: new Date(),
+      studentId, score, correct, total: denom, bonus, heroSummary, takenAt, createdAt: takenAt,
     })
+
+    // Reset the cycle + satisfy today's daily task (exam replaces it).
+    const today = todayKeyAEST()
+    const dt = student.dailyTask && student.dailyTask.date === today
+      ? { ...student.dailyTask, done: true, satisfiedByExam: true }
+      : { date: today, skillId: null, target: 0, progress: 0, done: true, satisfiedByExam: true, bonus: 0 }
+    await db.collection('children').updateOne(
+      { id: studentId },
+      { $set: { lastExamAt: takenAt, dailyTask: dt } }
+    )
 
     if (bonus > 0) {
       await adjustCoins(db, studentId, {
-        coins: bonus, reason: 'monthly-exam', meta: { monthKey, score },
+        coins: bonus, reason: 'monthly-exam', meta: { score },
       })
     }
 
-    return NextResponse.json({ score, correct, total: denom, bonusAwarded: bonus })
+    return NextResponse.json({ score, correct, total: denom, bonusAwarded: bonus, heroSummary })
   } catch (error) {
     console.error('Monthly-exam POST error:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })

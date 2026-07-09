@@ -130,6 +130,8 @@ export default function StudentDashboard() {
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [dailyTask, setDailyTask] = useState<any>(null)
+  // A due monthly exam supersedes the daily task and locks everything until done.
+  const [examDue, setExamDue] = useState(false)
   // Availability: "Available" (matchable in Challenge) vs "Busy studying".
   const [available, setAvailable] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -261,6 +263,7 @@ export default function StudentDashboard() {
       // HERO Daily Task — gate categories + arcade until it's done.
       try {
         const dt = await studentAPI.dailyTask(id)
+        setExamDue(!!dt?.data?.examDue)
         setDailyTask(dt?.data?.task || null)
       } catch { /* non-fatal — leave unlocked if it can't load */ }
     } catch (err) {
@@ -362,14 +365,14 @@ export default function StudentDashboard() {
         if (!id) return
         try {
           const dt = await studentAPI.dailyTask(id)
-          if (active) setDailyTask(dt?.data?.task || null)
+          if (active) { setExamDue(!!dt?.data?.examDue); setDailyTask(dt?.data?.task || null) }
         } catch {}
       })()
       return () => { active = false }
     }, [])
   )
 
-  const dailyTaskLocked = !!dailyTask && dailyTask.done !== true
+  const dailyTaskLocked = examDue || (!!dailyTask && dailyTask.done !== true)
 
   function openDailyTask() {
     if (!dailyTask?.skillId) return
@@ -530,8 +533,31 @@ export default function StudentDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />
         }
       >
+        {/* HERO Monthly Exam — due → replaces the daily task, locks everything */}
+        {examDue && (
+          <View style={{
+            marginHorizontal: 16, marginTop: 12, borderRadius: 18, padding: 18,
+            backgroundColor: '#7C2D12', borderWidth: 2, borderColor: '#F59E0B',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <Text style={{ fontSize: 30 }}>📅</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>Your HERO Monthly Exam is ready!</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 }}>
+                  A 20-question review. Finish it to unlock everything — up to 100 🪙.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/student/monthly-exam')} activeOpacity={0.85} style={{
+              backgroundColor: theme.colors.gold, borderRadius: 12, paddingVertical: 12, alignItems: 'center',
+            }}>
+              <Text style={{ color: '#1B2B4B', fontWeight: '800', fontSize: 14 }}>Start my exam →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* HERO Daily Task — locks freestyle + arcade until completed */}
-        {dailyTask && (
+        {!examDue && dailyTask && (
           <View style={{
             marginHorizontal: 16, marginTop: 12, borderRadius: 18, padding: 18,
             backgroundColor: dailyTaskLocked ? '#1B2B4B' : '#065F46',
@@ -735,7 +761,7 @@ export default function StudentDashboard() {
               return (
                 <TouchableOpacity
                   key={skill.id || i}
-                  onPress={() => pushPractice(skill)}
+                  onPress={() => guardedOpen(() => pushPractice(skill))}
                   activeOpacity={0.8}
                   style={[s.missionRow, { borderColor: info.lightColor }]}
                 >

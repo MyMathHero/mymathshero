@@ -32,8 +32,8 @@ export default function MonthlyExamScreen() {
       try {
         const res = await studentAPI.monthlyExam(id)
         const data = res?.data || {}
-        if (data.alreadyTaken) {
-          setResult({ score: data.lastScore, bonusAwarded: data.lastBonus, alreadyTaken: true })
+        if (!data.due) {
+          setResult({ notDue: true, daysUntil: data.daysUntil })
         } else if (!data.available || !data.questions?.length) {
           setError('No review questions available right now. Try again later!')
         } else {
@@ -84,19 +84,41 @@ export default function MonthlyExamScreen() {
         )}
         {error && <View style={s.center}><Text style={{ color: '#EF4444' }}>{error}</Text></View>}
 
-        {result && (
+        {result?.notDue && (
+          <View style={s.center}>
+            <Text style={{ fontSize: 56 }}>📅</Text>
+            <Text style={[s.big, { color: colors.textPrimary }]}>No exam due yet</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 15, marginTop: 6, textAlign: 'center' }}>
+              Your next HERO exam is in {result.daysUntil} day{result.daysUntil === 1 ? '' : 's'}. Keep practising! 💪
+            </Text>
+            <TouchableOpacity onPress={() => router.back()} style={[s.goldBtn, { marginTop: 22 }]}>
+              <Text style={s.goldBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {result && !result.notDue && (
           <View style={s.center}>
             <Text style={{ fontSize: 60 }}>{result.score >= 85 ? '🏆' : '📊'}</Text>
             <Text style={[s.big, { color: colors.textPrimary }]}>
-              {result.alreadyTaken ? 'Already done this month' : 'Review complete!'}
+              {result.alreadyTaken ? 'Exam submitted' : 'HERO Exam complete!'}
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 16, marginTop: 4 }}>Score: {result.score}%</Text>
             {result.bonusAwarded > 0 ? (
               <Text style={{ color: colors.accentGold, fontWeight: '800', fontSize: 18, marginTop: 8 }}>+{result.bonusAwarded} 🪙 bonus!</Text>
             ) : (
-              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>Score 85%+ next month for a bonus!</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>Score 85%+ next time for a bonus!</Text>
             )}
-            <TouchableOpacity onPress={() => router.back()} style={[s.goldBtn, { marginTop: 22 }]}>
+            {!!result.heroSummary && (
+              <View style={{ marginTop: 14, backgroundColor: colors.bgCard, borderColor: colors.borderColor, borderWidth: 1, borderRadius: 12, padding: 12, maxWidth: 460 }}>
+                <Text style={{ color: colors.accentGold, fontWeight: '800', fontSize: 12, marginBottom: 4 }}>🦸 Hero says</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20 }}>{result.heroSummary}</Text>
+              </View>
+            )}
+            <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 10, textAlign: 'center' }}>
+              Freestyle practice, arcade &amp; challenges are now unlocked. 🎉
+            </Text>
+            <TouchableOpacity onPress={() => router.back()} style={[s.goldBtn, { marginTop: 16 }]}>
               <Text style={s.goldBtnText}>Done</Text>
             </TouchableOpacity>
           </View>

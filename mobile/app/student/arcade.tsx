@@ -12,6 +12,7 @@ import { useVideoPlayer, VideoView } from 'expo-video'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { arcadeAPI, studentAPI } from '../../lib/api'
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../lib/arcadeGames'
+import { checkHeroGate } from '../../lib/heroGate'
 
 const { width, height } = Dimensions.get('window')
 const BASE_URL = 'https://mymathshero.com.au'
@@ -80,7 +81,22 @@ export default function ArcadeScreen() {
   // arcade tab. Not active while a game is being played in the modal.
   useFocusEffect(
     useCallback(() => {
-      if (!playingGame) loadData()
+      // HERO gate — if today's task / monthly exam isn't done, the arcade is
+      // locked: bounce straight back to the dashboard. Closes the tab-bar
+      // loophole where the arcade could be opened without finishing the task.
+      let cancelled = false
+      ;(async () => {
+        const gate = await checkHeroGate()
+        if (cancelled) return
+        if (gate.locked) {
+          Alert.alert('🦸 HERO Task', gate.reason.replace('this', 'the Arcade'), [
+            { text: 'OK', onPress: () => router.replace('/student/dashboard') },
+          ])
+          return
+        }
+        if (!playingGame) loadData()
+      })()
+      return () => { cancelled = true }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playingGame])
   )

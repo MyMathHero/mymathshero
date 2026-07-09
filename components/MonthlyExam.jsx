@@ -20,8 +20,9 @@ export default function MonthlyExam({ studentId, onClose, onDone }) {
       try {
         const res = await fetch(`/api/student/monthly-exam?studentId=${studentId}`)
         const data = await res.json()
-        if (data.alreadyTaken) {
-          setResult({ score: data.lastScore, bonusAwarded: data.lastBonus, alreadyTaken: true })
+        if (!data.due) {
+          // Not due yet — nothing to take right now.
+          setResult({ notDue: true, daysUntil: data.daysUntil })
         } else if (!data.available || !data.questions?.length) {
           setError('No review questions available right now. Try again later!')
         } else {
@@ -76,12 +77,28 @@ export default function MonthlyExam({ studentId, onClose, onDone }) {
           {loading && <p style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)' }}>Loading your monthly review… ✦</p>}
           {error && <p style={{ textAlign: 'center', padding: 24, color: '#EF4444' }}>{error}</p>}
 
+          {/* Not due yet */}
+          {result?.notDue && (
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div style={{ fontSize: 56, marginBottom: 8 }}>📅</div>
+              <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 6px' }}>No exam due yet</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
+                Your next HERO monthly exam is in <strong>{result.daysUntil}</strong> day{result.daysUntil === 1 ? '' : 's'}. Keep practising! 💪
+              </p>
+              <button onClick={onClose} style={{
+                marginTop: 20, width: '100%', padding: 14, borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, var(--accent-gold), #FFD700)',
+                color: '#1B2B4B', fontWeight: 800, fontSize: 15, cursor: 'pointer',
+              }}>Got it</button>
+            </div>
+          )}
+
           {/* Result screen */}
-          {result && (
+          {result && !result.notDue && (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
               <div style={{ fontSize: 60, marginBottom: 8 }}>{result.score >= 85 ? '🏆' : '📊'}</div>
               <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 24, margin: '0 0 6px' }}>
-                {result.alreadyTaken ? 'Monthly review already done' : 'Monthly Review complete!'}
+                {result.alreadyTaken ? 'Exam already submitted' : 'HERO Exam complete!'}
               </h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: 16, margin: '0 0 4px' }}>
                 Score: <strong>{result.score}%</strong>
@@ -92,11 +109,23 @@ export default function MonthlyExam({ studentId, onClose, onDone }) {
                 </p>
               ) : (
                 <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '8px 0 0' }}>
-                  Score 85%+ next month to earn a coin bonus!
+                  Score 85%+ next time to earn a coin bonus!
                 </p>
               )}
+              {result.heroSummary && (
+                <div style={{
+                  marginTop: 14, textAlign: 'left', background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)', borderRadius: 12, padding: '12px 14px',
+                }}>
+                  <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 12, margin: '0 0 4px' }}>🦸 Hero says</p>
+                  <p style={{ color: 'var(--text-primary)', fontSize: 14, margin: 0, lineHeight: 1.5 }}>{result.heroSummary}</p>
+                </div>
+              )}
+              <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '10px 0 0' }}>
+                Freestyle practice, arcade &amp; challenges are now unlocked. 🎉
+              </p>
               <button onClick={onClose} style={{
-                marginTop: 20, width: '100%', padding: 14, borderRadius: 12, border: 'none',
+                marginTop: 16, width: '100%', padding: 14, borderRadius: 12, border: 'none',
                 background: 'linear-gradient(135deg, var(--accent-gold), #FFD700)',
                 color: '#1B2B4B', fontWeight: 800, fontSize: 15, cursor: 'pointer',
               }}>Done</button>

@@ -7,6 +7,7 @@ import { dailyTaskBonus } from '@/lib/coinRules'
 import {
   dailyTaskQuestionCount, todayKeyAEST, needsNewTask, isTaskDoneToday,
 } from '@/lib/dailyTask'
+import { isExamDue } from '@/lib/monthlyExam'
 
 let client
 async function connectDB() {
@@ -53,13 +54,21 @@ export async function GET(request) {
     const student = await db.collection('children').findOne({ id: studentId })
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
 
+    // A DUE monthly exam takes priority — it replaces the daily task that day.
+    // Don't generate/serve a daily task while an exam is owed; the client shows
+    // the exam gate instead. (Completing the exam marks the day's task done.)
+    const examDue = isExamDue(student.createdAt, student.lastExamAt || null)
+    if (examDue && !isTaskDoneToday(student.dailyTask)) {
+      return NextResponse.json({ examDue: true, task: null, done: false, gated: true })
+    }
+
     let task = student.dailyTask
     if (needsNewTask(task)) {
       task = await buildTask(db, student)
       await db.collection('children').updateOne({ id: studentId }, { $set: { dailyTask: task } })
     }
 
-    return NextResponse.json({ task, done: isTaskDoneToday(task), gated: !isTaskDoneToday(task) })
+    return NextResponse.json({ examDue, task, done: isTaskDoneToday(task), gated: !isTaskDoneToday(task) })
   } catch (error) {
     console.error('Daily-task GET error:', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })

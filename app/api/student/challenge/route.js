@@ -6,6 +6,8 @@ import {
   challengeQuestionCount, gradesMatch, displayFirstName,
   simulateAiRun, aiThinkMs, decideWinner, challengeReward,
 } from '@/lib/challenge'
+import { isTaskDoneToday } from '@/lib/dailyTask'
+import { isExamDue } from '@/lib/monthlyExam'
 
 let client
 async function connectDB() {
@@ -97,6 +99,18 @@ export async function POST(request) {
     // Respect the parent on/off switch for every entry action.
     if (student.challengeSettings?.enabled === false && ['find', 'invite', 'accept'].includes(action)) {
       return NextResponse.json({ error: 'Challenge is turned off by your parent.', disabled: true }, { status: 403 })
+    }
+
+    // HERO gate — can't enter a challenge until today's requirement is done
+    // (a due monthly exam, else the daily task).
+    if (['find', 'invite', 'accept'].includes(action) && !isTaskDoneToday(student.dailyTask)) {
+      const examDue = isExamDue(student.createdAt, student.lastExamAt || null)
+      return NextResponse.json({
+        error: examDue
+          ? 'Finish this month’s HERO exam first to unlock Challenge.'
+          : 'Finish today’s HERO task first to unlock Challenge.',
+        taskLocked: true, examDue,
+      }, { status: 403 })
     }
 
     // ── FIND: queue-based matchmaking with AI fallback ───────────────────────
