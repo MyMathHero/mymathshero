@@ -15,6 +15,8 @@ import AskHeroIcon from '../../components/AskHeroIcon'
 import HeroRobot from '../../components/HeroRobot'
 import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
 import { formatMath } from '../../components/MathText'
+import ColumnMath from '../../components/ColumnMath'
+import { columnMathFor } from '../../lib/columnMath'
 import { shouldAutoNarrate } from '../../lib/juniorMode'
 import { speak, stopSpeaking } from '../../lib/heroVoice'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
@@ -480,6 +482,13 @@ export default function Practice() {
         <View style={styles.questionCard}>
           <Text style={styles.questionText}>{formatMath(q.question)}</Text>
         </View>
+
+        {/* Column-arithmetic visual (worksheet style) for Prep–3 on +,−,×,÷.
+            Derived from the question text; re-animates per question via key. */}
+        {(() => {
+          const cm = columnMathFor(q.question, parseInt(grade || '3', 10))
+          return cm ? <ColumnMath key={q.questionId || q.id} a={cm.a} b={cm.b} op={cm.op} /> : null
+        })()}
 
         {/* Result */}
         {result && (

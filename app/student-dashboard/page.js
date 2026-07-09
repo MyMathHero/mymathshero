@@ -7,6 +7,8 @@ import RewardBurst, { comboMessage } from '@/components/RewardBurst'
 import ReviewSurvey from '@/components/ReviewSurvey'
 import MathText from '@/components/MathText'
 import FractionVisual from '@/components/FractionVisual'
+import ColumnMath from '@/components/ColumnMath'
+import { columnMathFor } from '@/lib/columnMath'
 import JuniorHome from '@/components/junior/JuniorHome'
 import { isJuniorGrade, shouldAutoNarrate } from '@/lib/juniorMode'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
@@ -2515,6 +2517,17 @@ export default function StudentDashboard() {
                         <FractionVisual visual={practiceModal.visual} />
                       </div>
                     )}
+                    {/* Column-arithmetic visual (worksheet style) for young
+                        students (Prep–3): stacked +, −, × or ÷ derived from the
+                        question text. Redraws + re-animates per question. */}
+                    {(() => {
+                      const cm = columnMathFor(practiceModal.question, student?.grade ?? 3)
+                      return cm ? (
+                        <div className="mt-4">
+                          <ColumnMath key={practiceModal.questionId} a={cm.a} b={cm.b} op={cm.op} />
+                        </div>
+                      ) : null
+                    })()}
                   </div>
 
                   {!showSteps && (
