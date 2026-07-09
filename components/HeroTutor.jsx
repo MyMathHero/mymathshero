@@ -10,12 +10,12 @@ const NAVY = '#1B2B4B'
 const GOLD = '#C49A1A'
 // Whiteboard → dark "chalkboard" surface so it sits in the navy tutor chrome
 // instead of a harsh bright-white panel. Chalk-coloured text reads on it.
-const BOARD_BG = '#10243F'        // deep slate board
-const BOARD_TEXT = '#EAF2FF'      // chalk white (say)
-const BOARD_WRITE = '#BFD8FF'     // light blue chalk (working)
-const BOARD_RESULT = '#5EE6A8'    // green chalk (answer)
-const BOARD_RESULT_BG = 'rgba(94,230,168,0.14)'
-const BOARD_MUTED = '#9DB4D4'     // hints/labels
+const BOARD_BG = '#FFFFFF'        // white board
+const BOARD_TEXT = '#1B2B4B'      // navy (say)
+const BOARD_WRITE = '#2D4A7A'     // deep blue (working)
+const BOARD_RESULT = '#059669'    // green (answer) — darker so it reads on white
+const BOARD_RESULT_BG = 'rgba(5,150,105,0.12)'
+const BOARD_MUTED = '#64748B'     // hints/labels
 
 /**
  * Full-screen, voice-guided AI tutor. Two tabs:
@@ -51,6 +51,16 @@ export default function HeroTutor({
   const [playing, setPlaying] = useState(false)
   const playingRef = useRef(false)
   useEffect(() => { playingRef.current = playing }, [playing])
+
+  // The scrolling whiteboard container — auto-scrolled to the newest step so
+  // students never have to scroll manually to see what Hero just wrote.
+  const boardRef = useRef(null)
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el) return
+    // Wait a frame so the newly revealed step is laid out before we scroll.
+    requestAnimationFrame(() => { el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }) })
+  }, [stepIndex, lesson])
 
   // ── Practice phase ────────────────────────────────────────────────────────
   // After the lesson, the student tries a SIMILAR example before going back to
@@ -268,7 +278,7 @@ export default function HeroTutor({
                   {lesson.example.options.map((opt, i) => (
                     <button key={i} onClick={() => answerPractice(opt)}
                       style={{
-                        background: 'rgba(255,255,255,0.06)', border: `2px solid ${GOLD}`, borderRadius: 14,
+                        background: '#FFFFFF', border: `2px solid ${GOLD}`, borderRadius: 14,
                         padding: '16px 12px', fontSize: 20, fontWeight: 800, color: BOARD_TEXT, cursor: 'pointer',
                       }}>
                       {opt}
@@ -321,8 +331,9 @@ export default function HeroTutor({
                       </div>
                     </div>
 
-                    {/* Lesson chalkboard — bigger, roomier text */}
-                    <div style={{
+                    {/* Lesson whiteboard — bigger, roomier text; auto-scrolls to
+                        the newest step (boardRef effect above). */}
+                    <div ref={boardRef} style={{
                       position: 'relative', flex: 1, minHeight: narrow ? 220 : 0, overflowY: 'auto',
                       background: BOARD_BG, borderRadius: 16, border: `3px solid ${GOLD}`,
                       padding: 26, fontFamily: "'Patrick Hand', cursive",

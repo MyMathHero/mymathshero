@@ -70,6 +70,13 @@ export default function AskHeroSheet({
   const [reveal, setReveal] = useState<{ index: number; chars: number }>({ index: -1, chars: 0 })
   const slideAnim = useRef(new Animated.Value(600)).current
   const scrollRef = useRef<ScrollView>(null)
+  // Separate scroller for the Teach Me whiteboard — auto-scrolls to the newest
+  // step so students never have to scroll manually to follow along.
+  const boardRef = useRef<ScrollView>(null)
+  useEffect(() => {
+    const id = setTimeout(() => boardRef.current?.scrollToEnd({ animated: true }), 120)
+    return () => clearTimeout(id)
+  }, [stepIndex, lesson])
   const playerRef = useRef<AudioPlayer | null>(null)
   // Voice input — talk to Hero (speech-to-speech, report #6).
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
@@ -548,7 +555,12 @@ export default function AskHeroSheet({
             ) : (
               /* Lesson whiteboard */
               <>
-                <ScrollView style={s.whiteboard} contentContainerStyle={{ padding: 18 }}>
+                <ScrollView
+                  ref={boardRef}
+                  style={s.whiteboard}
+                  contentContainerStyle={{ padding: 18 }}
+                  onContentSizeChange={() => boardRef.current?.scrollToEnd({ animated: true })}
+                >
                   {lessonLoading && !lesson && (
                     <Text style={s.wbHint}>Hero is preparing your lesson… ✦✦✦</Text>
                   )}
@@ -740,18 +752,19 @@ const s = StyleSheet.create({
   tabActive: { backgroundColor: '#C49A1A' },
   tabText: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 13 },
   tabTextActive: { color: 'white' },
-  whiteboard: { flex: 1, backgroundColor: '#10243F' },
-  wbHint: { color: '#9DB4D4', fontSize: 17 },
-  wbError: { color: '#FCA5A5', fontSize: 16 },
-  wbSay: { color: '#EAF2FF', fontSize: 18, lineHeight: 25, marginBottom: 6 },
-  wbWrite: { color: '#BFD8FF', fontSize: 22, fontWeight: '600' },
-  wbResult: { color: '#5EE6A8', fontSize: 26, fontWeight: '800', backgroundColor: 'rgba(94,230,168,0.14)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  // White whiteboard + navy text (matches web HeroTutor).
+  whiteboard: { flex: 1, backgroundColor: '#FFFFFF' },
+  wbHint: { color: '#64748B', fontSize: 17 },
+  wbError: { color: '#DC2626', fontSize: 16 },
+  wbSay: { color: '#1B2B4B', fontSize: 18, lineHeight: 25, marginBottom: 6 },
+  wbWrite: { color: '#2D4A7A', fontSize: 22, fontWeight: '600' },
+  wbResult: { color: '#059669', fontSize: 26, fontWeight: '800', backgroundColor: 'rgba(5,150,105,0.12)', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
   lessonControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', padding: 14, borderTopWidth: 1, borderColor: '#E2E8F0' },
   lessonBtn: { backgroundColor: '#1B2B4B', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
   lessonBtnText: { color: 'white', fontWeight: '800', fontSize: 14 },
   lessonStep: { color: '#64748B', fontSize: 13, fontWeight: '600' },
-  exampleOpt: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 2, borderColor: '#C49A1A', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center' },
-  exampleOptText: { color: '#EAF2FF', fontSize: 20, fontWeight: '800' },
+  exampleOpt: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#C49A1A', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 14, marginBottom: 10, alignItems: 'center' },
+  exampleOptText: { color: '#1B2B4B', fontSize: 20, fontWeight: '800' },
   backToQ: { backgroundColor: '#C49A1A', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 18 },
   backToQBtnText: { color: '#1B2B4B', fontWeight: '800', fontSize: 15 },
   backToQText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
