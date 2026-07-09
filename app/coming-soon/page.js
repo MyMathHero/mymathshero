@@ -62,10 +62,17 @@ export default function ComingSoonPage() {
           .cs-hero-body { grid-template-columns: 1fr !important; padding: 24px !important; gap: 20px !important; }
           .cs-right { min-height: 280px !important; order: -1; }
           .cs-h1 { font-size: 34px !important; }
+          /* Hide the peeking Hero on narrow screens so it never overlaps the
+             centred form. */
+          .cs-form-hero { display: none !important; }
         }
         @media (min-width: 1400px) {
           .cs-hero-body { padding: 40px 56px !important; gap: 56px !important; }
         }
+        @keyframes csRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        @keyframes csHeroFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        #waitlist { animation: csRise 0.6s ease both; }
+        .cs-form-hero { animation: csHeroFloat 3.5s ease-in-out infinite; }
       `}</style>
       <MathCountdownBar />
 
@@ -179,9 +186,16 @@ export default function ComingSoonPage() {
 
         {/* ── LIVE WAITLIST FORM ───────────────────────────────────── */}
         <section style={S.formCard} id="waitlist">
+          {/* Hero peeks in from the bottom-left corner of the card (transparent PNG). */}
+          <img
+            src="/assets/robot/Heropeekingfromsidewall.png"
+            alt="" aria-hidden
+            style={S.formHero}
+            className="cs-form-hero"
+          />
           {!submitted ? (
-            <>
-              <p style={S.formEyebrow}>Launching {LAUNCH_DATE_DISPLAY}</p>
+            <div style={S.formInner}>
+              <p style={S.formEyebrow}>🚀 Launching {LAUNCH_DATE_DISPLAY}</p>
               <h2 style={S.formTitle}>Join the founding family waitlist</h2>
               <p style={S.formSub}>
                 Be one of our first 1,000 families — lock in founding-member pricing and your first month free.
@@ -251,7 +265,7 @@ export default function ComingSoonPage() {
               </form>
               {error && <p style={S.errorText}>{error}</p>}
               <p style={S.privacy}>We email once at launch. No spam — promise.</p>
-            </>
+            </div>
           ) : (
             <div style={S.successWrap}>
               <div style={S.successIcon}>🎉</div>
@@ -404,22 +418,24 @@ const S = {
     width: '100%',
     height: '100%',
     backgroundSize: 'cover',
-    // The kids+robot region sits in the right-centre of the source image.
-    // If your saved file is cropped differently, tweak this one value.
-    backgroundPosition: '72% 35%',
-    transform: 'scale(1.25)',
-    transformOrigin: '70% 40%',
+    // Pull the crop left + zoom out a little so the robot/kids sit centred and
+    // don't push up into the "Great job!" bubble in the top-right corner.
+    backgroundPosition: '38% 42%',
+    transform: 'scale(1.08)',
+    transformOrigin: '45% 50%',
   },
   bubble: {
     position: 'absolute',
-    top: 20, right: 16,
+    // Nudge the bubble down + tuck it to the right edge so it clears the robot.
+    top: 8, right: 8,
     background: 'white',
     border: '1px solid #E2E8F0',
     borderRadius: 14,
     padding: '10px 14px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+    boxShadow: '0 10px 28px rgba(0,0,0,0.16)',
     fontSize: 13,
     minWidth: 150,
+    zIndex: 2,
   },
 
   // Gold band
@@ -476,26 +492,41 @@ const S = {
   pillTitle: { fontWeight: 800, color: '#1B2B4B', fontSize: 14, marginBottom: 2 },
   pillDesc: { color: '#64748B', fontSize: 12, lineHeight: 1.4 },
 
-  // Working form card
+  // Working form card — centred content, Hero peeking in from the side.
   formCard: {
+    position: 'relative',
+    overflow: 'hidden',
     marginTop: 16,
-    background: '#1B2B4B',
+    background: 'radial-gradient(circle at 50% -20%, #243a66 0%, #1B2B4B 60%)',
     color: 'white',
     borderRadius: 24,
-    padding: '24px 32px 28px',
+    padding: '32px 32px 36px',
     border: '2px solid #C49A1A',
     boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+  },
+  // Centred column so the whole form sits in the middle of the card.
+  formInner: {
+    position: 'relative', zIndex: 1,
+    maxWidth: 500, margin: '0 auto',
+    textAlign: 'center',
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+  },
+  // Hero peeking in from the bottom-left; hidden on small screens.
+  formHero: {
+    position: 'absolute', bottom: 0, left: -6,
+    width: 132, height: 'auto',
+    pointerEvents: 'none', userSelect: 'none', zIndex: 0,
   },
   formEyebrow: {
     margin: 0, color: '#C49A1A',
     fontSize: 12, fontWeight: 800,
     textTransform: 'uppercase', letterSpacing: '2px',
   },
-  formTitle: { fontSize: 22, fontWeight: 800, margin: '4px 0 6px', letterSpacing: '-0.5px' },
-  formSub: { color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.5, margin: '0 0 14px' },
+  formTitle: { fontSize: 24, fontWeight: 800, margin: '6px 0 6px', letterSpacing: '-0.5px' },
+  formSub: { color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.5, margin: '0 0 18px', maxWidth: 460 },
   formFields: {
     display: 'flex', flexDirection: 'column', gap: 12,
-    width: '100%', maxWidth: 480,
+    width: '100%', maxWidth: 480, margin: '0 auto',
   },
   formNameRow: { display: 'flex', gap: 12 },
   input: {

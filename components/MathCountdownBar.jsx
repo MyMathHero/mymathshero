@@ -1,62 +1,41 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getTimeUntilLaunch } from '@/lib/launchDate'
+import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 
+// Top launch bar. We no longer commit to a ticking countdown to an exact date —
+// the partner wants a relaxed "Launching September" instead. Shows the brand, a
+// glowing "Launching September 2026" badge, and the waitlist CTA.
 export default function MathCountdownBar() {
-  // Start with all zeros so SSR/CSR markup matches; the interval fills it in.
-  const [t, setT] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false })
-
-  useEffect(() => {
-    setT(getTimeUntilLaunch())
-    const id = setInterval(() => setT(getTimeUntilLaunch()), 1000)
-    return () => clearInterval(id)
-  }, [])
-
-  const { days, hours, minutes, seconds } = t
-
   return (
     <div style={S.bar}>
+      {/* subtle drifting sparkles behind the badge */}
+      <style>{`
+        @keyframes csGlow { 0%,100% { box-shadow: 0 0 0 rgba(196,154,26,0.0), inset 0 0 0 rgba(255,255,255,0); }
+          50% { box-shadow: 0 0 22px rgba(196,154,26,0.45); } }
+        @keyframes csPulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.35); } }
+        @keyframes csFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+        .cs-badge { animation: csGlow 3s ease-in-out infinite, csFloat 4s ease-in-out infinite; }
+        .cs-dot { animation: csPulseDot 1.6s ease-in-out infinite; }
+      `}</style>
+
       {/* Logo */}
       <span style={S.brand}>
         MyMaths<span style={{ color: '#C49A1A' }}>Hero</span>
       </span>
 
-      {/* T_launch = NN d × NN h + NN m + NN s */}
-      <div style={S.expr}>
-        <span style={S.lhs}>
-          T<sub>launch</sub> =
-        </span>
-
-        <Chip>{pad(days)}</Chip><Unit>d</Unit>
-        <Op>×</Op>
-        <Chip>{pad(hours)}</Chip><Unit>h</Unit>
-        <Op>+</Op>
-        <Chip>{pad(minutes)}</Chip><Unit>m</Unit>
-        <Op>+</Op>
-        <Chip live>{pad(seconds)}</Chip><Unit>s</Unit>
+      {/* Launching <Month Year> badge */}
+      <div style={S.badge} className="cs-badge">
+        <span style={S.dot} className="cs-dot" />
+        <span style={S.rocket}>🚀</span>
+        <span style={S.launchLabel}>Launching</span>
+        <span style={S.launchDate}>{LAUNCH_DATE_DISPLAY}</span>
+        <span style={S.spark}>✦</span>
       </div>
 
       {/* CTA — scrolls to the live waitlist form on /coming-soon */}
       <a href="#waitlist" style={S.cta}>Join the Waitlist →</a>
     </div>
   )
-}
-
-function pad(n) { return String(n).padStart(2, '0') }
-
-function Chip({ children, live }) {
-  return (
-    <span style={live ? S.chipLive : S.chip}>{children}</span>
-  )
-}
-
-function Unit({ children }) {
-  return <span style={S.unit}>{children}</span>
-}
-
-function Op({ children }) {
-  return <span style={S.op}>{children}</span>
 }
 
 const S = {
@@ -80,58 +59,30 @@ const S = {
     fontFamily: "'DM Sans', system-ui, sans-serif",
     flexShrink: 0,
   },
-  expr: {
+  badge: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
-    fontFamily: 'Georgia, "Times New Roman", serif',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    gap: 8,
+    background: 'rgba(196,154,26,0.12)',
+    border: '1px solid rgba(196,154,26,0.5)',
+    borderRadius: 999,
+    padding: '6px 16px',
+    fontFamily: "'DM Sans', system-ui, sans-serif",
   },
-  lhs: {
-    color: '#C49A1A',
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginRight: 4,
+  dot: {
+    width: 8, height: 8, borderRadius: '50%',
+    background: '#34D399', flexShrink: 0,
+    boxShadow: '0 0 8px #34D399',
   },
-  chip: {
-    background: 'rgba(196,154,26,0.15)',
-    border: '1px solid rgba(196,154,26,0.4)',
-    borderRadius: 6,
-    padding: '2px 8px',
-    color: '#C49A1A',
-    fontWeight: 800,
-    fontSize: 15,
-    fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: 30,
-    textAlign: 'center',
-    display: 'inline-block',
+  rocket: { fontSize: 15 },
+  launchLabel: {
+    color: 'rgba(255,255,255,0.65)', fontSize: 13, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '1.5px',
   },
-  chipLive: {
-    background: 'rgba(255,255,255,0.08)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: 6,
-    padding: '2px 8px',
-    color: 'white',
-    fontWeight: 800,
-    fontSize: 15,
-    fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-    fontVariantNumeric: 'tabular-nums',
-    minWidth: 30,
-    textAlign: 'center',
-    display: 'inline-block',
+  launchDate: {
+    color: '#FFD700', fontSize: 15, fontWeight: 900, letterSpacing: '0.3px',
   },
-  unit: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  op: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 14,
-    margin: '0 2px',
-  },
+  spark: { color: '#C49A1A', fontSize: 14 },
   cta: {
     color: 'white',
     fontWeight: 800,
