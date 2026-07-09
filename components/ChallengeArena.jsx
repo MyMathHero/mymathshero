@@ -157,7 +157,7 @@ export default function ChallengeArena({ studentId, grade = 3, onCoins }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <ScorePill name="You" avatar="🦸" correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
           <span style={{ fontWeight: 800, color: 'var(--text-secondary)' }}>vs</span>
-          <ScorePill name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
+          <ScorePill name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} photo={opp?.photo} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
         </div>
 
         {/* Question */}
@@ -232,7 +232,7 @@ export default function ChallengeArena({ studentId, grade = 3, onCoins }) {
   return null
 }
 
-function ScorePill({ name, avatar, correct, answered, total, me }) {
+function ScorePill({ name, avatar, photo, correct, answered, total, me }) {
   return (
     <div style={{
       flex: 1, background: me ? 'var(--accent-gold-light)' : 'var(--bg-card)',
@@ -240,7 +240,10 @@ function ScorePill({ name, avatar, correct, answered, total, me }) {
       borderRadius: 14, padding: '10px 12px', minWidth: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 22 }}>{avatar}</span>
+        {/* Parent-approved photo if present, else the avatar emoji. */}
+        {photo
+          ? <img src={photo} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          : <span style={{ fontSize: 22 }}>{avatar}</span>}
         <div style={{ minWidth: 0 }}>
           <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
           <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: 0 }}>✓ {correct} · {answered}/{total}</p>

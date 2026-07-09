@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import { useTheme, ThemeColors } from '../lib/themeContext'
 import { studentAPI } from '../lib/api'
@@ -128,7 +128,7 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
         <View style={s.scoreRow}>
           <ScorePill c={colors} name="You" avatar="🦸" correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
           <Text style={{ fontWeight: '800', color: colors.textSecondary, marginHorizontal: 6 }}>vs</Text>
-          <ScorePill c={colors} name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
+          <ScorePill c={colors} name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} photo={opp?.photo} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
         </View>
         {q ? (
           <View style={s.card}>
@@ -179,7 +179,7 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   return null
 }
 
-function ScorePill({ c, name, avatar, correct, answered, total, me }: any) {
+function ScorePill({ c, name, avatar, photo, correct, answered, total, me }: any) {
   return (
     <View style={{
       flex: 1, backgroundColor: me ? c.accentGoldLight : c.bgCard,
@@ -187,7 +187,10 @@ function ScorePill({ c, name, avatar, correct, answered, total, me }: any) {
       borderRadius: 14, padding: 10,
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Text style={{ fontSize: 20 }}>{avatar}</Text>
+        {/* Parent-approved photo if present, else the avatar emoji. */}
+        {photo
+          ? <Image source={{ uri: photo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
+          : <Text style={{ fontSize: 20 }}>{avatar}</Text>}
         <View style={{ flex: 1 }}>
           <Text numberOfLines={1} style={{ color: c.textPrimary, fontWeight: '800', fontSize: 13 }}>{name}</Text>
           <Text style={{ color: c.textSecondary, fontSize: 11 }}>✓ {correct} · {answered}/{total}</Text>

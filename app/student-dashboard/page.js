@@ -132,7 +132,10 @@ function LeaderboardRow({ entry }) {
       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${rankStyle}`}>
         {entry.rank <= 3 ? ['🥇','🥈','🥉'][entry.rank - 1] : entry.rank}
       </span>
-      <CharacterAvatar id={entry.avatar} size={28} />
+      {/* Parent-approved photo if present, else the character avatar. */}
+      {entry.photo
+        ? <img src={entry.photo} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+        : <CharacterAvatar id={entry.avatar} size={28} />}
       <div className="flex-1 min-w-0">
         <span
           className="text-xs font-semibold truncate block"
@@ -292,6 +295,10 @@ export default function StudentDashboard() {
   const nudgeTimerRef = useRef(null)
   const nudgeCountRef = useRef(0)
 
+  // Availability: "Available" (matchable in Challenge) vs "Busy studying"
+  // (hidden from matchmaking). Persisted via the presence heartbeat.
+  const [available, setAvailable] = useState(true)
+
   // HERO Daily Task — until it's done, freestyle categories + arcade are locked.
   const [dailyTask, setDailyTask] = useState(null)
   const [dailyTaskCelebration, setDailyTaskCelebration] = useState(null) // {bonus} on finish
@@ -386,6 +393,29 @@ export default function StudentDashboard() {
       setDailyTask(data.task || null)
     } catch { /* non-fatal — leave unlocked if the task can't load */ }
   }
+
+  // Send a presence heartbeat with the current availability so peers see this
+  // student as online + available/busy for Challenge matchmaking.
+  async function sendPresence(isAvailable) {
+    if (!authStudentId) return
+    try {
+      await fetch('/api/student/presence', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: authStudentId, available: isAvailable }),
+      })
+    } catch { /* best-effort */ }
+  }
+  function toggleAvailability() {
+    setAvailable(prev => { const next = !prev; sendPresence(next); return next })
+  }
+  // Heartbeat while the dashboard is open so "online" stays fresh (~30s window).
+  useEffect(() => {
+    if (!authStudentId) return
+    sendPresence(available)
+    const t = setInterval(() => sendPresence(available), 30000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStudentId, available])
 
   // Report one answered question toward today's task. Returns the server result
   // (justFinished / bonusAwarded) so the caller can celebrate + unlock.
@@ -1351,39 +1381,57 @@ export default function StudentDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/assets/logos/logo-icon.png"
             style={{ height: 36 }} alt="MyMathsHero" />
-          {/* Profile picture — uploaded photo if set, else the character avatar.
-              Tap to open the Profile tab. Only the student sees their own photo. */}
+          {/* Availability status — student sets Available / Busy studying.
+              Drives whether peers can challenge them (see toggleAvailability). */}
+          <button
+            onClick={toggleAvailability}
+            title={available ? 'You’re available for challenges — tap to study undisturbed' : 'Busy studying — tap to become available'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 999, padding: '5px 11px',
+            }}
+          >
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: available ? '#34D399' : '#F59E0B', boxShadow: available ? '0 0 6px #34D399' : 'none' }} />
+            <span style={{ color: 'white', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              {available ? 'Available' : 'Busy studying'}
+            </span>
+          </button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flex: 1, padding: '0 12px' }}>
+          {/* Profile picture — bigger, next to the name. Uploaded photo if set,
+              else the character avatar. Tap to open the Profile tab. */}
           <button
             onClick={() => setActiveTab('profile')}
             title="Your profile"
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 0 }}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 0, flexShrink: 0 }}
           >
             {student?.profilePhoto ? (
               <img src={student.profilePhoto} alt="Your profile"
-                style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} />
+                style={{ width: 54, height: 54, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
             ) : (
-              <div style={{ width: 38, height: 38, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
-                <CharacterAvatar id={student?.avatar} size={34} />
+              <div style={{ width: 54, height: 54, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
+                <CharacterAvatar id={student?.avatar} size={48} />
               </div>
             )}
           </button>
-        </div>
-        <div style={{ textAlign: 'center', flex: 1, padding: '0 12px' }}>
-          <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>
-            {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <p style={{ color: 'var(--accent-gold)', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
-            {/* Plan badge — shows the student their current plan */}
-            <span style={{
-              background: studentPlan === 'premium' ? '#1B2B4B' : '#F0F4F8',
-              color: studentPlan === 'premium' ? 'var(--accent-gold)' : '#94A3B8',
-              border: studentPlan === 'premium' ? '1px solid #C49A1A' : '1px solid var(--border-color)',
-              borderRadius: 10, padding: '3px 10px',
-              fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
-            }}>
-              {studentPlan === 'premium' ? '⭐ Premium' : '📚 Standard'}
-            </span>
+          <div style={{ textAlign: 'left' }}>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>
+              {student?.name?.split(' ')[0] || 'Hero'}&apos;s Hero HQ
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <p style={{ color: 'var(--accent-gold)', fontSize: 11, margin: 0 }}>Level {level} Hero</p>
+              {/* Plan badge — shows the student their current plan */}
+              <span style={{
+                background: studentPlan === 'premium' ? '#1B2B4B' : '#F0F4F8',
+                color: studentPlan === 'premium' ? 'var(--accent-gold)' : '#94A3B8',
+                border: studentPlan === 'premium' ? '1px solid #C49A1A' : '1px solid var(--border-color)',
+                borderRadius: 10, padding: '3px 10px',
+                fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
+              }}>
+                {studentPlan === 'premium' ? '⭐ Premium' : '📚 Standard'}
+              </span>
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

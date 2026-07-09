@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server'
 const DEFAULT_SETTINGS = {
   enabled: true,
   availability: 'always', // 'always' | 'after-school' | 'weekends'
+  photoPublic: false,      // parent approval: show the child's photo to other students
 }
 
 let client
@@ -53,6 +54,7 @@ export async function POST(request) {
       enabled: settings?.enabled !== false,
       availability: ['always', 'after-school', 'weekends'].includes(settings?.availability)
         ? settings.availability : 'always',
+      photoPublic: settings?.photoPublic === true,
     }
     await db.collection('children').updateOne({ id: studentId }, { $set: { challengeSettings: clean } })
     return NextResponse.json({ success: true, settings: clean })

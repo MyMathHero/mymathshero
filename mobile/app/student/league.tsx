@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo} from 'react'
 import { View, Text, ScrollView, StyleSheet,
-  ActivityIndicator, TouchableOpacity } from 'react-native'
+  ActivityIndicator, TouchableOpacity, Image } from 'react-native'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { ScreenBackground } from '../../lib/ui'
 import { useRouter } from 'expo-router'
@@ -85,7 +85,10 @@ export default function League() {
           {(data?.leaderboard || []).map((entry: any, i: number) => (
             <View key={i} style={[styles.row, entry.studentId === myId && styles.rowMe]}>
               <Text style={styles.rank}>{i < 3 ? medals[i] : `#${i + 1}`}</Text>
-              <CharacterAvatar id={entry.avatar} size={34} />
+              {/* Parent-approved photo if present, else the character avatar. */}
+              {entry.photo
+                ? <Image source={{ uri: entry.photo }} style={{ width: 34, height: 34, borderRadius: 17 }} />
+                : <CharacterAvatar id={entry.avatar} size={34} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{entry.name}</Text>
                 <Text style={styles.grade}>Grade {entry.grade} · Maths</Text>

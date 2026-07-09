@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator, Alert,
+  StyleSheet, RefreshControl, ActivityIndicator, Alert, Image,
 } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import * as SecureStore from 'expo-secure-store'
@@ -130,6 +130,8 @@ export default function StudentDashboard() {
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [dailyTask, setDailyTask] = useState<any>(null)
+  // Availability: "Available" (matchable in Challenge) vs "Busy studying".
+  const [available, setAvailable] = useState(true)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<SkillCategoryKey | null>(null)
@@ -144,6 +146,24 @@ export default function StudentDashboard() {
   const [showHeroSheet, setShowHeroSheet] = useState(false)
 
   useEffect(() => { loadData() }, [])
+
+  // Presence heartbeat — keep this student "online" with their availability so
+  // peers can (or can't) challenge them. Pings on mount + every 30s.
+  async function sendPresence(isAvailable: boolean) {
+    try {
+      const id = await SecureStore.getItemAsync('user_id')
+      if (id) await studentAPI.presence(id, isAvailable)
+    } catch { /* best-effort */ }
+  }
+  function toggleAvailability() {
+    setAvailable(prev => { const next = !prev; sendPresence(next); return next })
+  }
+  useEffect(() => {
+    sendPresence(available)
+    const t = setInterval(() => sendPresence(available), 30000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [available])
 
   // Junior Mode (Prep–3): the Standard dashboard isn't age-appropriate — send the
   // youngest students to the Hero-first Junior home instead.
@@ -435,19 +455,39 @@ export default function StudentDashboard() {
 
       {/* A) Header — brand + theme toggle, then avatar/greeting with coins+streak */}
       <View style={s.header}>
-        {/* Top row: brand left, theme toggle right */}
+        {/* Top row: brand left, availability + theme toggle right */}
         <View style={s.topRow}>
           <Text style={s.brand}>
             MyMaths<Text style={{ color: colors.accentGold }}>Hero</Text>
           </Text>
-          <ThemeToggle compact />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {/* Available / Busy studying — controls Challenge matchmaking. */}
+            <TouchableOpacity
+              onPress={toggleAvailability}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: 'rgba(127,127,127,0.14)', borderRadius: 999,
+                paddingHorizontal: 10, paddingVertical: 5,
+              }}
+            >
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: available ? '#34D399' : '#F59E0B' }} />
+              <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: '700' }}>
+                {available ? 'Available' : 'Busy'}
+              </Text>
+            </TouchableOpacity>
+            <ThemeToggle compact />
+          </View>
         </View>
 
         {/* Avatar + greeting; coins + streak pills sit under the toggle (right). */}
         <View style={s.greetingRow}>
           <TouchableOpacity onPress={() => router.push('/student/profile')} activeOpacity={0.85}>
             <View style={s.avatarRing}>
-              <CharacterAvatar id={student?.avatar} size={60} />
+              {/* Uploaded profile photo (self-view) if set, else the avatar. */}
+              {student?.profilePhoto
+                ? <Image source={{ uri: student.profilePhoto }} style={{ width: 60, height: 60, borderRadius: 30 }} />
+                : <CharacterAvatar id={student?.avatar} size={60} />}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>

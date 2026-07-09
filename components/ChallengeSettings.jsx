@@ -5,7 +5,7 @@ import { Swords } from 'lucide-react'
 // Parent control panel for the Hero Speed Challenge (1v1 online maths race).
 // Parents can turn it on/off and pick an availability window. Stored per child.
 // Mirrors ArcadeSettings' structure + ownership handling.
-const DEFAULT_SETTINGS = { enabled: true, availability: 'always' }
+const DEFAULT_SETTINGS = { enabled: true, availability: 'always', photoPublic: false }
 const AVAILABILITY = [
   { id: 'always', label: 'Always' },
   { id: 'after-school', label: 'After school' },
@@ -124,6 +124,28 @@ export default function ChallengeSettings({ parentId, children = [] }) {
                 {a.label}
               </button>
             ))}
+          </div>
+
+          {/* Parent approval: allow the child's uploaded photo to be shown to
+              other students (in Challenge + leaderboard). Off by default — until
+              you approve, other students only ever see their avatar + first name. */}
+          <div className="mt-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Show photo to other students</p>
+              <p className="text-[11px] text-gray-400 leading-snug">
+                Off = other students only see {selectedChild?.name || 'your child'}&apos;s avatar &amp; first name.
+                On = their uploaded profile photo is shown in Challenge &amp; the leaderboard.
+              </p>
+            </div>
+            <button
+              onClick={() => save({ ...settings, photoPublic: !settings.photoPublic })}
+              disabled={saving}
+              role="switch"
+              aria-checked={settings.photoPublic}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 mt-1 ${settings.photoPublic ? 'bg-[#22C55E]' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${settings.photoPublic ? 'translate-x-6' : ''}`} />
+            </button>
           </div>
         </div>
       )}

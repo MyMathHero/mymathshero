@@ -48,18 +48,23 @@ async function sampleQuestions(db, grade, count) {
   }))
 }
 
-// The player entry shape stored on a match.
+// The player entry shape stored on a match. `photo` is included ONLY when the
+// parent approved it (challengeSettings.photoPublic) — otherwise it's null and
+// the opponent only ever sees the avatar + first name.
 function playerEntry(student) {
+  const photoApproved = student.challengeSettings?.photoPublic === true
   return {
     studentId: student.id,
     firstName: displayFirstName(student.name),
     avatar: student.avatar || '🦊',
+    photo: photoApproved ? (student.profilePhoto || null) : null,
     grade: student.grade ?? 3,
     correct: 0, answered: 0, timeMs: 0, finished: false,
   }
 }
 
-// Public view of a match — NEVER leaks correctAnswer or the opponent's photo.
+// Public view of a match — NEVER leaks correctAnswer. The opponent's photo is
+// only present when their parent approved it (stored on playerEntry.photo).
 function publicMatch(match, meId) {
   const me = match.players.find(p => p.studentId === meId) || match.players[0]
   const opp = match.players.find(p => p.studentId !== meId) || null
@@ -71,9 +76,9 @@ function publicMatch(match, meId) {
     questions: (match.questions || []).map(({ correctAnswer, ...q }) => q),
     me: me ? { correct: me.correct, answered: me.answered, finished: me.finished } : null,
     opponent: opp ? {
-      firstName: opp.firstName, avatar: opp.avatar,
+      firstName: opp.firstName, avatar: opp.avatar, photo: opp.photo || null,
       correct: opp.correct, answered: opp.answered, finished: opp.finished,
-    } : (match.mode === 'ai' ? { firstName: 'Hero Bot', avatar: '🤖', correct: match.ai?.correct || 0, answered: match.ai?.answered || 0, finished: match.ai?.finished || false } : null),
+    } : (match.mode === 'ai' ? { firstName: 'Hero Bot', avatar: '🤖', photo: null, correct: match.ai?.correct || 0, answered: match.ai?.answered || 0, finished: match.ai?.finished || false } : null),
     winner: match.winner || null,
     rewardCoins: match.rewardFor === meId ? (match.rewardCoins || 0) : 0,
   }
