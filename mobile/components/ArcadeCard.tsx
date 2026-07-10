@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { View, Text, StyleSheet, Animated, Easing, Pressable } from 'react-native'
 import Svg, {
-  Defs, LinearGradient as SvgGrad, RadialGradient, Stop, Rect, Line, Circle,
+  Defs, LinearGradient as SvgGrad, Stop, Rect, Line,
   Text as SvgText, TSpan, Image as SvgImage, ClipPath, G,
 } from 'react-native-svg'
 
@@ -36,9 +36,6 @@ function Frame() {
         <SvgGrad id="chip" x1="0" y1="0" x2="34" y2="26" gradientUnits="userSpaceOnUse">
           <Stop offset="0" stopColor="#f6e2a0" /><Stop offset="0.55" stopColor="#E6C35A" /><Stop offset="1" stopColor="#b28a2b" />
         </SvgGrad>
-        <RadialGradient id="coin" cx="42%" cy="38%" r="60%">
-          <Stop offset="0" stopColor={GOLD_HI} /><Stop offset="0.72" stopColor={GOLD} /><Stop offset="1" stopColor="#8f7016" />
-        </RadialGradient>
         <ClipPath id="card"><Rect x="0" y="0" width={CW} height={CH} rx="20" /></ClipPath>
       </Defs>
       <Rect x="0" y="0" width={CW} height={CH} rx="20" fill="url(#cardbg)" />
@@ -100,20 +97,18 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
       <Animated.View style={[faceStyle, { opacity: frontOpacity, transform: [{ perspective: 1000 }, { rotateY: frontRot }] }]}>
         <Svg {...svgProps}>
           <Frame />
-          {/* robot in a clipped bottom-right zone; text is to its left */}
+          {/* robot in a clipped bottom-right zone; text is to its left. No
+              floating coin — the robot wears the gold "H" on his chest already. */}
           <G clipPath="url(#card)">
             <SvgImage href={ROBOT} x={206} y={CH - 150} width={140} height={158} preserveAspectRatio="xMidYMax meet" />
           </G>
-          {/* coin above the robot's shoulder */}
-          <Circle cx={236} cy={96} r={21} fill="url(#coin)" stroke="rgba(255,240,190,0.55)" strokeWidth="2" />
-          <SvgText x={236} y={103} fontSize="20" fontWeight="900" fill="#5c460f" textAnchor="middle">H</SvgText>
           {/* wordmark */}
           <SvgText x={18} y={34} fontSize="19" fontWeight="800" fontStyle="italic">
             <TSpan fill={INK}>mymaths</TSpan><TSpan fill={GOLD}>hero</TSpan>
             <TSpan fill={SUB} fontSize="9" dy="-7">™</TSpan>
           </SvgText>
-          {/* logo top-right */}
-          <SvgImage href={LOGO} x={CW - 18 - 30} y={8} width={30} height={30} preserveAspectRatio="xMidYMid meet" />
+          {/* logo top-right — bigger */}
+          <SvgImage href={LOGO} x={CW - 16 - 44} y={8} width={44} height={44} preserveAspectRatio="xMidYMid meet" />
           {/* play time */}
           <SvgText x={18} y={74} fontSize="10" fontWeight="800" letterSpacing="3" fill={SUB}>PLAY TIME</SvgText>
           <SvgText x={18} y={116} fontWeight="900">

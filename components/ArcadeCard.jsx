@@ -87,7 +87,8 @@ const ArcadeCard = forwardRef(function ArcadeCard(
       c.drawImage(img, zx + (zw - dw) / 2, zy + (zh - dh), dw, dh)
     }
     c.restore()
-    coin(c, 236, 96, 21) // anchored above the robot's shoulder
+    // (No floating coin — the robot already wears the gold "H" on his chest, so a
+    //  second coin only crowded his face.)
 
     // wordmark (top-left)
     c.textAlign = 'left'; c.textBaseline = 'alphabetic'
@@ -96,9 +97,10 @@ const ArcadeCard = forwardRef(function ArcadeCard(
     wx += c.measureText('mymaths').width; c.fillStyle = GOLD; c.fillText('hero', wx, 34)
     wx += c.measureText('hero').width; c.font = '600 9px system-ui'; c.fillStyle = SUB; c.fillText('™', wx + 1, 28)
 
-    // arcade logo (top-right)
+    // arcade logo (top-right) — bigger.
     const lg = logoRef.current
-    if (lg && lg.complete && lg.naturalWidth) c.drawImage(lg, CW - 18 - 30, 8, 30, 30)
+    const LS = 44
+    if (lg && lg.complete && lg.naturalWidth) c.drawImage(lg, CW - 16 - LS, 8, LS, LS)
 
     // PLAY TIME + big minutes (left column)
     label(c, 'PLAY TIME', 18, 74, { size: 10, ls: 3 })
@@ -145,14 +147,24 @@ const ArcadeCard = forwardRef(function ArcadeCard(
     }
   }, [cardNumber, memberSince, studentName])
 
-  // Load the images once, then redraw.
+  // Always call the LATEST drawFront from async image callbacks (avoids a stale
+  // closure so the images re-blit even after props change).
+  const drawFrontRef = useRef(drawFront)
+  useEffect(() => { drawFrontRef.current = drawFront }, [drawFront])
+
+  // Load the images once, then redraw. `complete` handles already-cached images.
   useEffect(() => {
-    const robot = new Image(); robot.src = '/assets/robot/Heropeekingfromdown.png'
-    robot.onload = () => { robotRef.current = robot; drawFront() }
-    robotRef.current = robot
-    const logo = new Image(); logo.src = '/assets/arcadelogo.png'
-    logo.onload = () => { logoRef.current = logo; drawFront() }
-    logoRef.current = logo
+    const load = (src, into) => {
+      const im = new Image()
+      const done = () => { into.current = im; drawFrontRef.current() }
+      im.onload = done
+      im.onerror = () => {} // never leave junk if it 404s
+      im.src = src
+      into.current = im
+      if (im.complete && im.naturalWidth) done() // cached
+    }
+    load('/assets/robot/Heropeekingfromdown.png', robotRef)
+    load('/assets/arcadelogo.png', logoRef)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redraw whenever the data changes.
