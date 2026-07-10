@@ -64,13 +64,17 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
 
   const frontRot = flip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] })
   const backRot = flip.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] })
+  // Hard opacity swap at the flip midpoint so only ONE face is ever visible —
+  // backface-visibility is unreliable on Android, so this guarantees no bleed.
+  const frontOpacity = flip.interpolate({ inputRange: [0, 0.49, 0.5, 1], outputRange: [1, 1, 0, 0] })
+  const backOpacity = flip.interpolate({ inputRange: [0, 0.5, 0.51, 1], outputRange: [0, 0, 1, 1] })
   const shineX = shine.interpolate({ inputRange: [0, 1], outputRange: [-W * 0.4, W * 0.4] })
   const shineOpacity = shine.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.9, 0] })
 
   return (
     <Pressable onPress={toggleFlip} style={{ width: W, height: H }}>
       {/* FRONT */}
-      <Animated.View style={[s.face, { width: W, height: H, transform: [{ perspective: 1000 }, { rotateY: frontRot }], backfaceVisibility: 'hidden' }]}>
+      <Animated.View style={[s.face, { width: W, height: H, opacity: frontOpacity, transform: [{ perspective: 1000 }, { rotateY: frontRot }], backfaceVisibility: 'hidden' }]}>
         <LinearGradient colors={['#12233f', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         {/* faceted lines */}
         <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
@@ -125,7 +129,7 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
       </Animated.View>
 
       {/* BACK — the student's Arcade ID (tap to reveal). */}
-      <Animated.View style={[s.face, { width: W, height: H, transform: [{ perspective: 1000 }, { rotateY: backRot }], backfaceVisibility: 'hidden' }]}>
+      <Animated.View style={[s.face, { width: W, height: H, opacity: backOpacity, transform: [{ perspective: 1000 }, { rotateY: backRot }], backfaceVisibility: 'hidden' }]}>
         <LinearGradient colors={['#16294c', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
         <View style={s.stripe} />
         <View style={s.idBody}>

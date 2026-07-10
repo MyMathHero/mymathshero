@@ -23,7 +23,6 @@ const ArcadeCard = forwardRef(function ArcadeCard(
   const minsRef = useRef(null)
   const [flipped, setFlipped] = useState(false)   // tap → show ID back
   const [launching, setLaunching] = useState(false)
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
 
   useImperativeHandle(ref, () => ({
     shimmer() {
@@ -38,26 +37,19 @@ const ArcadeCard = forwardRef(function ArcadeCard(
     el() { return cardRef.current },
   }))
 
-  // Pointer tilt (disabled while flipped/launching so it doesn't fight the flip).
-  function onMove(e) {
-    if (flipped || launching) return
-    const c = cardRef.current
-    if (!c) return
-    const r = c.getBoundingClientRect()
-    setTilt({ x: ((e.clientX - r.left) / r.width - 0.5) * 14, y: -((e.clientY - r.top) / r.height - 0.5) * 12 })
-  }
-  function onLeave() { setTilt({ x: 0, y: 0 }) }
-
-  // The whole card transform: launch takes over via a CSS class; otherwise it's
-  // the tap-flip (180°) combined with pointer tilt.
-  const showBack = flipped
-  const baseTransform = launching ? undefined : `rotateY(${(showBack ? 180 : 0) + tilt.x}deg) rotateX(${tilt.y}deg)`
-
   const W = compact ? 300 : 340
   const H = compact ? 189 : 214
 
+  // Each face is hidden the AWAY-facing side two ways: backface-visibility AND an
+  // opacity gate that swaps at the flip's midpoint — because overflow:hidden +
+  // rounded corners can flatten the 3D context and defeat backface-visibility
+  // alone (that caused the front to bleed through the back).
+  const faceGate = { transition: 'opacity 0s linear .28s' }
+  const frontOpacity = flipped ? 0 : 1
+  const backOpacity = flipped ? 1 : 0
+
   return (
-    <div style={{ perspective: 1400, display: 'flex', justifyContent: 'center' }} onPointerMove={onMove} onPointerLeave={onLeave}>
+    <div style={{ perspective: 1400, display: 'flex', justifyContent: 'center' }}>
       <style>{`
         @keyframes acBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
         @keyframes acFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
@@ -77,8 +69,8 @@ const ArcadeCard = forwardRef(function ArcadeCard(
         className={launching ? 'ac-launch' : ''}
         style={{
           position: 'relative', width: W, height: H, transformStyle: 'preserve-3d',
-          transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', willChange: 'transform',
-          transform: baseTransform, cursor: 'pointer',
+          transition: 'transform .6s cubic-bezier(.3,.8,.25,1)', willChange: 'transform',
+          transform: launching ? undefined : `rotateY(${flipped ? 180 : 0}deg)`, cursor: 'pointer',
         }}
       >
         {/* FRONT — a clean vertical flex stack: body grows, band pinned at the
@@ -89,6 +81,7 @@ const ArcadeCard = forwardRef(function ArcadeCard(
           boxShadow: '0 30px 60px -24px rgba(0,0,0,.6), 0 2px 0 rgba(140,180,255,.22) inset',
           border: '1px solid rgba(255,255,255,.10)',
           display: 'flex', flexDirection: 'column',
+          opacity: frontOpacity, ...faceGate,
         }}>
           {/* faceted lines */}
           <svg viewBox="0 0 340 214" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -178,6 +171,7 @@ const ArcadeCard = forwardRef(function ArcadeCard(
           position: 'absolute', inset: 0, borderRadius: 20, overflow: 'hidden', backfaceVisibility: 'hidden',
           transform: 'rotateY(180deg)', background: 'linear-gradient(135deg,#16294c,#0b1732)',
           border: '1px solid rgba(255,255,255,.10)', display: 'flex', flexDirection: 'column',
+          opacity: backOpacity, ...faceGate,
         }}>
           {/* magnetic stripe */}
           <div style={{ height: 34, marginTop: 14, background: 'linear-gradient(90deg,#05070d,#12203a)', borderTop: '1px solid rgba(0,0,0,.5)', borderBottom: '1px solid rgba(255,255,255,.06)' }} />
