@@ -90,6 +90,22 @@ const ArcadeCard = forwardRef(function ArcadeCard(
             ))}
           </svg>
 
+          {/* Hero mascot — pinned to the card's bottom-right at its NATURAL aspect
+              ratio (width fixed, height auto), clipped by the card's overflow. It
+              sits BELOW the text zones (zIndex 1) so its PNG size can never push
+              the layout. The gold coin floats beside the robot's hand. */}
+          <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
+            style={{ position: 'absolute', right: 6, bottom: -6, width: compact ? 116 : 128, height: 'auto', zIndex: 1, pointerEvents: 'none' }} />
+          <div style={{
+            position: 'absolute', right: compact ? 96 : 108, top: compact ? 44 : 52,
+            width: 42, height: 42, borderRadius: '50%', zIndex: 1,
+            background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
+            boxShadow: '0 0 18px rgba(196,154,26,.55), 0 6px 14px -4px rgba(0,0,0,.5)',
+            border: '2px solid rgba(255,240,190,.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 900, color: '#7a5c12', fontSize: 20, animation: 'acFloat 3.2s ease-in-out infinite',
+          }}>H</div>
+
           {/* BODY (everything above the band) */}
           <div style={{ position: 'relative', zIndex: 2, flex: 1, minHeight: 0, padding: '15px 18px 0', display: 'flex', flexDirection: 'column' }}>
             {/* row 1: wordmark + joystick */}
@@ -106,28 +122,15 @@ const ArcadeCard = forwardRef(function ArcadeCard(
               </svg>
             </div>
 
-            {/* mid: play-time (left) + Hero (right) */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14 }}>
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: 3, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Play time</div>
-                <div ref={minsRef} style={{
-                  fontWeight: 900, fontSize: 38, color: '#eef4ff', lineHeight: 1,
-                  fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'baseline', gap: 6,
-                }}>
-                  {Math.max(0, minutes)} <span style={{ fontSize: 15, color: GOLD, fontWeight: 800 }}>min</span>
-                </div>
-              </div>
-              {/* Hero + gold H coin */}
-              <div style={{ position: 'relative', width: 120, height: 104, flexShrink: 0 }}>
-                <div style={{
-                  position: 'absolute', left: -6, top: 8, width: 44, height: 44, borderRadius: '50%', zIndex: 3,
-                  background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
-                  boxShadow: '0 0 0 3px rgba(255,240,190,.35), 0 8px 16px -6px rgba(196,154,26,.7)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 900, color: '#7a5c12', fontSize: 22, animation: 'acFloat 3.2s ease-in-out infinite',
-                }}>H</div>
-                <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
-                  style={{ position: 'absolute', right: -4, bottom: -15, width: 118, height: 118, objectFit: 'contain', objectPosition: 'top' }} />
+            {/* mid: play-time (left). Hero is a pinned decorative layer (below),
+                so its PNG size can never push these zones around. */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 10, letterSpacing: 3, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Play time</div>
+              <div ref={minsRef} style={{
+                fontWeight: 900, fontSize: 38, color: '#eef4ff', lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'baseline', gap: 6,
+              }}>
+                {Math.max(0, minutes)} <span style={{ fontSize: 15, color: GOLD, fontWeight: 800 }}>min</span>
               </div>
             </div>
 

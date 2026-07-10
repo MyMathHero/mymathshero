@@ -83,6 +83,12 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
           <Line x1={W * 0.53} y1={H} x2={W} y2={H * 0.56} stroke="rgba(196,154,26,0.2)" strokeWidth={1} />
         </Svg>
 
+        {/* Hero mascot — pinned to the card's bottom-right at its NATURAL aspect
+            ratio, clipped by the card's overflow, BELOW the text (so its size
+            can't push the layout). Coin floats beside it. */}
+        <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
+        <View style={s.coin}><Text style={s.coinH}>H</Text></View>
+
         {/* BODY — clean flex stack so zones never overlap */}
         <View style={s.body}>
           {/* row 1: wordmark + joystick */}
@@ -91,19 +97,13 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
             <Text style={s.joystick}>🕹️</Text>
           </View>
 
-          {/* mid: play-time (left) + Hero (right) */}
-          <View style={s.mid}>
-            <View>
-              <Text style={s.balLab}>PLAY TIME</Text>
-              <Animated.View style={{ flexDirection: 'row', alignItems: 'flex-end', transform: [{ scale: pop }] }}>
-                <Text style={s.balVal}>{Math.max(0, minutes)}</Text>
-                <Text style={s.balMin}> min</Text>
-              </Animated.View>
-            </View>
-            <View style={s.robo}>
-              <View style={s.coin}><Text style={s.coinH}>H</Text></View>
-              <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
-            </View>
+          {/* play-time (left). Hero is pinned below, so it can't shift this. */}
+          <View style={{ marginTop: 12 }}>
+            <Text style={s.balLab}>PLAY TIME</Text>
+            <Animated.View style={{ flexDirection: 'row', alignItems: 'flex-end', transform: [{ scale: pop }] }}>
+              <Text style={s.balVal}>{Math.max(0, minutes)}</Text>
+              <Text style={s.balMin}> min</Text>
+            </Animated.View>
           </View>
 
           {/* cardholder name + tap hint */}
@@ -169,16 +169,15 @@ const s = StyleSheet.create({
   wmItalic: { fontStyle: 'italic' },
   tm: { fontSize: 9, color: '#9fb3d6' },
   joystick: { fontSize: 22 },
-  mid: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 },
   balLab: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#9fb3d6' },
   balVal: { fontSize: 36, fontWeight: '900', color: '#eef4ff', lineHeight: 38 },
   balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 5 },
-  robo: { width: 108, height: 92 },
-  roboImg: { position: 'absolute', right: -4, bottom: -8, width: 110, height: 110 },
+  // Pinned bottom-right, natural aspect ratio (PNG is 1086×1448 → h ≈ w×1.333).
+  roboImg: { position: 'absolute', right: 4, bottom: -6, width: 120, height: 160, zIndex: 1 },
   coin: {
-    position: 'absolute', left: -4, top: 4, width: 38, height: 38, borderRadius: 19,
+    position: 'absolute', right: 96, top: 48, width: 40, height: 40, borderRadius: 20,
     backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: GOLD_HI, zIndex: 3,
+    borderWidth: 2, borderColor: GOLD_HI, zIndex: 1,
   },
   coinH: { fontWeight: '900', color: '#7a5c12', fontSize: 20 },
   // front cardholder name row
