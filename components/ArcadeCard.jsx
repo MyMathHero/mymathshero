@@ -114,12 +114,9 @@ const ArcadeCard = forwardRef(function ArcadeCard(
                 <i>my</i>maths<b style={{ color: GOLD, fontStyle: 'italic' }}>hero</b>
                 <span style={{ fontSize: 9, verticalAlign: 'super', color: '#9fb3d6', fontStyle: 'normal', fontWeight: 600 }}>™</span>
               </div>
-              <svg viewBox="0 0 40 32" style={{ width: 38, height: 30, flexShrink: 0, opacity: .85 }}>
-                <g stroke={GOLD} fill="none" strokeWidth="1.6">
-                  <rect x="4" y="12" width="32" height="16" rx="8" /><circle cx="20" cy="6" r="3" /><path d="M20 9v3" />
-                  <circle cx="12" cy="20" r="1.6" /><path d="M28 18v4M26 20h4" />
-                </g>
-              </svg>
+              {/* Arcade logo (top-right) */}
+              <img src="/assets/arcadelogo.png" alt="" aria-hidden
+                style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} />
             </div>
 
             {/* mid: play-time (left). Hero is a pinned decorative layer (below),

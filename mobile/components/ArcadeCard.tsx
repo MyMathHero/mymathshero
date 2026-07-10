@@ -91,10 +91,10 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
 
         {/* BODY — clean flex stack so zones never overlap */}
         <View style={s.body}>
-          {/* row 1: wordmark + joystick */}
+          {/* row 1: wordmark + arcade logo */}
           <View style={s.row1}>
             <Text style={s.wordmark}><Text style={s.wmItalic}>my</Text>maths<Text style={{ color: GOLD }}>hero</Text><Text style={s.tm}>™</Text></Text>
-            <Text style={s.joystick}>🕹️</Text>
+            <Image source={require('../assets/arcadelogo.png')} style={s.logo} resizeMode="contain" />
           </View>
 
           {/* play-time (left). Hero is pinned below, so it can't shift this. */}
@@ -168,7 +168,7 @@ const s = StyleSheet.create({
   wordmark: { fontSize: 18, fontWeight: '800', fontStyle: 'italic', color: '#eef4ff' },
   wmItalic: { fontStyle: 'italic' },
   tm: { fontSize: 9, color: '#9fb3d6' },
-  joystick: { fontSize: 22 },
+  logo: { width: 34, height: 34 },
   balLab: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#9fb3d6' },
   balVal: { fontSize: 36, fontWeight: '900', color: '#eef4ff', lineHeight: 38 },
   balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 5 },
