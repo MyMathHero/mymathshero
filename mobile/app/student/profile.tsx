@@ -14,6 +14,7 @@ import { useTheme, ThemeColors } from '../../lib/themeContext'
 import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
 import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
 import { useVouchersEnabled } from '../../lib/featureVisibility'
+import ArcadeCard from '../../components/ArcadeCard'
 
 export default function Profile() {
   const router = useRouter()
@@ -232,6 +233,16 @@ export default function Profile() {
             <View style={[p.xpBarFill, { width: `${Math.min(100, xpProgress)}%` as any }]} />
           </View>
           <Text style={p.xpLabel}>{xp} Hero Points</Text>
+        </View>
+
+        {/* Collectible Arcade Card — a fun reveal in the profile. */}
+        <View style={{ backgroundColor: '#0A0F1E', borderRadius: 20, marginHorizontal: 16, marginBottom: 16, paddingVertical: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(196,154,26,0.3)' }}>
+          <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 12 }}>🎴 Your Arcade Card</Text>
+          <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={student?.plan} compact />
+          <TouchableOpacity onPress={() => router.push('/student/arcade')} activeOpacity={0.85}
+            style={{ marginTop: 14, backgroundColor: colors.accentGold, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 22 }}>
+            <Text style={{ color: '#1B2B4B', fontWeight: '800', fontSize: 14 }}>🕹️ Open Arcade</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats Grid (loaded from real API) — modern cards with icon chips */}

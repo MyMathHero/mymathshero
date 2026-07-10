@@ -6,6 +6,7 @@ import {
   ARCADE_GAMES, ARCADE_CATEGORIES
 } from '@/lib/arcadeGames'
 import { Analytics } from '@/lib/analytics'
+import ArcadeCard from '@/components/ArcadeCard'
 
 // Brand arcade palette — pure black theme (matches the intro animation's black
 // background) with gold accents and white text.
@@ -37,6 +38,30 @@ export default function ArcadePage() {
   const sessionMinutesRef = useRef(0)
   const sessionIdRef = useRef(null)
   const playingGameRef = useRef(null)
+  const cardRef = useRef(null)      // buy-time card (shimmer on top-up)
+  const cardWrapRef = useRef(null)  // where coins fly TO on top-up
+  const lobbyCardRef = useRef(null) // lobby card (flip-launch on game tap)
+
+  // Fly a few coin emojis from a button into the card, then resolve.
+  function flyCoinsToCard(fromEl) {
+    const target = cardWrapRef.current
+    if (!target || !fromEl) return
+    const tr = target.getBoundingClientRect()
+    const sr = fromEl.getBoundingClientRect()
+    const tx = tr.left + tr.width * 0.28, ty = tr.top + tr.height * 0.4
+    for (let i = 0; i < 5; i++) {
+      const c = document.createElement('div')
+      c.textContent = '🪙'
+      c.style.cssText = `position:fixed;z-index:9999;font-size:20px;pointer-events:none;left:${sr.left + sr.width / 2}px;top:${sr.top}px;will-change:transform,opacity`
+      document.body.appendChild(c)
+      const dx = tx - (sr.left + sr.width / 2), dy = ty - sr.top
+      c.animate(
+        [{ transform: 'translate(0,0) scale(1)', opacity: 1 },
+         { transform: `translate(${dx}px,${dy}px) scale(.4)`, opacity: 0 }],
+        { duration: 600 + i * 70, easing: 'cubic-bezier(.5,0,.4,1)' }
+      ).onfinish = () => c.remove()
+    }
+  }
 
   // Generate random stars for background
   useEffect(() => {
@@ -152,9 +177,11 @@ export default function ArcadePage() {
   }
 
   // Buy an arcade time pack ('5' or '10') with coins. Credits the wallet.
-  async function handleBuyTime(pack) {
+  async function handleBuyTime(pack, fromEl) {
     if (buyingTime) return
     setBuyingTime(pack)
+    // Coins fly into the card immediately for snappy feedback.
+    if (fromEl) flyCoinsToCard(fromEl)
     try {
       const res = await fetch('/api/student/arcade', {
         method: 'POST',
@@ -163,12 +190,16 @@ export default function ArcadePage() {
       })
       const data = await res.json()
       if (data.success) {
-        setArcadeData(prev => ({
-          ...prev,
-          coins: data.newCoins ?? prev.coins,
-          minutesRemaining: data.minutesRemaining ?? prev.minutesRemaining,
-          timeLimitReached: (data.minutesRemaining ?? 0) <= 0,
-        }))
+        // Let the coins land, then tick the card's balance + shimmer.
+        setTimeout(() => {
+          setArcadeData(prev => ({
+            ...prev,
+            coins: data.newCoins ?? prev.coins,
+            minutesRemaining: data.minutesRemaining ?? prev.minutesRemaining,
+            timeLimitReached: (data.minutesRemaining ?? 0) <= 0,
+          }))
+          cardRef.current?.shimmer()
+        }, 560)
       } else {
         alert(data.error || 'Could not buy time')
       }
@@ -194,16 +225,25 @@ export default function ArcadePage() {
       setShowLimitWarning(true) // out of time — prompt to buy more
       return
     }
-    // Mount the game in a loading state; the session starts on iframe load.
-    setSessionId(null)
-    sessionIdRef.current = null
-    setPlayingGame(game)
-    playingGameRef.current = game
-    setSessionMinutes(0)
-    sessionMinutesRef.current = 0
-    setGameLoading(true)
-    setPhase('playing')
-    setSelectedGame(null)
+    // Flip the lobby card forward to "launch", then mount the game. The session
+    // starts on iframe load (not here), so paid minutes only count once loaded.
+    const mount = () => {
+      setSessionId(null)
+      sessionIdRef.current = null
+      setPlayingGame(game)
+      playingGameRef.current = game
+      setSessionMinutes(0)
+      sessionMinutesRef.current = 0
+      setGameLoading(true)
+      setPhase('playing')
+      setSelectedGame(null)
+      lobbyCardRef.current?.reset()
+    }
+    if (lobbyCardRef.current) {
+      lobbyCardRef.current.launch().then(() => setTimeout(mount, 300))
+    } else {
+      mount()
+    }
   }
 
   // Called by the game iframe's onLoad — the game is now on screen, so start the
@@ -570,17 +610,18 @@ export default function ArcadePage() {
             backgroundColor: 'white', opacity: star.opacity * 0.3,
           }} />
         ))}
-        <div style={{ textAlign: 'center', padding: 32, position: 'relative', zIndex: 1, maxWidth: 460 }}>
-          <div style={{ fontSize: 64, marginBottom: 12 }}>⏱️</div>
-          <h2 style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Get Play Time</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, margin: '0 auto 8px', maxWidth: 380 }}>
-            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
-          </p>
-          <p style={{ color: ARCADE_GOLD, fontWeight: 800, fontSize: 15, marginBottom: 24 }}>
-            You have {mins} min left · 🪙 {coins}
+        <div style={{ textAlign: 'center', padding: '20px 24px', position: 'relative', zIndex: 1, maxWidth: 420 }}>
+          <h2 style={{ color: 'white', fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Your Arcade Card</h2>
+          <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13.5, margin: '0 auto 18px', maxWidth: 360 }}>
+            Top up your card with coins. Your timer only starts once a game loads — no time wasted!
           </p>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          {/* The card — the play-time wallet. */}
+          <div ref={cardWrapRef} style={{ marginBottom: 22 }}>
+            <ArcadeCard ref={cardRef} minutes={mins} plan={arcadeData?.plan} />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             {[
               { pack: '5', minutes: 5, coins: 100 },
               { pack: '10', minutes: 10, coins: 200 },
@@ -589,26 +630,28 @@ export default function ArcadePage() {
               return (
                 <button
                   key={p.pack}
-                  onClick={() => handleBuyTime(p.pack)}
+                  onClick={(e) => handleBuyTime(p.pack, e.currentTarget)}
                   disabled={buyingTime === p.pack || !afford}
                   style={{
-                    flex: 1, padding: '18px 12px', borderRadius: 16,
+                    flex: 1, padding: '16px 12px', borderRadius: 16,
                     background: afford ? 'linear-gradient(135deg, #C49A1A, #FFD700)' : 'rgba(255,255,255,0.08)',
                     color: afford ? ARCADE_INK : 'rgba(255,255,255,0.4)',
                     border: 'none', fontWeight: 800, fontSize: 16,
                     cursor: afford ? 'pointer' : 'not-allowed',
+                    transition: 'transform 0.1s',
                   }}
                 >
                   {buyingTime === p.pack ? '…' : (
                     <>
-                      <div style={{ fontSize: 22 }}>⏱️ {p.minutes} min</div>
-                      <div style={{ fontSize: 14, marginTop: 4 }}>{p.coins} 🪙</div>
+                      <div style={{ fontSize: 20 }}>⏱️ {p.minutes} min</div>
+                      <div style={{ fontSize: 14, marginTop: 2 }}>{p.coins} 🪙</div>
                     </>
                   )}
                 </button>
               )
             })}
           </div>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 18 }}>You have 🪙 {coins} coins</p>
 
           <button
             onClick={() => setPhase('lobby')}
@@ -890,6 +933,11 @@ export default function ArcadePage() {
       <div style={{ maxWidth: 1200, margin: '0 auto',
         padding: '32px 24px', position: 'relative',
         zIndex: 1 }}>
+
+        {/* The Arcade Card — shows play-time; flips forward to launch a game. */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
+          <ArcadeCard ref={lobbyCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
+        </div>
 
         {/* Hero card / Arcade card */}
         <div style={{

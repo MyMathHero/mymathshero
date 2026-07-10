@@ -162,6 +162,7 @@ export async function GET(request) {
         // Personal profile photo — self-view ONLY. Never expose this on any
         // endpoint that lists OTHER students (leaderboard, challenge).
         profilePhoto: student.profilePhoto || null,
+        arcadeMinutes: student.arcadeMinutesRemaining || 0, // for the profile Arcade Card
         xp: student.xp || 0,
         coins: student.coins || 0,
         level: student.level || 1,

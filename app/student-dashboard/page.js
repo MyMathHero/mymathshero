@@ -8,6 +8,7 @@ import ReviewSurvey from '@/components/ReviewSurvey'
 import MathText from '@/components/MathText'
 import FractionVisual from '@/components/FractionVisual'
 import ColumnMath from '@/components/ColumnMath'
+import ArcadeCard from '@/components/ArcadeCard'
 import { columnMathFor } from '@/lib/columnMath'
 import JuniorHome from '@/components/junior/JuniorHome'
 import { isJuniorGrade, shouldAutoNarrate } from '@/lib/juniorMode'
@@ -2294,21 +2295,40 @@ export default function StudentDashboard() {
       {/* Profile tab — student info + logout */}
       {activeTab === 'profile' && (
         <div style={{ maxWidth: 480, margin: '0 auto', padding: '20px 16px 96px' }}>
-          <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ margin: '0 auto 16px', width: 96 }}>
-              {student?.profilePhoto ? (
-                <img src={student.profilePhoto} alt="Your photo"
-                  style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
-              ) : (
-                <CharacterAvatar id={student?.avatar} size={96} />
-              )}
+          {/* Swipe carousel: profile summary ← → collectible Arcade Card. */}
+          <div style={{
+            display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory',
+            marginBottom: 8, paddingBottom: 6, scrollbarWidth: 'none',
+          }} className="hide-scrollbar">
+            <div style={{ flex: '0 0 100%', scrollSnapAlign: 'center' }}>
+              <div className="bg-white dark:bg-[#1C1C1C] colorblind:bg-white rounded-2xl p-6 border border-gray-100 dark:border-white/10 colorblind:border-gray-300 shadow-sm" style={{ textAlign: 'center' }}>
+                <div style={{ margin: '0 auto 16px', width: 96 }}>
+                  {student?.profilePhoto ? (
+                    <img src={student.profilePhoto} alt="Your photo"
+                      style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
+                  ) : (
+                    <CharacterAvatar id={student?.avatar} size={96} />
+                  )}
+                </div>
+                <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
+                  {student?.name || 'Hero'}
+                </h2>
+                <p style={{ color: 'var(--accent-gold)', fontWeight: 700, fontSize: 14, margin: 0 }}>
+                  Grade {student?.grade ?? '—'} · Level {level} Hero
+                </p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '12px 0 0' }}>← swipe for your Arcade Card 🎴</p>
+              </div>
             </div>
-            <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>
-              {student?.name || 'Hero'}
-            </h2>
-            <p style={{ color: 'var(--accent-gold)', fontWeight: 700, fontSize: 14, margin: 0 }}>
-              Grade {student?.grade ?? '—'} · Level {level} Hero
-            </p>
+            {/* Page 2 — the collectible Arcade Card (dark card on a dark panel). */}
+            <div style={{ flex: '0 0 100%', scrollSnapAlign: 'center' }}>
+              <div style={{ background: '#0A0F1E', borderRadius: 20, padding: '24px 16px', border: '1px solid rgba(196,154,26,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={studentPlan} compact />
+                <button onClick={() => router.push('/arcade')} style={{
+                  background: 'linear-gradient(135deg,#C49A1A,#FFD700)', color: '#1B2B4B',
+                  border: 'none', borderRadius: 12, padding: '10px 22px', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+                }}>🕹️ Open Arcade</button>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 16 }}>

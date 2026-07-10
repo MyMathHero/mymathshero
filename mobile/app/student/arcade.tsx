@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { arcadeAPI, studentAPI } from '../../lib/api'
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../lib/arcadeGames'
 import { checkHeroGate } from '../../lib/heroGate'
+import ArcadeCard, { ArcadeCardHandle } from '../../components/ArcadeCard'
 
 const { width, height } = Dimensions.get('window')
 const BASE_URL = 'https://mymathshero.com.au'
@@ -47,6 +48,8 @@ export default function ArcadeScreen() {
   const timerRef = useRef<any>(null)
   const sessionIdRef = useRef<string | null>(null)
   const playingGameRef = useRef<any>(null)
+  const buyCardRef = useRef<ArcadeCardHandle>(null)   // buy-time card (shimmer)
+  const lobbyCardRef = useRef<ArcadeCardHandle>(null) // lobby card (flip-launch)
   const entranceScale = useRef(new Animated.Value(0.8)).current
   const entranceOpacity = useRef(new Animated.Value(0)).current
 
@@ -167,6 +170,7 @@ export default function ArcadeScreen() {
           coins: data.newCoins ?? prev.coins,
           minutesRemaining: data.minutesRemaining ?? prev.minutesRemaining,
         }))
+        buyCardRef.current?.shimmer()
       } else {
         Alert.alert('Not enough coins', data.error || 'Could not buy time.')
       }
@@ -217,16 +221,24 @@ export default function ArcadeScreen() {
       return
     }
 
-    // Open the game in a loading state — the WebView's onLoad starts the billed
-    // session, so no purchased time is spent while the game loads.
-    playingGameRef.current = game
-    sessionIdRef.current = null
-    setSessionId(null)
-    setPlayingGame(game)
-    setSessionMinutes(0)
-    setWebViewError(false)
-    setGameLoading(true)
-    clearInterval(timerRef.current)
+    // Flip the lobby card forward to "launch", then mount the game. The WebView's
+    // onLoad starts the billed session, so no time is spent while it loads.
+    const mount = () => {
+      playingGameRef.current = game
+      sessionIdRef.current = null
+      setSessionId(null)
+      setPlayingGame(game)
+      setSessionMinutes(0)
+      setWebViewError(false)
+      setGameLoading(true)
+      clearInterval(timerRef.current)
+      lobbyCardRef.current?.reset()
+    }
+    if (lobbyCardRef.current) {
+      lobbyCardRef.current.launch().then(() => setTimeout(mount, 250))
+    } else {
+      mount()
+    }
   }
 
   // Called by the WebView onLoadEnd — the game is on screen, so begin the billed
@@ -375,16 +387,18 @@ export default function ArcadeScreen() {
     const coins = arcadeData?.coins || 0
     return (
       <View style={s.fullDark}>
-        <View style={{ padding: 28, alignItems: 'center', maxWidth: 440 }}>
-          <Text style={{ fontSize: 60, marginBottom: 10 }}>⏱️</Text>
-          <Text style={s.lockedTitle}>Get Play Time</Text>
-          <Text style={s.lockedSub}>
-            Buy arcade time with your coins. Your timer only starts once a game has loaded — no time wasted!
+        <View style={{ padding: 24, alignItems: 'center', maxWidth: 440 }}>
+          <Text style={[s.lockedTitle, { marginBottom: 4 }]}>Your Arcade Card</Text>
+          <Text style={[s.lockedSub, { marginBottom: 18 }]}>
+            Top up your card with coins. Your timer only starts once a game loads — no time wasted!
           </Text>
-          <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 15, marginBottom: 20 }}>
-            You have {mins} min left · 🪙 {coins}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+
+          {/* The card — the play-time wallet. */}
+          <View style={{ marginBottom: 20 }}>
+            <ArcadeCard ref={buyCardRef} minutes={mins} plan={arcadeData?.plan} />
+          </View>
+
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
             {[
               { pack: '5' as const, minutes: 5, coins: 100 },
               { pack: '10' as const, minutes: 10, coins: 200 },
@@ -625,6 +639,11 @@ export default function ArcadeScreen() {
             <Text style={{ color: 'rgba(255,255,255,0.3)',
               fontSize: 10 }}>Coins</Text>
           </View>
+        </View>
+
+        {/* The Arcade Card — play time on the card; flips to launch a game. */}
+        <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+          <ArcadeCard ref={lobbyCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
         </View>
 
         {/* Time wallet + buy-time */}
