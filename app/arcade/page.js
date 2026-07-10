@@ -24,6 +24,7 @@ export default function ArcadePage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [selectedGame, setSelectedGame] = useState(null)
   const [playingGame, setPlayingGame] = useState(null)
+  const [launchingGame, setLaunchingGame] = useState(null) // card-flip launch overlay
   const [loading, setLoading] = useState(true)
   const [buyingTime, setBuyingTime] = useState(null)
   const [gameLoading, setGameLoading] = useState(false)
@@ -40,7 +41,7 @@ export default function ArcadePage() {
   const playingGameRef = useRef(null)
   const cardRef = useRef(null)      // buy-time card (shimmer on top-up)
   const cardWrapRef = useRef(null)  // where coins fly TO on top-up
-  const lobbyCardRef = useRef(null) // lobby card (flip-launch on game tap)
+  const launchCardRef = useRef(null)// the card shown in the launch overlay
 
   // Fly a few coin emojis from a button into the card, then resolve.
   function flyCoinsToCard(fromEl) {
@@ -225,8 +226,9 @@ export default function ArcadePage() {
       setShowLimitWarning(true) // out of time — prompt to buy more
       return
     }
-    // Flip the lobby card forward to "launch", then mount the game. The session
-    // starts on iframe load (not here), so paid minutes only count once loaded.
+    // Show the Arcade Card in a launch OVERLAY and flip it forward, then mount
+    // the game. The card only appears here (not on the lobby). The session starts
+    // on iframe load, so paid minutes only count once loaded.
     const mount = () => {
       setSessionId(null)
       sessionIdRef.current = null
@@ -237,13 +239,18 @@ export default function ArcadePage() {
       setGameLoading(true)
       setPhase('playing')
       setSelectedGame(null)
-      lobbyCardRef.current?.reset()
+      setLaunchingGame(null)
     }
-    if (lobbyCardRef.current) {
-      lobbyCardRef.current.launch().then(() => setTimeout(mount, 300))
-    } else {
-      mount()
-    }
+    setSelectedGame(null)
+    setLaunchingGame(game)
+    // Wait a tick for the overlay + card to mount, then flip → mount the game.
+    setTimeout(() => {
+      if (launchCardRef.current) {
+        launchCardRef.current.launch().then(() => setTimeout(mount, 250))
+      } else {
+        mount()
+      }
+    }, 60)
   }
 
   // Called by the game iframe's onLoad — the game is now on screen, so start the
@@ -826,6 +833,18 @@ export default function ArcadePage() {
       position: 'relative',
       overflow: 'hidden',
     }}>
+      {/* Launch overlay — the Arcade Card appears + flips forward when a game is
+          tapped, then the game mounts. This is the ONLY place the card shows in
+          the arcade. */}
+      {launchingGame && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(4,8,18,0.92)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+        }}>
+          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
+          <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Launching {launchingGame.title}…</p>
+        </div>
+      )}
       <style>{`
         @keyframes twinkle {
           from { opacity: 0.1; }
@@ -933,11 +952,6 @@ export default function ArcadePage() {
       <div style={{ maxWidth: 1200, margin: '0 auto',
         padding: '32px 24px', position: 'relative',
         zIndex: 1 }}>
-
-        {/* The Arcade Card — shows play-time; flips forward to launch a game. */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
-          <ArcadeCard ref={lobbyCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
-        </div>
 
         {/* Hero card / Arcade card */}
         <div style={{

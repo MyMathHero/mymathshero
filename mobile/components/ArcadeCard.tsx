@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Line } from 'react-native-svg'
 
@@ -82,9 +82,9 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
           </Animated.View>
         </View>
 
-        {/* Hero + H coin (simple mark for RN) */}
+        {/* Real Hero mascot + the gold H coin */}
         <View style={s.robo}>
-          <Text style={s.roboFace}>🤖</Text>
+          <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
           <View style={s.coin}><Text style={s.coinH}>H</Text></View>
         </View>
 
@@ -132,12 +132,12 @@ const s = StyleSheet.create({
   balLab: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
   balVal: { fontSize: 34, fontWeight: '900', color: '#eef4ff', lineHeight: 36 },
   balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 4 },
-  robo: { position: 'absolute', right: 22, top: 44, alignItems: 'center' },
-  roboFace: { fontSize: 62 },
+  robo: { position: 'absolute', right: 8, top: 30, alignItems: 'center' },
+  roboImg: { width: 118, height: 118 },
   coin: {
-    position: 'absolute', left: -34, top: 14, width: 40, height: 40, borderRadius: 20,
+    position: 'absolute', left: -18, top: 40, width: 38, height: 38, borderRadius: 19,
     backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: GOLD_HI,
+    borderWidth: 2, borderColor: GOLD_HI, zIndex: 3,
   },
   coinH: { fontWeight: '900', color: '#7a5c12', fontSize: 20 },
   feats: { position: 'absolute', left: 16, bottom: 42, flexDirection: 'row', gap: 10 },

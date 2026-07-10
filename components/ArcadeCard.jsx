@@ -118,34 +118,16 @@ const ArcadeCard = forwardRef(function ArcadeCard(
               </div>
             </div>
 
-            {/* Hero robot holding the H coin (CSS) */}
-            <div aria-hidden style={{ position: 'absolute', right: 6, top: 34, width: 150, height: 150 }}>
-              <div style={rear(104)} /><div style={rear(8)} />
+            {/* Real Hero mascot + the gold H coin (kept clear of the bottom band). */}
+            <div aria-hidden style={{ position: 'absolute', right: 8, top: 26, width: 128, height: 128 }}>
+              <img src="/assets/robot/Heropeekingfromdown.png" alt="" style={{ width: 128, height: 128, objectFit: 'contain', objectPosition: 'top' }} />
               <div style={{
-                position: 'absolute', right: 20, top: 0, width: 92, height: 80,
-                borderRadius: '52% 52% 46% 46%/60% 60% 40% 40%',
-                background: 'radial-gradient(60% 45% at 42% 32%,#3a4a68,#182a49)',
-                border: '2px solid #3a4a68', boxShadow: '0 8px 18px -8px rgba(0,0,0,.5)',
-              }}>
-                <div style={{
-                  position: 'absolute', right: 12, top: 20, width: 66, height: 44, borderRadius: 26,
-                  background: 'radial-gradient(70% 60% at 50% 40%,#0a1a34,#081428 80%)',
-                  boxShadow: 'inset 0 0 12px rgba(90,150,255,.5), 0 0 0 2px #223a63',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-                }}>
-                  <span style={eye()} /><span style={eye()} />
-                </div>
-              </div>
-              <div style={{
-                position: 'absolute', right: 108, top: 52, width: 44, height: 44, borderRadius: '50%',
+                position: 'absolute', left: -12, top: 30, width: 40, height: 40, borderRadius: '50%',
                 background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
                 boxShadow: '0 0 0 3px rgba(255,240,190,.35), 0 8px 16px -6px rgba(196,154,26,.7)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, color: '#7a5c12', fontSize: 22, animation: 'acFloat 3.2s ease-in-out infinite',
+                fontWeight: 900, color: '#7a5c12', fontSize: 20, animation: 'acFloat 3.2s ease-in-out infinite',
               }}>H</div>
-              <div style={{ position: 'absolute', right: 96, top: 92, width: 34, height: 20, background: 'linear-gradient(180deg,#101c30,#0a1424)', borderRadius: 9 }} />
-              <div style={{ position: 'absolute', right: 30, top: 66, width: 80, height: 56, borderRadius: '20px 20px 12px 12px', background: 'linear-gradient(180deg,#3a4a68,#182a49)', border: '2px solid #3a4a68' }} />
-              <div style={{ position: 'absolute', right: 56, top: 78, fontWeight: 900, color: GOLD, fontSize: 20, textShadow: '0 1px 0 rgba(255,255,255,.4)' }}>H</div>
             </div>
 
             {/* feature row */}
@@ -198,19 +180,5 @@ const ArcadeCard = forwardRef(function ArcadeCard(
     </div>
   )
 })
-
-function rear(right) {
-  return {
-    position: 'absolute', top: 32, right, width: 12, height: 20, borderRadius: 6,
-    background: '#3a4a68', border: '2px solid #3a4a68',
-  }
-}
-function eye() {
-  return {
-    width: 11, height: 15, borderRadius: '50%',
-    background: 'radial-gradient(circle at 50% 40%,#eaf5ff,#6FB8FF 70%)',
-    boxShadow: '0 0 10px #6FB8FF', animation: 'acBlink 4.6s infinite', display: 'inline-block',
-  }
-}
 
 export default ArcadeCard

@@ -36,6 +36,7 @@ export default function ArcadeScreen() {
   const [studentId, setStudentId] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [playingGame, setPlayingGame] = useState<any>(null)
+  const [launchingGame, setLaunchingGame] = useState<any>(null) // card-flip launch overlay
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionMinutes, setSessionMinutes] = useState(0)
   const [showEntrance, setShowEntrance] = useState(true)
@@ -48,8 +49,8 @@ export default function ArcadeScreen() {
   const timerRef = useRef<any>(null)
   const sessionIdRef = useRef<string | null>(null)
   const playingGameRef = useRef<any>(null)
-  const buyCardRef = useRef<ArcadeCardHandle>(null)   // buy-time card (shimmer)
-  const lobbyCardRef = useRef<ArcadeCardHandle>(null) // lobby card (flip-launch)
+  const buyCardRef = useRef<ArcadeCardHandle>(null)    // buy-time card (shimmer)
+  const launchCardRef = useRef<ArcadeCardHandle>(null) // launch-overlay card (flip)
   const entranceScale = useRef(new Animated.Value(0.8)).current
   const entranceOpacity = useRef(new Animated.Value(0)).current
 
@@ -221,8 +222,9 @@ export default function ArcadeScreen() {
       return
     }
 
-    // Flip the lobby card forward to "launch", then mount the game. The WebView's
-    // onLoad starts the billed session, so no time is spent while it loads.
+    // Show the Arcade Card in a launch OVERLAY and flip it forward, then mount
+    // the game. The card only shows here — not on the lobby. The WebView's onLoad
+    // starts the billed session, so no time is spent while it loads.
     const mount = () => {
       playingGameRef.current = game
       sessionIdRef.current = null
@@ -232,13 +234,16 @@ export default function ArcadeScreen() {
       setWebViewError(false)
       setGameLoading(true)
       clearInterval(timerRef.current)
-      lobbyCardRef.current?.reset()
+      setLaunchingGame(null)
     }
-    if (lobbyCardRef.current) {
-      lobbyCardRef.current.launch().then(() => setTimeout(mount, 250))
-    } else {
-      mount()
-    }
+    setLaunchingGame(game)
+    setTimeout(() => {
+      if (launchCardRef.current) {
+        launchCardRef.current.launch().then(() => setTimeout(mount, 200))
+      } else {
+        mount()
+      }
+    }, 60)
   }
 
   // Called by the WebView onLoadEnd — the game is on screen, so begin the billed
@@ -446,6 +451,18 @@ export default function ArcadeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#000000' }}>
 
+      {/* LAUNCH OVERLAY — the Arcade Card appears + flips when a game is tapped,
+          then the game mounts. Only place the card shows in the arcade. */}
+      {launchingGame && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+          backgroundColor: 'rgba(4,8,18,0.94)', alignItems: 'center', justifyContent: 'center', gap: 16,
+        }}>
+          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
+          <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 16 }}>Launching {launchingGame.title}…</Text>
+        </View>
+      )}
+
       {/* FULL SCREEN GAME MODAL */}
       <Modal
         visible={!!playingGame}
@@ -639,11 +656,6 @@ export default function ArcadeScreen() {
             <Text style={{ color: 'rgba(255,255,255,0.3)',
               fontSize: 10 }}>Coins</Text>
           </View>
-        </View>
-
-        {/* The Arcade Card — play time on the card; flips to launch a game. */}
-        <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-          <ArcadeCard ref={lobbyCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
         </View>
 
         {/* Time wallet + buy-time */}
