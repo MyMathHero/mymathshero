@@ -110,7 +110,7 @@ export default function ComingSoonPage() {
                 <span style={{ color: '#2563EB', fontWeight: 700 }}>understand</span>,{' '}
                 <span style={{ color: '#16A34A', fontWeight: 700 }}>improve</span>{' '}
                 and{' '}
-                <span style={{ color: '#DC2626', fontWeight: 700 }}>thrive</span>.
+                <span style={{ color: '#C49A1A', fontWeight: 700 }}>thrive</span>.
               </p>
 
               <div style={S.bullets}>
@@ -345,8 +345,9 @@ const S = {
   },
   heroBody: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)',
-    gap: 32,
+    // Give the image column more room so it can grow into the left space.
+    gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.15fr)',
+    gap: 24,
     padding: '32px 40px',
     alignItems: 'stretch',
   },
@@ -399,30 +400,28 @@ const S = {
   // light card background instead of sitting in a rounded frame.
   right: {
     position: 'relative',
-    minHeight: 400,
+    minHeight: 460,
     overflow: 'visible',
   },
   photoFrame: {
     position: 'absolute',
-    inset: 0,
-    overflow: 'hidden',
+    // Bleed left/right beyond the column so the image reads bigger and uses
+    // the surrounding space; edges are feathered so nothing ends on a hard line.
+    top: 0, bottom: 0, right: -24, left: -70,
+    overflow: 'visible',
     background: 'transparent',
-    // Soft feather on all edges so the photo blends into white rather than
-    // ending on a hard line. Supported in all modern browsers.
     WebkitMaskImage:
-      'radial-gradient(ellipse 88% 88% at 60% 45%, #000 60%, transparent 100%)',
+      'radial-gradient(ellipse 82% 86% at 52% 48%, #000 74%, transparent 100%)',
     maskImage:
-      'radial-gradient(ellipse 88% 88% at 60% 45%, #000 60%, transparent 100%)',
+      'radial-gradient(ellipse 82% 86% at 52% 48%, #000 74%, transparent 100%)',
   },
   photoCrop: {
     width: '100%',
     height: '100%',
-    backgroundSize: 'cover',
-    // Pull the crop left + zoom out a little so the robot/kids sit centred and
-    // don't push up into the "Great job!" bubble in the top-right corner.
-    backgroundPosition: '38% 42%',
-    transform: 'scale(1.08)',
-    transformOrigin: '45% 50%',
+    // Whole image, uncropped, sized to fill the (now larger, bled-out) frame.
+    backgroundSize: 'contain',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
   },
   bubble: {
     position: 'absolute',

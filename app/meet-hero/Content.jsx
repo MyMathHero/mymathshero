@@ -25,18 +25,27 @@ const designedTo = [
 export default function MeetHeroContent() {
   return (
     <div className="min-h-screen">
-      {/* Hero */}
-      <section className="gradient-hero pt-32 pb-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+      {/* Hero — light surface (matches the home page) so Hero stays visible */}
+      <section className="relative overflow-hidden bg-[#F0F4F8] dark:bg-[#080808] pt-32 pb-24 px-4 sm:px-6 lg:px-8">
+        {/* Subtle maths equations background decoration */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-6xl font-bold" style={{ top: '14%', left: '6%' }}>2x+3=7</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ top: '22%', right: '8%' }}>a²+b²=c²</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-8xl font-bold" style={{ bottom: '18%', left: '4%' }}>π</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ bottom: '20%', right: '10%' }}>∑</span>
+          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-5xl font-bold" style={{ top: '66%', left: '38%' }}>√25 = 5</span>
+        </div>
+        <div className="relative max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/80 text-sm mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm mb-8 shadow-sm"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
               <Sparkles size={16} style={{ color: 'var(--accent-gold)' }} />
               Meet Hero
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: 'var(--text-primary)' }}>
               Meet Hero — Your Child&apos;s <span style={{ color: 'var(--accent-gold)' }}>AI Maths Tutor</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/70 max-w-2xl mb-8">
+            <p className="text-lg sm:text-xl max-w-2xl mb-8" style={{ color: 'var(--text-secondary)' }}>
               A friendly AI maths tutor for children from Prep to Year 6. Hero supports children step by step — helping them learn from mistakes, build confidence and keep moving forward.
             </p>
             <a href="/#waitlist" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-base font-semibold shadow-lg transition-all duration-200" style={{ background: 'var(--accent-gold)', color: '#1B2B4B' }}>

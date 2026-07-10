@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Footer from '@/components/Footer'
-import RoboVideo from '@/components/RoboVideo'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { Brain, CheckCircle2, BarChart3, BookOpen, Calculator, ArrowRight, Star, Sparkles, ChevronRight, Flag } from 'lucide-react'
 
@@ -169,14 +168,12 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero waving video */}
+            {/* Hero still image (coming soon) — transparent PNG, fills the right side. */}
             <div className="hidden lg:flex justify-center items-center">
-              <RoboVideo
-                src="/assets/robot/wavingrobo.MP4"
-                width={300}
-                blend="auto"
-                loop={true}
-                className="mx-auto"
+              <img
+                src="/assets/coming-soon-hero-removebg.png"
+                alt="Meet Hero — your child's AI maths tutor"
+                className="w-full h-auto max-h-[780px] object-contain lg:scale-[1.2] lg:origin-center"
               />
             </div>
           </div>
