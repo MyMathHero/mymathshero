@@ -79,86 +79,93 @@ const ArcadeCard = forwardRef(function ArcadeCard(
         position: 'relative', width: W, height: H, transformStyle: 'preserve-3d',
         transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', willChange: 'transform',
       }}>
-        {/* FRONT */}
+        {/* FRONT — a clean vertical flex stack: body grows, band pinned at the
+            bottom, so no two zones ever overlap. */}
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 20, overflow: 'hidden', backfaceVisibility: 'hidden',
-          background: 'linear-gradient(135deg,#12233f,#0b1732)',
-          boxShadow: '0 30px 60px -24px rgba(0,0,0,.6), 0 2px 0 rgba(140,180,255,.28) inset',
+          background: 'linear-gradient(135deg,#16294c,#0b1732)',
+          boxShadow: '0 30px 60px -24px rgba(0,0,0,.6), 0 2px 0 rgba(140,180,255,.22) inset',
           border: '1px solid rgba(255,255,255,.10)',
+          display: 'flex', flexDirection: 'column',
         }}>
           {/* faceted lines */}
-          <svg viewBox="0 0 340 214" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, opacity: .9, pointerEvents: 'none' }}>
-            {[['210','0','340','70'],['250','0','340','120'],['180','214','340','120'],['230','214','340','170'],['300','0','340','24']].map((p, i) => (
-              <line key={i} x1={p[0]} y1={p[1]} x2={p[2]} y2={p[3]} stroke="rgba(196,154,26,.20)" strokeWidth="1" />
+          <svg viewBox="0 0 340 214" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {[['212','0','340','70'],['252','0','340','120'],['182','214','340','120'],['232','214','340','170']].map((p, i) => (
+              <line key={i} x1={p[0]} y1={p[1]} x2={p[2]} y2={p[3]} stroke="rgba(196,154,26,.22)" strokeWidth="1" />
             ))}
           </svg>
 
-          <div style={{ position: 'absolute', inset: 0, padding: '16px 18px' }}>
-            {/* wordmark */}
-            <div style={{ fontWeight: 800, fontSize: 20, fontStyle: 'italic', letterSpacing: '-.5px', color: '#eef4ff' }}>
-              <i>my</i>maths<b style={{ color: GOLD, fontStyle: 'italic' }}>hero</b>
-              <span style={{ fontSize: 9, verticalAlign: 'super', color: '#9fb3d6', fontStyle: 'normal' }}>™</span>
+          {/* BODY (everything above the band) */}
+          <div style={{ position: 'relative', zIndex: 2, flex: 1, minHeight: 0, padding: '15px 18px 0', display: 'flex', flexDirection: 'column' }}>
+            {/* row 1: wordmark + joystick */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 800, fontSize: 19, fontStyle: 'italic', letterSpacing: '-.5px', color: '#eef4ff', lineHeight: 1 }}>
+                <i>my</i>maths<b style={{ color: GOLD, fontStyle: 'italic' }}>hero</b>
+                <span style={{ fontSize: 9, verticalAlign: 'super', color: '#9fb3d6', fontStyle: 'normal', fontWeight: 600 }}>™</span>
+              </div>
+              <svg viewBox="0 0 40 32" style={{ width: 38, height: 30, flexShrink: 0, opacity: .85 }}>
+                <g stroke={GOLD} fill="none" strokeWidth="1.6">
+                  <rect x="4" y="12" width="32" height="16" rx="8" /><circle cx="20" cy="6" r="3" /><path d="M20 9v3" />
+                  <circle cx="12" cy="20" r="1.6" /><path d="M28 18v4M26 20h4" />
+                </g>
+              </svg>
             </div>
-            {/* joystick */}
-            <svg viewBox="0 0 40 32" style={{ position: 'absolute', top: 14, right: 16, width: 38, height: 30, opacity: .85 }}>
-              <g stroke={GOLD} fill="none" strokeWidth="1.6">
-                <rect x="4" y="12" width="32" height="16" rx="8" /><circle cx="20" cy="6" r="3" /><path d="M20 9v3" />
-                <circle cx="12" cy="20" r="1.6" /><path d="M28 18v4M26 20h4" />
-              </g>
-            </svg>
 
-            {/* minutes balance ON the card */}
-            <div style={{ position: 'absolute', left: 18, top: 52 }}>
-              <div style={{ fontSize: 9, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Play time</div>
-              <div ref={minsRef} style={{
-                fontWeight: 900, fontSize: 34, color: '#eef4ff', lineHeight: 1,
-                fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'baseline', gap: 5,
-              }}>
-                {Math.max(0, minutes)} <span style={{ fontSize: 14, color: GOLD, fontWeight: 800 }}>min</span>
+            {/* mid: play-time (left) + Hero (right) */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14 }}>
+              <div>
+                <div style={{ fontSize: 10, letterSpacing: 3, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Play time</div>
+                <div ref={minsRef} style={{
+                  fontWeight: 900, fontSize: 38, color: '#eef4ff', lineHeight: 1,
+                  fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'baseline', gap: 6,
+                }}>
+                  {Math.max(0, minutes)} <span style={{ fontSize: 15, color: GOLD, fontWeight: 800 }}>min</span>
+                </div>
+              </div>
+              {/* Hero + gold H coin */}
+              <div style={{ position: 'relative', width: 120, height: 104, flexShrink: 0 }}>
+                <div style={{
+                  position: 'absolute', left: -6, top: 8, width: 44, height: 44, borderRadius: '50%', zIndex: 3,
+                  background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
+                  boxShadow: '0 0 0 3px rgba(255,240,190,.35), 0 8px 16px -6px rgba(196,154,26,.7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 900, color: '#7a5c12', fontSize: 22, animation: 'acFloat 3.2s ease-in-out infinite',
+                }}>H</div>
+                <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
+                  style={{ position: 'absolute', right: -4, bottom: -15, width: 118, height: 118, objectFit: 'contain', objectPosition: 'top' }} />
               </div>
             </div>
 
-            {/* Real Hero mascot + the gold H coin (kept clear of the bottom band). */}
-            <div aria-hidden style={{ position: 'absolute', right: 8, top: 26, width: 128, height: 128 }}>
-              <img src="/assets/robot/Heropeekingfromdown.png" alt="" style={{ width: 128, height: 128, objectFit: 'contain', objectPosition: 'top' }} />
-              <div style={{
-                position: 'absolute', left: -12, top: 30, width: 40, height: 40, borderRadius: '50%',
-                background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
-                boxShadow: '0 0 0 3px rgba(255,240,190,.35), 0 8px 16px -6px rgba(196,154,26,.7)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 900, color: '#7a5c12', fontSize: 20, animation: 'acFloat 3.2s ease-in-out infinite',
-              }}>H</div>
-            </div>
-
-            {/* feature row */}
-            <div style={{ position: 'absolute', left: 18, bottom: 44, display: 'flex', gap: 12, color: '#9fb3d6', fontSize: 9, fontWeight: 700 }}>
+            {/* features — their own row, above the divider */}
+            <div style={{ display: 'flex', gap: 16, marginTop: 'auto', marginBottom: 8 }}>
               {[['🎮', 'Play'], ['🏆', 'Rewards'], ['⭐', 'Level up']].map(([e, t]) => (
-                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: '#9fb3d6' }}>
                   {e} <b style={{ color: '#eef4ff', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</b>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* bottom band */}
+          {/* BAND — fixed height, one clean line, nothing wraps */}
           <div style={{
-            position: 'absolute', left: 0, right: 0, bottom: 0, padding: '12px 18px 14px',
+            position: 'relative', zIndex: 2, height: 52, flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 12, padding: '0 18px',
             background: 'linear-gradient(90deg,transparent, rgba(196,154,26,.06))',
-            borderTop: '1px solid rgba(196,154,26,.20)', display: 'flex', alignItems: 'center', gap: 12,
+            borderTop: '1px solid rgba(196,154,26,.22)',
           }}>
-            <div style={{ width: 34, height: 26, borderRadius: 6, flexShrink: 0, position: 'relative', background: 'linear-gradient(135deg,#f4dd94,#E6C35A 60%,#b9902f)', boxShadow: 'inset 0 0 0 1px rgba(120,90,20,.5)' }}>
+            <div style={{ width: 32, height: 24, borderRadius: 5, flexShrink: 0, position: 'relative', background: 'linear-gradient(135deg,#f4dd94,#E6C35A 60%,#b9902f)', boxShadow: 'inset 0 0 0 1px rgba(120,90,20,.5)' }}>
               <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(120,90,20,.45)' }} />
               <div style={{ position: 'absolute', top: 5, bottom: 5, left: '50%', width: 1, background: 'rgba(120,90,20,.45)' }} />
             </div>
-            <div style={{ fontFamily: 'ui-monospace,Menlo,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: 2, fontSize: 15, fontWeight: 700, color: '#eef4ff' }}>{cardNumber}</div>
-            <div style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>
-              {plan === 'premium' ? 'Premium Access' : 'Player Access'}
+            <div style={{ fontFamily: 'ui-monospace,Menlo,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: 1.5, fontSize: 13, fontWeight: 700, color: '#eef4ff', whiteSpace: 'nowrap' }}>{cardNumber}</div>
+            <div style={{ marginLeft: 'auto', fontSize: 8.5, lineHeight: 1.25, letterSpacing: 1.5, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase', textAlign: 'right', flexShrink: 0 }}>
+              {plan === 'premium' ? <>Premium<br />Access</> : <>Player<br />Access</>}
             </div>
           </div>
 
           {/* shimmer overlay */}
           <div ref={shineRef} style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0, mixBlendMode: 'screen',
+            position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none', opacity: 0, mixBlendMode: 'screen',
             background: `linear-gradient(105deg,transparent 30%,${GOLD_HI} 48%,transparent 66%)`,
           }} />
         </div>

@@ -69,35 +69,40 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
           <Line x1={W * 0.53} y1={H} x2={W} y2={H * 0.56} stroke="rgba(196,154,26,0.2)" strokeWidth={1} />
         </Svg>
 
-        {/* wordmark */}
-        <Text style={s.wordmark}><Text style={s.wmItalic}>my</Text>maths<Text style={{ color: GOLD }}>hero</Text><Text style={s.tm}>™</Text></Text>
-        <Text style={s.joystick}>🕹️</Text>
+        {/* BODY — clean flex stack so zones never overlap */}
+        <View style={s.body}>
+          {/* row 1: wordmark + joystick */}
+          <View style={s.row1}>
+            <Text style={s.wordmark}><Text style={s.wmItalic}>my</Text>maths<Text style={{ color: GOLD }}>hero</Text><Text style={s.tm}>™</Text></Text>
+            <Text style={s.joystick}>🕹️</Text>
+          </View>
 
-        {/* minutes on the card */}
-        <View style={s.balance}>
-          <Text style={s.balLab}>PLAY TIME</Text>
-          <Animated.View style={{ flexDirection: 'row', alignItems: 'flex-end', transform: [{ scale: pop }] }}>
-            <Text style={s.balVal}>{Math.max(0, minutes)}</Text>
-            <Text style={s.balMin}> min</Text>
-          </Animated.View>
+          {/* mid: play-time (left) + Hero (right) */}
+          <View style={s.mid}>
+            <View>
+              <Text style={s.balLab}>PLAY TIME</Text>
+              <Animated.View style={{ flexDirection: 'row', alignItems: 'flex-end', transform: [{ scale: pop }] }}>
+                <Text style={s.balVal}>{Math.max(0, minutes)}</Text>
+                <Text style={s.balMin}> min</Text>
+              </Animated.View>
+            </View>
+            <View style={s.robo}>
+              <View style={s.coin}><Text style={s.coinH}>H</Text></View>
+              <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
+            </View>
+          </View>
+
+          {/* features — own row above the band */}
+          <View style={s.feats}>
+            <Text style={s.feat}>🎮 PLAY</Text><Text style={s.feat}>🏆 REWARDS</Text><Text style={s.feat}>⭐ LEVEL UP</Text>
+          </View>
         </View>
 
-        {/* Real Hero mascot + the gold H coin */}
-        <View style={s.robo}>
-          <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
-          <View style={s.coin}><Text style={s.coinH}>H</Text></View>
-        </View>
-
-        {/* feature row */}
-        <View style={s.feats}>
-          <Text style={s.feat}>🎮 PLAY</Text><Text style={s.feat}>🏆 REWARDS</Text><Text style={s.feat}>⭐ LEVEL UP</Text>
-        </View>
-
-        {/* bottom band */}
+        {/* BAND — fixed line, nothing wraps */}
         <View style={s.band}>
           <View style={s.chip} />
-          <Text style={s.num}>{cardNumber}</Text>
-          <Text style={s.premium}>{plan === 'premium' ? 'PREMIUM' : 'PLAYER'}</Text>
+          <Text style={s.num} numberOfLines={1}>{cardNumber}</Text>
+          <Text style={s.premium}>{plan === 'premium' ? 'PREMIUM\nACCESS' : 'PLAYER\nACCESS'}</Text>
         </View>
 
         {/* shimmer */}
@@ -121,35 +126,37 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
 const s = StyleSheet.create({
   face: {
     position: 'absolute', top: 0, left: 0, borderRadius: 20, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', flexDirection: 'column',
   },
   back: { alignItems: 'center', justifyContent: 'center' },
-  wordmark: { position: 'absolute', left: 16, top: 14, fontSize: 19, fontWeight: '800', fontStyle: 'italic', color: '#eef4ff' },
+  body: { flex: 1, paddingHorizontal: 16, paddingTop: 13, zIndex: 2 },
+  row1: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  wordmark: { fontSize: 18, fontWeight: '800', fontStyle: 'italic', color: '#eef4ff' },
   wmItalic: { fontStyle: 'italic' },
   tm: { fontSize: 9, color: '#9fb3d6' },
-  joystick: { position: 'absolute', right: 16, top: 13, fontSize: 22 },
-  balance: { position: 'absolute', left: 16, top: 50 },
-  balLab: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
-  balVal: { fontSize: 34, fontWeight: '900', color: '#eef4ff', lineHeight: 36 },
-  balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 4 },
-  robo: { position: 'absolute', right: 8, top: 30, alignItems: 'center' },
-  roboImg: { width: 118, height: 118 },
+  joystick: { fontSize: 22 },
+  mid: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 },
+  balLab: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#9fb3d6' },
+  balVal: { fontSize: 36, fontWeight: '900', color: '#eef4ff', lineHeight: 38 },
+  balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 5 },
+  robo: { width: 108, height: 92 },
+  roboImg: { position: 'absolute', right: -4, bottom: -8, width: 110, height: 110 },
   coin: {
-    position: 'absolute', left: -18, top: 40, width: 38, height: 38, borderRadius: 19,
+    position: 'absolute', left: -4, top: 4, width: 38, height: 38, borderRadius: 19,
     backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center',
     borderWidth: 2, borderColor: GOLD_HI, zIndex: 3,
   },
   coinH: { fontWeight: '900', color: '#7a5c12', fontSize: 20 },
-  feats: { position: 'absolute', left: 16, bottom: 42, flexDirection: 'row', gap: 10 },
+  feats: { flexDirection: 'row', gap: 14, marginTop: 'auto', marginBottom: 8 },
   feat: { fontSize: 9, fontWeight: '700', color: '#cdd9f2' },
   band: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingVertical: 11,
-    flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(196,154,26,0.2)',
+    height: 50, flexShrink: 0, paddingHorizontal: 16, zIndex: 2,
+    flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(196,154,26,0.22)',
   },
   chip: { width: 32, height: 24, borderRadius: 5, backgroundColor: '#E6C35A' },
-  num: { fontFamily: 'Courier', letterSpacing: 1.5, fontSize: 14, fontWeight: '700', color: '#eef4ff' },
-  premium: { marginLeft: 'auto', fontSize: 10, letterSpacing: 1.5, fontWeight: '800', color: '#9fb3d6' },
-  shine: { position: 'absolute', top: 0, bottom: 0, width: 90, left: '35%' },
+  num: { fontFamily: 'Courier', letterSpacing: 1, fontSize: 13, fontWeight: '700', color: '#eef4ff', flexShrink: 1 },
+  premium: { marginLeft: 'auto', fontSize: 8.5, lineHeight: 11, letterSpacing: 1, fontWeight: '800', color: '#9fb3d6', textAlign: 'right' },
+  shine: { position: 'absolute', top: 0, bottom: 0, width: 90, left: '35%', zIndex: 4 },
   launchBig: { fontSize: 22, fontWeight: '900', color: '#eef4ff' },
   launchSub: { fontSize: 12, color: '#9fb3d6', marginTop: 4 },
 })
