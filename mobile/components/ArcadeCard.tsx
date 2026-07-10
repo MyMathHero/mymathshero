@@ -1,26 +1,55 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Image, Pressable } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import Svg, { Line } from 'react-native-svg'
+import { View, Text, StyleSheet, Animated, Easing, Pressable } from 'react-native'
+import Svg, {
+  Defs, LinearGradient as SvgGrad, RadialGradient, Stop, Rect, Line, Circle,
+  Text as SvgText, TSpan, Image as SvgImage, ClipPath, G,
+} from 'react-native-svg'
 
-// The MyMathsHero Arcade Card (React Native) — the collectible membership card &
-// play-time wallet. FRONT: name + play time + Hero. TAP flips to the BACK = the
-// student's ID (unique card number, name, member since, perks). Exposes:
-//   ref.shimmer()  → gold sweep + a pop on the minutes (after a top-up)
-//   ref.launch()   → forward "launch" overlay for starting a game (Promise ~700ms)
-//   ref.reset()    → clear the launch overlay
-const GOLD = '#C49A1A'
-const GOLD_HI = '#FFD54A'
+// The MyMathsHero Arcade Card (React Native) — drawn with react-native-svg so
+// every element sits at exact coordinates in fixed regions (text vs. robot),
+// making overlap impossible. FRONT = name + play time + Hero. TAP flips to the
+// BACK = the student's ID. Exposes shimmer()/launch()/reset(). No new dependency
+// (react-native-svg is already installed).
+const GOLD = '#C9A227', GOLD_HI = '#F2CE4B', INK = '#EAF1FF', SUB = '#93A6C8', DIM = '#6C7F9E'
+const CW = 340, CH = 214
+const ROBOT = require('../assets/Heropeekingfromdown.png')
+const LOGO = require('../assets/arcadelogo.png')
 
 export type ArcadeCardHandle = {
   shimmer: () => void
   launch: () => Promise<void>
   reset: () => void
 }
-
 type Props = {
   minutes?: number; plan?: string; cardNumber?: string; compact?: boolean
   studentName?: string; memberSince?: string | null
+}
+
+// One reusable card frame (background + circuit lines + border) as SVG defs.
+function Frame() {
+  return (
+    <>
+      <Defs>
+        <SvgGrad id="cardbg" x1="0" y1="0" x2={String(CW)} y2={String(CH)} gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#1b3059" /><Stop offset="0.8" stopColor="#0c1a35" />
+        </SvgGrad>
+        <SvgGrad id="chip" x1="0" y1="0" x2="34" y2="26" gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor="#f6e2a0" /><Stop offset="0.55" stopColor="#E6C35A" /><Stop offset="1" stopColor="#b28a2b" />
+        </SvgGrad>
+        <RadialGradient id="coin" cx="42%" cy="38%" r="60%">
+          <Stop offset="0" stopColor={GOLD_HI} /><Stop offset="0.72" stopColor={GOLD} /><Stop offset="1" stopColor="#8f7016" />
+        </RadialGradient>
+        <ClipPath id="card"><Rect x="0" y="0" width={CW} height={CH} rx="20" /></ClipPath>
+      </Defs>
+      <Rect x="0" y="0" width={CW} height={CH} rx="20" fill="url(#cardbg)" />
+      <G clipPath="url(#card)">
+        {[[214, 0, 340, 66], [256, 0, 340, 118], [186, 214, 340, 122], [236, 214, 340, 172]].map(([a, b, d, e], i) => (
+          <Line key={i} x1={a} y1={b} x2={d} y2={e} stroke="rgba(201,162,39,0.20)" strokeWidth="1" />
+        ))}
+      </G>
+      <Rect x="0.5" y="0.5" width={CW - 1} height={CH - 1} rx="20" fill="none" stroke="rgba(255,255,255,0.09)" strokeWidth="1" />
+    </>
+  )
 }
 
 const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
@@ -30,125 +59,97 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
   },
   ref
 ) {
-  const flip = useRef(new Animated.Value(0)).current      // 0 = front, 1 = ID back
-  const shine = useRef(new Animated.Value(0)).current     // shimmer sweep
-  const pop = useRef(new Animated.Value(1)).current       // minutes pop
+  const flip = useRef(new Animated.Value(0)).current   // 0 = front, 1 = ID back
+  const shine = useRef(new Animated.Value(0)).current
   const [flipped, setFlipped] = useState(false)
   const [launching, setLaunching] = useState(false)
 
   useImperativeHandle(ref, () => ({
     shimmer() {
       shine.setValue(0)
-      Animated.timing(shine, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start()
-      Animated.sequence([
-        Animated.timing(pop, { toValue: 1.16, duration: 180, useNativeDriver: true }),
-        Animated.spring(pop, { toValue: 1, useNativeDriver: true }),
-      ]).start()
+      Animated.timing(shine, { toValue: 1, duration: 950, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start()
     },
-    // Launch = a fade-in overlay on top (separate from the tap-flip).
-    launch() {
-      return new Promise<void>((res) => { setLaunching(true); setTimeout(() => res(), 700) })
-    },
+    launch() { return new Promise<void>((res) => { setLaunching(true); setTimeout(() => res(), 700) }) },
     reset() { setLaunching(false) },
   }))
 
-  // Tap toggles the card between the front and the ID back.
   function toggleFlip() {
     const to = flipped ? 0 : 1
     setFlipped(!flipped)
-    Animated.timing(flip, { toValue: to, duration: 450, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start()
+    Animated.timing(flip, { toValue: to, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start()
   }
 
-  const W = compact ? 300 : 330
-  const H = compact ? 189 : 208
+  const scale = (compact ? 300 : 330) / CW
+  const W = CW * scale, H = CH * scale
 
   const frontRot = flip.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] })
   const backRot = flip.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] })
-  // Hard opacity swap at the flip midpoint so only ONE face is ever visible —
-  // backface-visibility is unreliable on Android, so this guarantees no bleed.
   const frontOpacity = flip.interpolate({ inputRange: [0, 0.49, 0.5, 1], outputRange: [1, 1, 0, 0] })
   const backOpacity = flip.interpolate({ inputRange: [0, 0.5, 0.51, 1], outputRange: [0, 0, 1, 1] })
-  const shineX = shine.interpolate({ inputRange: [0, 1], outputRange: [-W * 0.4, W * 0.4] })
-  const shineOpacity = shine.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.9, 0] })
+  const shineX = shine.interpolate({ inputRange: [0, 1], outputRange: [-CW * 0.4, CW * 0.4] })
+  const shineOp = shine.interpolate({ inputRange: [0, 0.22, 1], outputRange: [0, 0.85, 0] })
+
+  const faceStyle = { position: 'absolute' as const, top: 0, left: 0, width: W, height: H }
+  const svgProps = { width: W, height: H, viewBox: `0 0 ${CW} ${CH}` }
+  const planT = plan === 'premium' ? '★ PREMIUM' : 'PLAYER'
+  const num = String(cardNumber)
 
   return (
     <Pressable onPress={toggleFlip} style={{ width: W, height: H }}>
       {/* FRONT */}
-      <Animated.View style={[s.face, { width: W, height: H, opacity: frontOpacity, transform: [{ perspective: 1000 }, { rotateY: frontRot }], backfaceVisibility: 'hidden' }]}>
-        <LinearGradient colors={['#12233f', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        {/* faceted lines */}
-        <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
-          <Line x1={W * 0.62} y1={0} x2={W} y2={H * 0.33} stroke="rgba(196,154,26,0.2)" strokeWidth={1} />
-          <Line x1={W * 0.74} y1={0} x2={W} y2={H * 0.56} stroke="rgba(196,154,26,0.2)" strokeWidth={1} />
-          <Line x1={W * 0.53} y1={H} x2={W} y2={H * 0.56} stroke="rgba(196,154,26,0.2)" strokeWidth={1} />
+      <Animated.View style={[faceStyle, { opacity: frontOpacity, transform: [{ perspective: 1000 }, { rotateY: frontRot }] }]}>
+        <Svg {...svgProps}>
+          <Frame />
+          {/* robot in a clipped bottom-right zone; text is to its left */}
+          <G clipPath="url(#card)">
+            <SvgImage href={ROBOT} x={206} y={CH - 150} width={140} height={158} preserveAspectRatio="xMidYMax meet" />
+          </G>
+          {/* coin above the robot's shoulder */}
+          <Circle cx={236} cy={96} r={21} fill="url(#coin)" stroke="rgba(255,240,190,0.55)" strokeWidth="2" />
+          <SvgText x={236} y={103} fontSize="20" fontWeight="900" fill="#5c460f" textAnchor="middle">H</SvgText>
+          {/* wordmark */}
+          <SvgText x={18} y={34} fontSize="19" fontWeight="800" fontStyle="italic">
+            <TSpan fill={INK}>mymaths</TSpan><TSpan fill={GOLD}>hero</TSpan>
+            <TSpan fill={SUB} fontSize="9" dy="-7">™</TSpan>
+          </SvgText>
+          {/* logo top-right */}
+          <SvgImage href={LOGO} x={CW - 18 - 30} y={8} width={30} height={30} preserveAspectRatio="xMidYMid meet" />
+          {/* play time */}
+          <SvgText x={18} y={74} fontSize="10" fontWeight="800" letterSpacing="3" fill={SUB}>PLAY TIME</SvgText>
+          <SvgText x={18} y={116} fontWeight="900">
+            <TSpan fontSize="46" fill={INK}>{Math.max(0, minutes)}</TSpan>
+            <TSpan fontSize="16" fill={GOLD} dx="8">min</TSpan>
+          </SvgText>
+          {/* cardholder */}
+          <SvgText x={18} y={146} fontSize="8" fontWeight="800" letterSpacing="2" fill={SUB}>CARDHOLDER</SvgText>
+          <SvgText x={18} y={164} fontSize="15" fontWeight="800" fill={INK}>{ellip(studentName, 20)}</SvgText>
+          {/* bottom band */}
+          <Line x1={0} y1={CH - 52} x2={CW} y2={CH - 52} stroke="rgba(201,162,39,0.20)" strokeWidth="1" />
+          <Rect x={18} y={CH - 39} width={34} height={26} rx={5} fill="url(#chip)" />
+          <Line x1={21} y1={CH - 26} x2={49} y2={CH - 26} stroke="rgba(110,84,18,0.5)" strokeWidth="1" />
+          <Line x1={35} y1={CH - 35} x2={35} y2={CH - 17} stroke="rgba(110,84,18,0.5)" strokeWidth="1" />
+          <SvgText x={CW - 18} y={CH - 22} fontSize="11" fontWeight="800" letterSpacing="2" fill={GOLD} textAnchor="end">{planT}</SvgText>
         </Svg>
-
-        {/* Hero mascot — pinned to the card's bottom-right at its NATURAL aspect
-            ratio, clipped by the card's overflow, BELOW the text (so its size
-            can't push the layout). Coin floats beside it. */}
-        <Image source={require('../assets/Heropeekingfromdown.png')} style={s.roboImg} resizeMode="contain" />
-        <View style={s.coin}><Text style={s.coinH}>H</Text></View>
-
-        {/* BODY — clean flex stack so zones never overlap */}
-        <View style={s.body}>
-          {/* row 1: wordmark + arcade logo */}
-          <View style={s.row1}>
-            <Text style={s.wordmark}><Text style={s.wmItalic}>my</Text>maths<Text style={{ color: GOLD }}>hero</Text><Text style={s.tm}>™</Text></Text>
-            <Image source={require('../assets/arcadelogo.png')} style={s.logo} resizeMode="contain" />
-          </View>
-
-          {/* play-time (left). Hero is pinned below, so it can't shift this. */}
-          <View style={{ marginTop: 12 }}>
-            <Text style={s.balLab}>PLAY TIME</Text>
-            <Animated.View style={{ flexDirection: 'row', alignItems: 'flex-end', transform: [{ scale: pop }] }}>
-              <Text style={s.balVal}>{Math.max(0, minutes)}</Text>
-              <Text style={s.balMin}> min</Text>
-            </Animated.View>
-          </View>
-
-          {/* cardholder name + tap hint */}
-          <View style={s.nameRow}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.nameLab}>CARDHOLDER</Text>
-              <Text style={s.nameVal} numberOfLines={1}>{studentName}</Text>
-            </View>
-            <Text style={s.tapHint}>tap to flip ↻</Text>
-          </View>
-        </View>
-
-        {/* BAND (front) — chip + plan badge. Card number is on the back. */}
-        <View style={s.band}>
-          <View style={s.chip} />
-          <Text style={s.planBadge}>{plan === 'premium' ? '⭐ PREMIUM' : 'PLAYER'}</Text>
-        </View>
-
-        {/* shimmer */}
-        <Animated.View pointerEvents="none" style={[s.shine, { opacity: shineOpacity, transform: [{ translateX: shineX }, { rotate: '12deg' }] }]}>
-          <LinearGradient colors={['transparent', GOLD_HI, 'transparent']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
-        </Animated.View>
+        {/* shimmer sweep */}
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, width: 80, left: '35%', opacity: shineOp, transform: [{ translateX: shineX }, { rotate: '12deg' }], backgroundColor: 'rgba(242,206,75,0.5)' }} />
       </Animated.View>
 
-      {/* BACK — the student's Arcade ID (tap to reveal). */}
-      <Animated.View style={[s.face, { width: W, height: H, opacity: backOpacity, transform: [{ perspective: 1000 }, { rotateY: backRot }], backfaceVisibility: 'hidden' }]}>
-        <LinearGradient colors={['#16294c', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-        <View style={s.stripe} />
-        <View style={s.idBody}>
-          <View style={s.idTop}>
-            <Text style={s.idLabel}>HERO ARCADE ID</Text>
-            {!!memberSince && <Text style={s.idSince}>MEMBER SINCE {memberSince}</Text>}
-          </View>
-          <Text style={s.idNum} numberOfLines={1}>{cardNumber}</Text>
-          <Text style={s.idName} numberOfLines={1}>{studentName}</Text>
-          <View style={s.idPerks}>
-            <Text style={s.feat}>🎮 PLAY</Text><Text style={s.feat}>🏆 REWARDS</Text><Text style={s.feat}>⭐ LEVEL UP</Text>
-          </View>
-        </View>
+      {/* BACK (ID) */}
+      <Animated.View style={[faceStyle, { opacity: backOpacity, transform: [{ perspective: 1000 }, { rotateY: backRot }] }]}>
+        <Svg {...svgProps}>
+          <Frame />
+          <Rect x={0} y={16} width={CW} height={36} fill="#0a1424" />
+          <SvgText x={18} y={74} fontSize="9" fontWeight="800" letterSpacing="2.5" fill={SUB}>HERO ARCADE ID</SvgText>
+          {!!memberSince && <SvgText x={CW - 18} y={74} fontSize="8.5" fontWeight="700" fill={DIM} textAnchor="end">MEMBER SINCE {memberSince}</SvgText>}
+          <SvgText x={18} y={104} fontSize="21" fontWeight="600" letterSpacing="3" fill={INK} fontFamily="Courier">{num}</SvgText>
+          <SvgText x={18} y={126} fontSize="15" fontWeight="800" fill={GOLD}>{ellip(studentName, 26)}</SvgText>
+          <SvgText x={18} y={CH - 22} fontSize="10" fontWeight="700" fill={SUB}>🎮 PLAY    🏆 REWARDS    ⭐ LEVEL UP</SvgText>
+        </Svg>
       </Animated.View>
 
-      {/* LAUNCH overlay — on top during a game launch. */}
+      {/* LAUNCH overlay */}
       {launching && (
-        <View style={[s.face, s.back, { width: W, height: H, zIndex: 5 }]}>
-          <LinearGradient colors={['#0b1732', '#12233f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={[faceStyle, s.launch]}>
           <Text style={s.launchBig}>Loading…</Text>
           <Text style={s.launchSub}>Your time starts when it loads ⏱️</Text>
         </View>
@@ -157,53 +158,12 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
   )
 })
 
+function ellip(t: string, max: number) { const s = String(t || ''); return s.length > max ? s.slice(0, max - 1) + '…' : s }
+
 const s = StyleSheet.create({
-  face: {
-    position: 'absolute', top: 0, left: 0, borderRadius: 20, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', flexDirection: 'column',
-  },
-  back: { alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, paddingHorizontal: 16, paddingTop: 13, zIndex: 2 },
-  row1: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  wordmark: { fontSize: 18, fontWeight: '800', fontStyle: 'italic', color: '#eef4ff' },
-  wmItalic: { fontStyle: 'italic' },
-  tm: { fontSize: 9, color: '#9fb3d6' },
-  logo: { width: 34, height: 34 },
-  balLab: { fontSize: 10, letterSpacing: 3, fontWeight: '800', color: '#9fb3d6' },
-  balVal: { fontSize: 36, fontWeight: '900', color: '#eef4ff', lineHeight: 38 },
-  balMin: { fontSize: 14, color: GOLD, fontWeight: '800', marginBottom: 5 },
-  // Pinned bottom-right, natural aspect ratio (PNG is 1086×1448 → h ≈ w×1.333).
-  roboImg: { position: 'absolute', right: 4, bottom: -6, width: 120, height: 160, zIndex: 1 },
-  coin: {
-    position: 'absolute', right: 96, top: 48, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: GOLD, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: GOLD_HI, zIndex: 1,
-  },
-  coinH: { fontWeight: '900', color: '#7a5c12', fontSize: 20 },
-  // front cardholder name row
-  nameRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 8, gap: 8 },
-  nameLab: { fontSize: 8.5, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
-  nameVal: { fontSize: 15, fontWeight: '800', color: '#eef4ff' },
-  tapHint: { fontSize: 9, fontWeight: '700', color: '#7d8fb2' },
-  feat: { fontSize: 9, fontWeight: '700', color: '#cdd9f2' },
-  band: {
-    height: 46, flexShrink: 0, paddingHorizontal: 16, zIndex: 2,
-    flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(196,154,26,0.22)',
-  },
-  chip: { width: 32, height: 24, borderRadius: 5, backgroundColor: '#E6C35A' },
-  planBadge: { marginLeft: 'auto', fontSize: 10, letterSpacing: 2, fontWeight: '800', color: GOLD },
-  // back (ID)
-  stripe: { height: 32, marginTop: 14, backgroundColor: '#0a1424' },
-  idBody: { flex: 1, paddingHorizontal: 18, paddingTop: 12 },
-  idTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  idLabel: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
-  idSince: { fontSize: 8.5, letterSpacing: 1, fontWeight: '700', color: '#7d8fb2' },
-  idNum: { marginTop: 12, fontFamily: 'Courier', letterSpacing: 2, fontSize: 18, fontWeight: '700', color: '#eef4ff' },
-  idName: { marginTop: 4, fontSize: 14, fontWeight: '800', color: GOLD },
-  idPerks: { flexDirection: 'row', gap: 14, marginTop: 'auto', marginBottom: 14, flexWrap: 'wrap' },
-  shine: { position: 'absolute', top: 0, bottom: 0, width: 90, left: '35%', zIndex: 4 },
-  launchBig: { fontSize: 22, fontWeight: '900', color: '#eef4ff' },
-  launchSub: { fontSize: 12, color: '#9fb3d6', marginTop: 4 },
+  launch: { borderRadius: 20, backgroundColor: '#0b1732', alignItems: 'center', justifyContent: 'center' },
+  launchBig: { fontSize: 22, fontWeight: '900', color: INK },
+  launchSub: { fontSize: 12, color: SUB, marginTop: 4 },
 })
 
 export default ArcadeCard

@@ -1,15 +1,61 @@
 'use client'
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect, useCallback } from 'react'
 
-// The MyMathsHero Arcade Card — a collectible membership card that IS the
-// play-time wallet. Dark theme only. FRONT shows the student's name + play time
-// + Hero. TAP flips it to the BACK, the student's "ID" (unique card number,
-// name, member-since, perks). Exposed methods:
-//   ref.shimmer()  → gold sweep + a pop on the minutes (after a top-up)
-//   ref.launch()   → forward "launch" flip for starting a game (Promise ~700ms)
-//   ref.reset()    → clear the launch flip
-const GOLD = '#C49A1A'
-const GOLD_HI = '#FFD54A'
+// The MyMathsHero Arcade Card — drawn on <canvas> so every element (text, coin,
+// robot, logo) is painted at exact coordinates. Text and graphics live in fixed
+// regions and can NEVER overlap. FRONT = name + play time + Hero. TAP flips to
+// the BACK = the student's ID (unique number, name, member-since, perks).
+// Exposed methods: ref.shimmer() (top-up sweep), ref.launch() (Promise ~700ms),
+// ref.reset().
+const CW = 340, CH = 214
+const GOLD = '#C9A227', GOLD_HI = '#F2CE4B', INK = '#EAF1FF', SUB = '#93A6C8', DIM = '#6C7F9E'
+
+// ── low-level canvas painters (module scope, reused for both faces) ──────────
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath(); c.moveTo(x + r, y)
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r)
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath()
+}
+function paintBg(c) {
+  const g = c.createLinearGradient(0, 0, CW, CH)
+  g.addColorStop(0, '#1b3059'); g.addColorStop(0.8, '#0c1a35')
+  roundRect(c, 0, 0, CW, CH, 20); c.fillStyle = g; c.fill()
+  c.save(); roundRect(c, 0, 0, CW, CH, 20); c.clip()
+  c.strokeStyle = 'rgba(201,162,39,.20)'; c.lineWidth = 1
+  for (const [a, b, d, e] of [[214, 0, 340, 66], [256, 0, 340, 118], [186, 214, 340, 122], [236, 214, 340, 172]]) {
+    c.beginPath(); c.moveTo(a, b); c.lineTo(d, e); c.stroke()
+  }
+  c.restore()
+  roundRect(c, 0.5, 0.5, CW - 1, CH - 1, 20); c.strokeStyle = 'rgba(255,255,255,.09)'; c.lineWidth = 1; c.stroke()
+}
+// letter-spaced label; returns the x after the last glyph.
+function label(c, t, x, y, { size = 9, color = SUB, weight = '800', ls = 2, upper = true } = {}) {
+  c.font = `${weight} ${size}px -apple-system,"SF Pro Rounded",system-ui,sans-serif`
+  c.fillStyle = color; c.textAlign = 'left'; c.textBaseline = 'alphabetic'
+  const s = upper ? String(t).toUpperCase() : String(t)
+  let cx = x
+  for (const ch of s) { c.fillText(ch, cx, y); cx += c.measureText(ch).width + ls }
+  return cx
+}
+function spacedWidth(c, t, ls) { let w = 0; for (const ch of t) w += c.measureText(ch).width + ls; return w - ls }
+function clipText(c, t, max) { let s = String(t); while (c.measureText(s).width > max && s.length > 1) s = s.slice(0, -1); return s === String(t) ? s : s + '…' }
+function chip(c, x, y) {
+  const g = c.createLinearGradient(x, y, x + 34, y + 26)
+  g.addColorStop(0, '#f6e2a0'); g.addColorStop(0.55, '#E6C35A'); g.addColorStop(1, '#b28a2b')
+  roundRect(c, x, y, 34, 26, 5); c.fillStyle = g; c.fill()
+  c.strokeStyle = 'rgba(110,84,18,.5)'; c.lineWidth = 1
+  c.beginPath(); c.moveTo(x + 3, y + 13); c.lineTo(x + 31, y + 13); c.moveTo(x + 17, y + 4); c.lineTo(x + 17, y + 22); c.stroke()
+}
+function coin(c, cx, cy, r) {
+  c.save(); c.shadowColor = 'rgba(201,162,39,.6)'; c.shadowBlur = 18
+  const g = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.2, cx, cy, r)
+  g.addColorStop(0, GOLD_HI); g.addColorStop(0.72, GOLD); g.addColorStop(1, '#8f7016')
+  c.beginPath(); c.arc(cx, cy, r, 0, 7); c.fillStyle = g; c.fill()
+  c.shadowBlur = 0; c.lineWidth = 2; c.strokeStyle = 'rgba(255,240,190,.55)'; c.stroke()
+  c.fillStyle = '#5c460f'; c.font = `900 ${Math.round(r)}px -apple-system,system-ui,sans-serif`
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('H', cx, cy + 1)
+  c.textAlign = 'left'; c.restore()
+}
 
 const ArcadeCard = forwardRef(function ArcadeCard(
   {
@@ -18,199 +64,160 @@ const ArcadeCard = forwardRef(function ArcadeCard(
   },
   ref
 ) {
-  const cardRef = useRef(null)
+  const frontRef = useRef(null)
+  const backRef = useRef(null)
+  const robotRef = useRef(null)   // loaded Hero PNG
+  const logoRef = useRef(null)    // loaded arcade logo
   const shineRef = useRef(null)
-  const minsRef = useRef(null)
-  const [flipped, setFlipped] = useState(false)   // tap → show ID back
+  const [flipped, setFlipped] = useState(false)
   const [launching, setLaunching] = useState(false)
+
+  // ── draw the FRONT ──
+  const drawFront = useCallback(() => {
+    const cv = frontRef.current; if (!cv) return
+    const c = cv.getContext('2d'); c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, CW, CH); paintBg(c)
+
+    // ROBOT zone (bottom-right, clipped). Text is laid out to its LEFT only.
+    c.save(); roundRect(c, 0, 0, CW, CH, 20); c.clip()
+    const img = robotRef.current
+    if (img && img.complete && img.naturalWidth) {
+      const zx = 210, zw = 130, zh = 152, zy = CH - zh + 6
+      const ar = img.naturalWidth / img.naturalHeight
+      let dw = zw, dh = dw / ar; if (dh < zh) { dh = zh; dw = dh * ar }
+      c.drawImage(img, zx + (zw - dw) / 2, zy + (zh - dh), dw, dh)
+    }
+    c.restore()
+    coin(c, 236, 96, 21) // anchored above the robot's shoulder
+
+    // wordmark (top-left)
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic'
+    c.font = '800 italic 19px -apple-system,"SF Pro Rounded",system-ui,sans-serif'
+    c.fillStyle = INK; let wx = 18; c.fillText('mymaths', wx, 34)
+    wx += c.measureText('mymaths').width; c.fillStyle = GOLD; c.fillText('hero', wx, 34)
+    wx += c.measureText('hero').width; c.font = '600 9px system-ui'; c.fillStyle = SUB; c.fillText('™', wx + 1, 28)
+
+    // arcade logo (top-right)
+    const lg = logoRef.current
+    if (lg && lg.complete && lg.naturalWidth) c.drawImage(lg, CW - 18 - 30, 8, 30, 30)
+
+    // PLAY TIME + big minutes (left column)
+    label(c, 'PLAY TIME', 18, 74, { size: 10, ls: 3 })
+    c.font = '900 46px -apple-system,"SF Pro Rounded",system-ui,sans-serif'; c.fillStyle = INK
+    const mstr = String(Math.max(0, minutes)); c.fillText(mstr, 18, 116)
+    const mw = c.measureText(mstr).width
+    c.font = '800 16px -apple-system,system-ui,sans-serif'; c.fillStyle = GOLD; c.fillText('min', 18 + mw + 8, 116)
+
+    // CARDHOLDER + name
+    label(c, 'CARDHOLDER', 18, 146, { size: 8, ls: 2 })
+    c.font = '800 15px -apple-system,"SF Pro Rounded",system-ui,sans-serif'; c.fillStyle = INK
+    c.fillText(clipText(c, studentName, 170), 18, 164)
+
+    // bottom band
+    c.strokeStyle = 'rgba(201,162,39,.20)'; c.lineWidth = 1
+    c.beginPath(); c.moveTo(0, CH - 52); c.lineTo(CW, CH - 52); c.stroke()
+    chip(c, 18, CH - 39)
+    const planT = plan === 'premium' ? '★ PREMIUM' : 'PLAYER'
+    c.font = '800 11px -apple-system,system-ui,sans-serif'
+    label(c, planT, CW - 18 - spacedWidth(c, planT, 2), CH - 22, { size: 11, ls: 2, color: GOLD, upper: false })
+  }, [minutes, plan, studentName])
+
+  // ── draw the BACK (ID) ──
+  const drawBack = useCallback(() => {
+    const cv = backRef.current; if (!cv) return
+    const c = cv.getContext('2d'); c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, CW, CH); paintBg(c)
+    c.fillStyle = '#0a1424'; c.fillRect(0, 16, CW, 36) // mag stripe
+    label(c, 'HERO ARCADE ID', 18, 74, { size: 9, ls: 2.5 })
+    if (memberSince) {
+      const since = 'MEMBER SINCE ' + memberSince
+      c.font = '700 8.5px system-ui'
+      label(c, since, CW - 18 - spacedWidth(c, since, 1), 74, { size: 8.5, ls: 1, color: DIM, upper: false })
+    }
+    c.font = '600 21px "SF Mono",ui-monospace,Menlo,monospace'; c.fillStyle = INK
+    let nx = 18; for (const ch of String(cardNumber)) { c.fillText(ch, nx, 104); nx += c.measureText(ch).width + 3 }
+    c.font = '800 15px -apple-system,"SF Pro Rounded",system-ui,sans-serif'; c.fillStyle = GOLD
+    c.fillText(clipText(c, studentName, 300), 18, 126)
+    // perks row
+    let px = 18
+    for (const [e, t] of [['🎮', 'PLAY'], ['🏆', 'REWARDS'], ['⭐', 'LEVEL UP']]) {
+      c.font = '16px system-ui'; c.fillStyle = INK; c.textBaseline = 'alphabetic'; c.fillText(e, px, CH - 22)
+      px += c.measureText(e).width + 6
+      px = label(c, t, px, CH - 24, { size: 9.5, ls: 0.5, color: INK, upper: false }) + 18
+    }
+  }, [cardNumber, memberSince, studentName])
+
+  // Load the images once, then redraw.
+  useEffect(() => {
+    const robot = new Image(); robot.src = '/assets/robot/Heropeekingfromdown.png'
+    robot.onload = () => { robotRef.current = robot; drawFront() }
+    robotRef.current = robot
+    const logo = new Image(); logo.src = '/assets/arcadelogo.png'
+    logo.onload = () => { logoRef.current = logo; drawFront() }
+    logoRef.current = logo
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Redraw whenever the data changes.
+  useEffect(() => { drawFront() }, [drawFront])
+  useEffect(() => { drawBack() }, [drawBack])
 
   useImperativeHandle(ref, () => ({
     shimmer() {
-      const shine = shineRef.current, m = minsRef.current
-      if (shine) { shine.classList.remove('ac-go'); void shine.offsetWidth; shine.classList.add('ac-go') }
-      if (m) { m.classList.remove('ac-pop'); void m.offsetWidth; m.classList.add('ac-pop') }
+      const s = shineRef.current
+      if (s) { s.classList.remove('ac-go'); void s.offsetWidth; s.classList.add('ac-go') }
     },
-    launch() {
-      return new Promise((res) => { setFlipped(false); setLaunching(true); setTimeout(() => res(), 700) })
-    },
+    launch() { return new Promise((res) => { setFlipped(false); setLaunching(true); setTimeout(() => res(), 700) }) },
     reset() { setLaunching(false) },
-    el() { return cardRef.current },
   }))
 
   const W = compact ? 300 : 340
   const H = compact ? 189 : 214
-
-  // Each face is hidden the AWAY-facing side two ways: backface-visibility AND an
-  // opacity gate that swaps at the flip's midpoint — because overflow:hidden +
-  // rounded corners can flatten the 3D context and defeat backface-visibility
-  // alone (that caused the front to bleed through the back).
-  const faceGate = { transition: 'opacity 0s linear .28s' }
-  const frontOpacity = flipped ? 0 : 1
-  const backOpacity = flipped ? 1 : 0
+  const faceBase = {
+    position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 20,
+    backfaceVisibility: 'hidden', transition: 'opacity 0s linear .28s',
+    boxShadow: '0 26px 60px -26px rgba(0,0,0,.7)',
+  }
 
   return (
-    <div style={{ perspective: 1400, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ perspective: 1600, width: W, height: H }}>
       <style>{`
-        @keyframes acBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
-        @keyframes acFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
-        @keyframes acPop{0%{transform:scale(1)}40%{transform:scale(1.16)}100%{transform:scale(1)}}
-        @keyframes acSweep{0%{opacity:0;transform:translateX(-30%)}20%{opacity:.9}100%{opacity:0;transform:translateX(30%)}}
         @keyframes acSpin{to{transform:rotate(360deg)}}
-        @keyframes acLaunch{0%{transform:none}35%{transform:translateY(-22px) rotateX(13deg) scale(1.05)}60%{transform:translateY(-8px) rotateY(180deg) scale(1.02)}100%{transform:translateY(-6px) rotateY(180deg) scale(1)}}
-        .ac-pop{animation:acPop .5s ease}
-        .ac-go{animation:acSweep .9s ease}
-        .ac-launch{animation:acLaunch 1.1s cubic-bezier(.5,0,.2,1) forwards}
-        @media (prefers-reduced-motion:reduce){.ac-launch,.ac-go,.ac-pop{animation-duration:.001s !important}}
+        @keyframes acSweep{0%{opacity:0;transform:translateX(-30%)}22%{opacity:.85}100%{opacity:0;transform:translateX(30%)}}
+        .ac-go{animation:acSweep 1s ease}
+        @media (prefers-reduced-motion:reduce){.ac-go{animation:none}}
       `}</style>
 
       <div
-        ref={cardRef}
         onClick={() => { if (!launching) setFlipped(f => !f) }}
-        className={launching ? 'ac-launch' : ''}
         style={{
-          position: 'relative', width: W, height: H, transformStyle: 'preserve-3d',
-          transition: 'transform .6s cubic-bezier(.3,.8,.25,1)', willChange: 'transform',
-          transform: launching ? undefined : `rotateY(${flipped ? 180 : 0}deg)`, cursor: 'pointer',
+          position: 'relative', width: '100%', height: '100%', transformStyle: 'preserve-3d',
+          transition: 'transform .6s cubic-bezier(.3,.8,.25,1)', cursor: 'pointer',
+          transform: launching ? undefined : `rotateY(${flipped ? 180 : 0}deg)`,
         }}
       >
-        {/* FRONT — a clean vertical flex stack: body grows, band pinned at the
-            bottom, so no two zones ever overlap. */}
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 20, overflow: 'hidden', backfaceVisibility: 'hidden',
-          background: 'linear-gradient(135deg,#16294c,#0b1732)',
-          boxShadow: '0 30px 60px -24px rgba(0,0,0,.6), 0 2px 0 rgba(140,180,255,.22) inset',
-          border: '1px solid rgba(255,255,255,.10)',
-          display: 'flex', flexDirection: 'column',
-          opacity: frontOpacity, ...faceGate,
-        }}>
-          {/* faceted lines */}
-          <svg viewBox="0 0 340 214" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            {[['212','0','340','70'],['252','0','340','120'],['182','214','340','120'],['232','214','340','170']].map((p, i) => (
-              <line key={i} x1={p[0]} y1={p[1]} x2={p[2]} y2={p[3]} stroke="rgba(196,154,26,.22)" strokeWidth="1" />
-            ))}
-          </svg>
+        {/* FRONT canvas */}
+        <canvas ref={frontRef} width={CW * 2} height={CH * 2}
+          style={{ ...faceBase, opacity: flipped ? 0 : 1 }} />
+        {/* gold shimmer sweep on top-up (overlaid on the front) */}
+        <div ref={shineRef} style={{
+          position: 'absolute', inset: 0, borderRadius: 20, pointerEvents: 'none', opacity: 0,
+          mixBlendMode: 'screen', backfaceVisibility: 'hidden',
+          background: `linear-gradient(105deg,transparent 34%,${GOLD_HI} 50%,transparent 64%)`,
+          display: flipped ? 'none' : 'block',
+        }} />
+        {/* BACK canvas */}
+        <canvas ref={backRef} width={CW * 2} height={CH * 2}
+          style={{ ...faceBase, transform: 'rotateY(180deg)', opacity: flipped ? 1 : 0 }} />
 
-          {/* Hero mascot — pinned to the card's bottom-right at its NATURAL aspect
-              ratio (width fixed, height auto), clipped by the card's overflow. It
-              sits BELOW the text zones (zIndex 1) so its PNG size can never push
-              the layout. The gold coin floats beside the robot's hand. */}
-          <img src="/assets/robot/Heropeekingfromdown.png" alt="" aria-hidden
-            style={{ position: 'absolute', right: 6, bottom: -6, width: compact ? 116 : 128, height: 'auto', zIndex: 1, pointerEvents: 'none' }} />
-          <div style={{
-            position: 'absolute', right: compact ? 96 : 108, top: compact ? 44 : 52,
-            width: 42, height: 42, borderRadius: '50%', zIndex: 1,
-            background: `radial-gradient(circle at 38% 32%,${GOLD_HI},${GOLD} 70%,#9a7415)`,
-            boxShadow: '0 0 18px rgba(196,154,26,.55), 0 6px 14px -4px rgba(0,0,0,.5)',
-            border: '2px solid rgba(255,240,190,.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 900, color: '#7a5c12', fontSize: 20, animation: 'acFloat 3.2s ease-in-out infinite',
-          }}>H</div>
-
-          {/* BODY (everything above the band) */}
-          <div style={{ position: 'relative', zIndex: 2, flex: 1, minHeight: 0, padding: '15px 18px 0', display: 'flex', flexDirection: 'column' }}>
-            {/* row 1: wordmark + joystick */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <div style={{ fontWeight: 800, fontSize: 19, fontStyle: 'italic', letterSpacing: '-.5px', color: '#eef4ff', lineHeight: 1 }}>
-                <i>my</i>maths<b style={{ color: GOLD, fontStyle: 'italic' }}>hero</b>
-                <span style={{ fontSize: 9, verticalAlign: 'super', color: '#9fb3d6', fontStyle: 'normal', fontWeight: 600 }}>™</span>
-              </div>
-              {/* Arcade logo (top-right) */}
-              <img src="/assets/arcadelogo.png" alt="" aria-hidden
-                style={{ width: 34, height: 34, objectFit: 'contain', flexShrink: 0 }} />
-            </div>
-
-            {/* mid: play-time (left). Hero is a pinned decorative layer (below),
-                so its PNG size can never push these zones around. */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 10, letterSpacing: 3, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Play time</div>
-              <div ref={minsRef} style={{
-                fontWeight: 900, fontSize: 38, color: '#eef4ff', lineHeight: 1,
-                fontVariantNumeric: 'tabular-nums', display: 'flex', alignItems: 'baseline', gap: 6,
-              }}>
-                {Math.max(0, minutes)} <span style={{ fontSize: 15, color: GOLD, fontWeight: 800 }}>min</span>
-              </div>
-            </div>
-
-            {/* cardholder name + a subtle "tap to flip" hint */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 8, gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Cardholder</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#eef4ff', letterSpacing: '.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170 }}>
-                  {studentName}
-                </div>
-              </div>
-              <div style={{ fontSize: 9, color: '#7d8fb2', fontWeight: 700, whiteSpace: 'nowrap' }}>tap to flip ↻</div>
-            </div>
-          </div>
-
-          {/* BAND (front) — chip + plan badge. The card NUMBER lives on the back. */}
-          <div style={{
-            position: 'relative', zIndex: 2, height: 48, flexShrink: 0,
-            display: 'flex', alignItems: 'center', gap: 12, padding: '0 18px',
-            background: 'linear-gradient(90deg,transparent, rgba(196,154,26,.06))',
-            borderTop: '1px solid rgba(196,154,26,.22)',
-          }}>
-            <div style={{ width: 32, height: 24, borderRadius: 5, flexShrink: 0, position: 'relative', background: 'linear-gradient(135deg,#f4dd94,#E6C35A 60%,#b9902f)', boxShadow: 'inset 0 0 0 1px rgba(120,90,20,.5)' }}>
-              <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(120,90,20,.45)' }} />
-              <div style={{ position: 'absolute', top: 5, bottom: 5, left: '50%', width: 1, background: 'rgba(120,90,20,.45)' }} />
-            </div>
-            <div style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: 2, fontWeight: 800, color: GOLD, textTransform: 'uppercase' }}>
-              {plan === 'premium' ? '⭐ Premium' : 'Player'}
-            </div>
-          </div>
-
-          {/* shimmer overlay */}
-          <div ref={shineRef} style={{
-            position: 'absolute', inset: 0, zIndex: 4, pointerEvents: 'none', opacity: 0, mixBlendMode: 'screen',
-            background: `linear-gradient(105deg,transparent 30%,${GOLD_HI} 48%,transparent 66%)`,
-          }} />
-        </div>
-
-        {/* BACK — the student's Arcade ID (shown on tap-flip). */}
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 20, overflow: 'hidden', backfaceVisibility: 'hidden',
-          transform: 'rotateY(180deg)', background: 'linear-gradient(135deg,#16294c,#0b1732)',
-          border: '1px solid rgba(255,255,255,.10)', display: 'flex', flexDirection: 'column',
-          opacity: backOpacity, ...faceGate,
-        }}>
-          {/* magnetic stripe */}
-          <div style={{ height: 34, marginTop: 14, background: 'linear-gradient(90deg,#05070d,#12203a)', borderTop: '1px solid rgba(0,0,0,.5)', borderBottom: '1px solid rgba(255,255,255,.06)' }} />
-
-          <div style={{ flex: 1, minHeight: 0, padding: '14px 18px 0', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={{ fontSize: 9, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Hero Arcade ID</div>
-              {memberSince && <div style={{ fontSize: 8.5, letterSpacing: 1.5, fontWeight: 700, color: '#7d8fb2' }}>MEMBER SINCE {memberSince}</div>}
-            </div>
-
-            {/* the unique card number — big, the way a real card back reads */}
-            <div style={{
-              marginTop: 12, fontFamily: 'ui-monospace,Menlo,monospace', fontVariantNumeric: 'tabular-nums',
-              letterSpacing: 2, fontSize: compact ? 18 : 20, fontWeight: 700, color: '#eef4ff', whiteSpace: 'nowrap',
-            }}>{cardNumber}</div>
-            <div style={{ marginTop: 4, fontSize: 14, fontWeight: 800, color: GOLD, letterSpacing: '.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{studentName}</div>
-
-            {/* perks — moved from the front to the back ID */}
-            <div style={{ display: 'flex', gap: 14, marginTop: 'auto', marginBottom: 14, flexWrap: 'wrap' }}>
-              {[['🎮', 'Play'], ['🏆', 'Rewards'], ['⭐', 'Level up']].map(([e, t]) => (
-                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: '#9fb3d6' }}>
-                  {e} <b style={{ color: '#eef4ff', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</b>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* LAUNCH overlay — sits on top during a game launch. */}
+        {/* LAUNCH overlay */}
         {launching && (
           <div style={{
             position: 'absolute', inset: 0, borderRadius: 20, zIndex: 6,
             background: 'linear-gradient(135deg,#0b1732,#12233f)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <div style={{ textAlign: 'center', color: '#eef4ff' }}>
-              <div style={{ width: 34, height: 34, margin: '0 auto 12px', borderRadius: '50%', border: '3px solid rgba(196,154,26,.25)', borderTopColor: GOLD, animation: 'acSpin .8s linear infinite' }} />
+            <div style={{ textAlign: 'center', color: INK }}>
+              <div style={{ width: 34, height: 34, margin: '0 auto 12px', borderRadius: '50%', border: `3px solid rgba(201,162,39,.25)`, borderTopColor: GOLD, animation: 'acSpin .8s linear infinite' }} />
               <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.4px' }}>Loading…</div>
-              <div style={{ fontSize: 13, color: '#9fb3d6', marginTop: 4 }}>Your time starts when it loads ⏱️</div>
+              <div style={{ fontSize: 13, color: SUB, marginTop: 4 }}>Your time starts when it loads ⏱️</div>
             </div>
           </div>
         )}
