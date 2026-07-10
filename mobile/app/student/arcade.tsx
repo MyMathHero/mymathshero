@@ -400,7 +400,8 @@ export default function ArcadeScreen() {
 
           {/* The card — the play-time wallet. */}
           <View style={{ marginBottom: 20 }}>
-            <ArcadeCard ref={buyCardRef} minutes={mins} plan={arcadeData?.plan} />
+            <ArcadeCard ref={buyCardRef} minutes={mins} plan={arcadeData?.plan}
+              cardNumber={arcadeData?.cardNumber} studentName={arcadeData?.studentName} memberSince={arcadeData?.memberSince} />
           </View>
 
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
@@ -458,7 +459,8 @@ export default function ArcadeScreen() {
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
           backgroundColor: 'rgba(4,8,18,0.94)', alignItems: 'center', justifyContent: 'center', gap: 16,
         }}>
-          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
+          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan}
+            cardNumber={arcadeData?.cardNumber} studentName={arcadeData?.studentName} memberSince={arcadeData?.memberSince} />
           <Text style={{ color: '#C49A1A', fontWeight: '800', fontSize: 16 }}>Launching {launchingGame.title}…</Text>
         </View>
       )}

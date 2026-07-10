@@ -625,7 +625,8 @@ export default function ArcadePage() {
 
           {/* The card — the play-time wallet. */}
           <div ref={cardWrapRef} style={{ marginBottom: 22 }}>
-            <ArcadeCard ref={cardRef} minutes={mins} plan={arcadeData?.plan} />
+            <ArcadeCard ref={cardRef} minutes={mins} plan={arcadeData?.plan}
+              cardNumber={arcadeData?.cardNumber} studentName={arcadeData?.studentName} memberSince={arcadeData?.memberSince} />
           </div>
 
           <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
@@ -841,7 +842,8 @@ export default function ArcadePage() {
           position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(4,8,18,0.92)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
         }}>
-          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan} />
+          <ArcadeCard ref={launchCardRef} minutes={arcadeData?.minutesRemaining || 0} plan={arcadeData?.plan}
+            cardNumber={arcadeData?.cardNumber} studentName={arcadeData?.studentName} memberSince={arcadeData?.memberSince} />
           <p style={{ color: '#C49A1A', fontWeight: 800, fontSize: 16, margin: 0 }}>Launching {launchingGame.title}…</p>
         </div>
       )}

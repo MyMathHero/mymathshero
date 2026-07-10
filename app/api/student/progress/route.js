@@ -2,6 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { getRecommendations, getSkillTreeForGrade, getSkillGraph, getEffectiveCeiling } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
+import { memberSince } from '@/lib/arcadeCard'
 
 // Belt-and-braces: ensure nothing non-Maths leaks to the client. The recommender
 // already filters at source, but if SKILL_GRAPH or scoreMap ever gets repolluted
@@ -162,7 +163,11 @@ export async function GET(request) {
         // Personal profile photo — self-view ONLY. Never expose this on any
         // endpoint that lists OTHER students (leaderboard, challenge).
         profilePhoto: student.profilePhoto || null,
-        arcadeMinutes: student.arcadeMinutesRemaining || 0, // for the profile Arcade Card
+        // Arcade Card fields (for the profile card). cardNumber may be null until
+        // they first open the arcade, which mints it.
+        arcadeMinutes: student.arcadeMinutesRemaining || 0,
+        arcadeCardNumber: student.arcadeCardNumber || null,
+        memberSince: memberSince(student.createdAt),
         xp: student.xp || 0,
         coins: student.coins || 0,
         level: student.level || 1,

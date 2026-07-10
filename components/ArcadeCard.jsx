@@ -1,61 +1,57 @@
 'use client'
-import { forwardRef, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
-// The MyMathsHero Arcade Card — a collectible "membership card" that IS the
-// play-time wallet. Dark theme only (the arcade forces a dark backdrop). The
-// minutes balance lives ON the card; a parent can call the exposed methods:
-//   ref.shimmer()   → gold sweep + a pulse on the minutes (after a top-up)
-//   ref.launch(name)→ flip the card forward to "launch" a game, resolves ~2.1s
-//
-// Pointer-tilt is built in. Pass `minutes`, `plan`, and an optional `cardNumber`.
+// The MyMathsHero Arcade Card — a collectible membership card that IS the
+// play-time wallet. Dark theme only. FRONT shows the student's name + play time
+// + Hero. TAP flips it to the BACK, the student's "ID" (unique card number,
+// name, member-since, perks). Exposed methods:
+//   ref.shimmer()  → gold sweep + a pop on the minutes (after a top-up)
+//   ref.launch()   → forward "launch" flip for starting a game (Promise ~700ms)
+//   ref.reset()    → clear the launch flip
 const GOLD = '#C49A1A'
 const GOLD_HI = '#FFD54A'
 
 const ArcadeCard = forwardRef(function ArcadeCard(
-  { minutes = 0, plan = 'standard', cardNumber = '2500 7250 1025 8888', compact = false },
+  {
+    minutes = 0, plan = 'standard', cardNumber = '2500 7250 1025 8888',
+    studentName = 'Hero', memberSince = null, compact = false,
+  },
   ref
 ) {
   const cardRef = useRef(null)
   const shineRef = useRef(null)
   const minsRef = useRef(null)
+  const [flipped, setFlipped] = useState(false)   // tap → show ID back
+  const [launching, setLaunching] = useState(false)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
 
   useImperativeHandle(ref, () => ({
-    // Gold shimmer sweep + a pop on the minutes counter (call after a top-up).
     shimmer() {
       const shine = shineRef.current, m = minsRef.current
       if (shine) { shine.classList.remove('ac-go'); void shine.offsetWidth; shine.classList.add('ac-go') }
       if (m) { m.classList.remove('ac-pop'); void m.offsetWidth; m.classList.add('ac-pop') }
     },
-    // Flip the card forward to launch. Returns a promise that resolves when the
-    // flip has landed (so the caller can start the game underneath).
     launch() {
-      const c = cardRef.current
-      return new Promise((res) => {
-        if (!c) return res()
-        c.classList.add('ac-launch')
-        setTimeout(() => res(), 700)
-      })
+      return new Promise((res) => { setFlipped(false); setLaunching(true); setTimeout(() => res(), 700) })
     },
-    reset() {
-      const c = cardRef.current
-      if (c) { c.classList.remove('ac-launch'); c.style.transform = 'none' }
-    },
+    reset() { setLaunching(false) },
     el() { return cardRef.current },
   }))
 
-  // Pointer tilt.
+  // Pointer tilt (disabled while flipped/launching so it doesn't fight the flip).
   function onMove(e) {
+    if (flipped || launching) return
     const c = cardRef.current
-    if (!c || c.classList.contains('ac-launch')) return
+    if (!c) return
     const r = c.getBoundingClientRect()
-    const px = (e.clientX - r.left) / r.width - 0.5
-    const py = (e.clientY - r.top) / r.height - 0.5
-    c.style.transform = `rotateY(${px * 14}deg) rotateX(${-py * 12}deg)`
+    setTilt({ x: ((e.clientX - r.left) / r.width - 0.5) * 14, y: -((e.clientY - r.top) / r.height - 0.5) * 12 })
   }
-  function onLeave() {
-    const c = cardRef.current
-    if (c && !c.classList.contains('ac-launch')) c.style.transform = 'none'
-  }
+  function onLeave() { setTilt({ x: 0, y: 0 }) }
+
+  // The whole card transform: launch takes over via a CSS class; otherwise it's
+  // the tap-flip (180°) combined with pointer tilt.
+  const showBack = flipped
+  const baseTransform = launching ? undefined : `rotateY(${(showBack ? 180 : 0) + tilt.x}deg) rotateX(${tilt.y}deg)`
 
   const W = compact ? 300 : 340
   const H = compact ? 189 : 214
@@ -75,10 +71,16 @@ const ArcadeCard = forwardRef(function ArcadeCard(
         @media (prefers-reduced-motion:reduce){.ac-launch,.ac-go,.ac-pop{animation-duration:.001s !important}}
       `}</style>
 
-      <div ref={cardRef} style={{
-        position: 'relative', width: W, height: H, transformStyle: 'preserve-3d',
-        transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', willChange: 'transform',
-      }}>
+      <div
+        ref={cardRef}
+        onClick={() => { if (!launching) setFlipped(f => !f) }}
+        className={launching ? 'ac-launch' : ''}
+        style={{
+          position: 'relative', width: W, height: H, transformStyle: 'preserve-3d',
+          transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', willChange: 'transform',
+          transform: baseTransform, cursor: 'pointer',
+        }}
+      >
         {/* FRONT — a clean vertical flex stack: body grows, band pinned at the
             bottom, so no two zones ever overlap. */}
         <div style={{
@@ -136,19 +138,21 @@ const ArcadeCard = forwardRef(function ArcadeCard(
               </div>
             </div>
 
-            {/* features — their own row, above the divider */}
-            <div style={{ display: 'flex', gap: 16, marginTop: 'auto', marginBottom: 8 }}>
-              {[['🎮', 'Play'], ['🏆', 'Rewards'], ['⭐', 'Level up']].map(([e, t]) => (
-                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: '#9fb3d6' }}>
-                  {e} <b style={{ color: '#eef4ff', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</b>
+            {/* cardholder name + a subtle "tap to flip" hint */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 8, gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 8.5, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Cardholder</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#eef4ff', letterSpacing: '.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170 }}>
+                  {studentName}
                 </div>
-              ))}
+              </div>
+              <div style={{ fontSize: 9, color: '#7d8fb2', fontWeight: 700, whiteSpace: 'nowrap' }}>tap to flip ↻</div>
             </div>
           </div>
 
-          {/* BAND — fixed height, one clean line, nothing wraps */}
+          {/* BAND (front) — chip + plan badge. The card NUMBER lives on the back. */}
           <div style={{
-            position: 'relative', zIndex: 2, height: 52, flexShrink: 0,
+            position: 'relative', zIndex: 2, height: 48, flexShrink: 0,
             display: 'flex', alignItems: 'center', gap: 12, padding: '0 18px',
             background: 'linear-gradient(90deg,transparent, rgba(196,154,26,.06))',
             borderTop: '1px solid rgba(196,154,26,.22)',
@@ -157,9 +161,8 @@ const ArcadeCard = forwardRef(function ArcadeCard(
               <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(120,90,20,.45)' }} />
               <div style={{ position: 'absolute', top: 5, bottom: 5, left: '50%', width: 1, background: 'rgba(120,90,20,.45)' }} />
             </div>
-            <div style={{ fontFamily: 'ui-monospace,Menlo,monospace', fontVariantNumeric: 'tabular-nums', letterSpacing: 1.5, fontSize: 13, fontWeight: 700, color: '#eef4ff', whiteSpace: 'nowrap' }}>{cardNumber}</div>
-            <div style={{ marginLeft: 'auto', fontSize: 8.5, lineHeight: 1.25, letterSpacing: 1.5, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase', textAlign: 'right', flexShrink: 0 }}>
-              {plan === 'premium' ? <>Premium<br />Access</> : <>Player<br />Access</>}
+            <div style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: 2, fontWeight: 800, color: GOLD, textTransform: 'uppercase' }}>
+              {plan === 'premium' ? '⭐ Premium' : 'Player'}
             </div>
           </div>
 
@@ -170,19 +173,53 @@ const ArcadeCard = forwardRef(function ArcadeCard(
           }} />
         </div>
 
-        {/* BACK (launch) */}
+        {/* BACK — the student's Arcade ID (shown on tap-flip). */}
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 20, overflow: 'hidden', backfaceVisibility: 'hidden',
-          transform: 'rotateY(180deg)', background: 'linear-gradient(135deg,#0b1732,#12233f)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: '1px solid rgba(255,255,255,.10)',
+          transform: 'rotateY(180deg)', background: 'linear-gradient(135deg,#16294c,#0b1732)',
+          border: '1px solid rgba(255,255,255,.10)', display: 'flex', flexDirection: 'column',
         }}>
-          <div style={{ textAlign: 'center', color: '#eef4ff' }}>
-            <div style={{ width: 34, height: 34, margin: '0 auto 12px', borderRadius: '50%', border: '3px solid rgba(196,154,26,.25)', borderTopColor: GOLD, animation: 'acSpin .8s linear infinite' }} />
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.4px' }}>Loading…</div>
-            <div style={{ fontSize: 13, color: '#9fb3d6', marginTop: 4 }}>Your time starts when it loads ⏱️</div>
+          {/* magnetic stripe */}
+          <div style={{ height: 34, marginTop: 14, background: 'linear-gradient(90deg,#05070d,#12203a)', borderTop: '1px solid rgba(0,0,0,.5)', borderBottom: '1px solid rgba(255,255,255,.06)' }} />
+
+          <div style={{ flex: 1, minHeight: 0, padding: '14px 18px 0', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, fontWeight: 800, color: '#9fb3d6', textTransform: 'uppercase' }}>Hero Arcade ID</div>
+              {memberSince && <div style={{ fontSize: 8.5, letterSpacing: 1.5, fontWeight: 700, color: '#7d8fb2' }}>MEMBER SINCE {memberSince}</div>}
+            </div>
+
+            {/* the unique card number — big, the way a real card back reads */}
+            <div style={{
+              marginTop: 12, fontFamily: 'ui-monospace,Menlo,monospace', fontVariantNumeric: 'tabular-nums',
+              letterSpacing: 2, fontSize: compact ? 18 : 20, fontWeight: 700, color: '#eef4ff', whiteSpace: 'nowrap',
+            }}>{cardNumber}</div>
+            <div style={{ marginTop: 4, fontSize: 14, fontWeight: 800, color: GOLD, letterSpacing: '.3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{studentName}</div>
+
+            {/* perks — moved from the front to the back ID */}
+            <div style={{ display: 'flex', gap: 14, marginTop: 'auto', marginBottom: 14, flexWrap: 'wrap' }}>
+              {[['🎮', 'Play'], ['🏆', 'Rewards'], ['⭐', 'Level up']].map(([e, t]) => (
+                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9.5, fontWeight: 700, color: '#9fb3d6' }}>
+                  {e} <b style={{ color: '#eef4ff', textTransform: 'uppercase', letterSpacing: '.5px' }}>{t}</b>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* LAUNCH overlay — sits on top during a game launch. */}
+        {launching && (
+          <div style={{
+            position: 'absolute', inset: 0, borderRadius: 20, zIndex: 6,
+            background: 'linear-gradient(135deg,#0b1732,#12233f)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <div style={{ textAlign: 'center', color: '#eef4ff' }}>
+              <div style={{ width: 34, height: 34, margin: '0 auto 12px', borderRadius: '50%', border: '3px solid rgba(196,154,26,.25)', borderTopColor: GOLD, animation: 'acSpin .8s linear infinite' }} />
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-.4px' }}>Loading…</div>
+              <div style={{ fontSize: 13, color: '#9fb3d6', marginTop: 4 }}>Your time starts when it loads ⏱️</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

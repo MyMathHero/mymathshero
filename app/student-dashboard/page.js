@@ -2322,7 +2322,8 @@ export default function StudentDashboard() {
             {/* Page 2 — the collectible Arcade Card (dark card on a dark panel). */}
             <div style={{ flex: '0 0 100%', scrollSnapAlign: 'center' }}>
               <div style={{ background: '#0A0F1E', borderRadius: 20, padding: '24px 16px', border: '1px solid rgba(196,154,26,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={studentPlan} compact />
+                <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={studentPlan} compact
+                  cardNumber={student?.arcadeCardNumber} studentName={student?.name} memberSince={student?.memberSince} />
                 <button onClick={() => router.push('/arcade')} style={{
                   background: 'linear-gradient(135deg,#C49A1A,#FFD700)', color: '#1B2B4B',
                   border: 'none', borderRadius: 12, padding: '10px 22px', fontWeight: 800, fontSize: 14, cursor: 'pointer',

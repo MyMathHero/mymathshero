@@ -6,6 +6,7 @@ import { getAESTMidnightUTC, TIME_PACKS, timePackCost, timePackMinutes } from '@
 import { resolveEffectivePlan } from '@/lib/freeTrial'
 import { isTaskDoneToday } from '@/lib/dailyTask'
 import { isExamDue } from '@/lib/monthlyExam'
+import { generateUniqueCardNumber, memberSince } from '@/lib/arcadeCard'
 
 let client
 async function connectDB() {
@@ -53,6 +54,16 @@ export async function GET(request) {
     // The purchased time wallet — minutes of arcade time the student has left.
     const minutesRemaining = Math.max(0, student.arcadeMinutesRemaining || 0)
 
+    // Unique Arcade Card number — generated once per student and stored, so it's
+    // stable and trackable. Auto-create it the first time they open the arcade.
+    let cardNumber = student.arcadeCardNumber
+    if (!cardNumber) {
+      cardNumber = await generateUniqueCardNumber(async (num) =>
+        !!(await db.collection('children').findOne({ arcadeCardNumber: num }, { projection: { _id: 1 } }))
+      )
+      await db.collection('children').updateOne({ id: studentId }, { $set: { arcadeCardNumber: cardNumber } })
+    }
+
     return NextResponse.json({
       coins: student.coins || 0,   // spending currency — buys arcade time
       xp: student.xp || 0,         // leaderboard only; kept for display
@@ -63,6 +74,10 @@ export async function GET(request) {
       gamesPlayedToday,
       arcadeSettings,
       timePacks: TIME_PACKS,
+      // Arcade Card identity.
+      cardNumber,
+      studentName: student.name || 'Hero',
+      memberSince: memberSince(student.createdAt),
     })
   } catch (error) {
     return NextResponse.json(

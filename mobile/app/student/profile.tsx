@@ -238,7 +238,8 @@ export default function Profile() {
         {/* Collectible Arcade Card — a fun reveal in the profile. */}
         <View style={{ backgroundColor: '#0A0F1E', borderRadius: 20, marginHorizontal: 16, marginBottom: 16, paddingVertical: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(196,154,26,0.3)' }}>
           <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 12 }}>🎴 Your Arcade Card</Text>
-          <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={student?.plan} compact />
+          <ArcadeCard minutes={student?.arcadeMinutes || 0} plan={student?.plan} compact
+            cardNumber={student?.arcadeCardNumber} studentName={student?.name} memberSince={student?.memberSince} />
           <TouchableOpacity onPress={() => router.push('/student/arcade')} activeOpacity={0.85}
             style={{ marginTop: 14, backgroundColor: colors.accentGold, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 22 }}>
             <Text style={{ color: '#1B2B4B', fontWeight: '800', fontSize: 14 }}>🕹️ Open Arcade</Text>

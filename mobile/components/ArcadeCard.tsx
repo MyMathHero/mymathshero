@@ -1,13 +1,14 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
-import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native'
+import { View, Text, StyleSheet, Animated, Easing, Image, Pressable } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Line } from 'react-native-svg'
 
-// The MyMathsHero Arcade Card (React Native) — the collectible play-time wallet.
-// Dark theme only. Minutes live on the card. Exposes:
+// The MyMathsHero Arcade Card (React Native) — the collectible membership card &
+// play-time wallet. FRONT: name + play time + Hero. TAP flips to the BACK = the
+// student's ID (unique card number, name, member since, perks). Exposes:
 //   ref.shimmer()  → gold sweep + a pop on the minutes (after a top-up)
-//   ref.launch()   → flip the card forward to launch a game (Promise, ~700ms)
-//   ref.reset()    → flip back
+//   ref.launch()   → forward "launch" overlay for starting a game (Promise ~700ms)
+//   ref.reset()    → clear the launch overlay
 const GOLD = '#C49A1A'
 const GOLD_HI = '#FFD54A'
 
@@ -17,16 +18,23 @@ export type ArcadeCardHandle = {
   reset: () => void
 }
 
-type Props = { minutes?: number; plan?: string; cardNumber?: string; compact?: boolean }
+type Props = {
+  minutes?: number; plan?: string; cardNumber?: string; compact?: boolean
+  studentName?: string; memberSince?: string | null
+}
 
 const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
-  { minutes = 0, plan = 'standard', cardNumber = '2500 7250 1025 8888', compact = false },
+  {
+    minutes = 0, plan = 'standard', cardNumber = '2500 7250 1025 8888',
+    studentName = 'Hero', memberSince = null, compact = false,
+  },
   ref
 ) {
-  const flip = useRef(new Animated.Value(0)).current      // 0 = front, 1 = back
+  const flip = useRef(new Animated.Value(0)).current      // 0 = front, 1 = ID back
   const shine = useRef(new Animated.Value(0)).current     // shimmer sweep
   const pop = useRef(new Animated.Value(1)).current       // minutes pop
   const [flipped, setFlipped] = useState(false)
+  const [launching, setLaunching] = useState(false)
 
   useImperativeHandle(ref, () => ({
     shimmer() {
@@ -37,17 +45,19 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
         Animated.spring(pop, { toValue: 1, useNativeDriver: true }),
       ]).start()
     },
+    // Launch = a fade-in overlay on top (separate from the tap-flip).
     launch() {
-      return new Promise<void>((res) => {
-        setFlipped(true)
-        Animated.timing(flip, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
-          .start(() => res())
-      })
+      return new Promise<void>((res) => { setLaunching(true); setTimeout(() => res(), 700) })
     },
-    reset() {
-      Animated.timing(flip, { toValue: 0, duration: 350, useNativeDriver: true }).start(() => setFlipped(false))
-    },
+    reset() { setLaunching(false) },
   }))
+
+  // Tap toggles the card between the front and the ID back.
+  function toggleFlip() {
+    const to = flipped ? 0 : 1
+    setFlipped(!flipped)
+    Animated.timing(flip, { toValue: to, duration: 450, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start()
+  }
 
   const W = compact ? 300 : 330
   const H = compact ? 189 : 208
@@ -58,7 +68,7 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
   const shineOpacity = shine.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.9, 0] })
 
   return (
-    <View style={{ width: W, height: H }}>
+    <Pressable onPress={toggleFlip} style={{ width: W, height: H }}>
       {/* FRONT */}
       <Animated.View style={[s.face, { width: W, height: H, transform: [{ perspective: 1000 }, { rotateY: frontRot }], backfaceVisibility: 'hidden' }]}>
         <LinearGradient colors={['#12233f', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -92,17 +102,20 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
             </View>
           </View>
 
-          {/* features — own row above the band */}
-          <View style={s.feats}>
-            <Text style={s.feat}>🎮 PLAY</Text><Text style={s.feat}>🏆 REWARDS</Text><Text style={s.feat}>⭐ LEVEL UP</Text>
+          {/* cardholder name + tap hint */}
+          <View style={s.nameRow}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.nameLab}>CARDHOLDER</Text>
+              <Text style={s.nameVal} numberOfLines={1}>{studentName}</Text>
+            </View>
+            <Text style={s.tapHint}>tap to flip ↻</Text>
           </View>
         </View>
 
-        {/* BAND — fixed line, nothing wraps */}
+        {/* BAND (front) — chip + plan badge. Card number is on the back. */}
         <View style={s.band}>
           <View style={s.chip} />
-          <Text style={s.num} numberOfLines={1}>{cardNumber}</Text>
-          <Text style={s.premium}>{plan === 'premium' ? 'PREMIUM\nACCESS' : 'PLAYER\nACCESS'}</Text>
+          <Text style={s.planBadge}>{plan === 'premium' ? '⭐ PREMIUM' : 'PLAYER'}</Text>
         </View>
 
         {/* shimmer */}
@@ -111,15 +124,32 @@ const ArcadeCard = forwardRef<ArcadeCardHandle, Props>(function ArcadeCard(
         </Animated.View>
       </Animated.View>
 
-      {/* BACK (launch) */}
-      {flipped && (
-        <Animated.View style={[s.face, s.back, { width: W, height: H, transform: [{ perspective: 1000 }, { rotateY: backRot }], backfaceVisibility: 'hidden' }]}>
+      {/* BACK — the student's Arcade ID (tap to reveal). */}
+      <Animated.View style={[s.face, { width: W, height: H, transform: [{ perspective: 1000 }, { rotateY: backRot }], backfaceVisibility: 'hidden' }]}>
+        <LinearGradient colors={['#16294c', '#0b1732']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <View style={s.stripe} />
+        <View style={s.idBody}>
+          <View style={s.idTop}>
+            <Text style={s.idLabel}>HERO ARCADE ID</Text>
+            {!!memberSince && <Text style={s.idSince}>MEMBER SINCE {memberSince}</Text>}
+          </View>
+          <Text style={s.idNum} numberOfLines={1}>{cardNumber}</Text>
+          <Text style={s.idName} numberOfLines={1}>{studentName}</Text>
+          <View style={s.idPerks}>
+            <Text style={s.feat}>🎮 PLAY</Text><Text style={s.feat}>🏆 REWARDS</Text><Text style={s.feat}>⭐ LEVEL UP</Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* LAUNCH overlay — on top during a game launch. */}
+      {launching && (
+        <View style={[s.face, s.back, { width: W, height: H, zIndex: 5 }]}>
           <LinearGradient colors={['#0b1732', '#12233f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           <Text style={s.launchBig}>Loading…</Text>
           <Text style={s.launchSub}>Your time starts when it loads ⏱️</Text>
-        </Animated.View>
+        </View>
       )}
-    </View>
+    </Pressable>
   )
 })
 
@@ -147,15 +177,27 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: GOLD_HI, zIndex: 3,
   },
   coinH: { fontWeight: '900', color: '#7a5c12', fontSize: 20 },
-  feats: { flexDirection: 'row', gap: 14, marginTop: 'auto', marginBottom: 8 },
+  // front cardholder name row
+  nameRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 'auto', marginBottom: 8, gap: 8 },
+  nameLab: { fontSize: 8.5, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
+  nameVal: { fontSize: 15, fontWeight: '800', color: '#eef4ff' },
+  tapHint: { fontSize: 9, fontWeight: '700', color: '#7d8fb2' },
   feat: { fontSize: 9, fontWeight: '700', color: '#cdd9f2' },
   band: {
-    height: 50, flexShrink: 0, paddingHorizontal: 16, zIndex: 2,
+    height: 46, flexShrink: 0, paddingHorizontal: 16, zIndex: 2,
     flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(196,154,26,0.22)',
   },
   chip: { width: 32, height: 24, borderRadius: 5, backgroundColor: '#E6C35A' },
-  num: { fontFamily: 'Courier', letterSpacing: 1, fontSize: 13, fontWeight: '700', color: '#eef4ff', flexShrink: 1 },
-  premium: { marginLeft: 'auto', fontSize: 8.5, lineHeight: 11, letterSpacing: 1, fontWeight: '800', color: '#9fb3d6', textAlign: 'right' },
+  planBadge: { marginLeft: 'auto', fontSize: 10, letterSpacing: 2, fontWeight: '800', color: GOLD },
+  // back (ID)
+  stripe: { height: 32, marginTop: 14, backgroundColor: '#0a1424' },
+  idBody: { flex: 1, paddingHorizontal: 18, paddingTop: 12 },
+  idTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  idLabel: { fontSize: 9, letterSpacing: 2, fontWeight: '800', color: '#9fb3d6' },
+  idSince: { fontSize: 8.5, letterSpacing: 1, fontWeight: '700', color: '#7d8fb2' },
+  idNum: { marginTop: 12, fontFamily: 'Courier', letterSpacing: 2, fontSize: 18, fontWeight: '700', color: '#eef4ff' },
+  idName: { marginTop: 4, fontSize: 14, fontWeight: '800', color: GOLD },
+  idPerks: { flexDirection: 'row', gap: 14, marginTop: 'auto', marginBottom: 14, flexWrap: 'wrap' },
   shine: { position: 'absolute', top: 0, bottom: 0, width: 90, left: '35%', zIndex: 4 },
   launchBig: { fontSize: 22, fontWeight: '900', color: '#eef4ff' },
   launchSub: { fontSize: 12, color: '#9fb3d6', marginTop: 4 },
