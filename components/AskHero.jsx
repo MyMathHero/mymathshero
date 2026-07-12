@@ -179,36 +179,42 @@ export default function AskHero({
     setIsSpeaking(false)
   }
 
-  // Mic tap (speech-to-speech, report #6): tap to start recording, tap again to
-  // stop → transcribe (Whisper) → auto-send to Hero, whose reply is spoken back.
-  async function handleMicTap() {
-    if (loading) return
-    if (voiceState === 'recording') {
-      // Stop + transcribe.
-      const rec = recorderRef.current
-      recorderRef.current = null
-      setVoiceState('transcribing')
-      try {
-        const text = await rec.stopAndTranscribe(studentId)
-        setVoiceState('idle')
-        if (text) handleChatSend(text)   // straight into the normal send → Hero speaks reply
-      } catch (err) {
-        setVoiceState('idle')
-        if (String(err?.message) === 'premium_required') {
-          addHeroMessage("Talking to me is a Premium feature 💎 You can still type your question!", 'talking')
-        }
-        // Otherwise stay silent — the student can just type.
-      }
-      return
-    }
-    // Start recording. Stop Hero talking first so it doesn't hear itself.
-    if (isSpeaking) heroStop()
+  // PRESS-AND-HOLD walkie-talkie (speech-to-speech, report #6): hold the mic to
+  // talk, release to stop → transcribe (Whisper) → auto-send to Hero, whose
+  // reply is spoken back. startTalk on press, stopTalk on release.
+  async function startTalk() {
+    if (loading || voiceState !== 'idle') return
+    // ALWAYS stop Hero first (unconditionally — isSpeaking state can lag behind
+    // the real audio, and this also aborts any in-flight TTS fetch) so Hero can
+    // never be heard by the microphone we're about to open.
+    heroStop()
+    setIsSpeaking(false)
+    setRobotState('idle')
     snapRevealToFull()
     try {
       recorderRef.current = await startRecording()
       setVoiceState('recording')
     } catch {
       setVoiceState('idle')
+    }
+  }
+
+  async function stopTalk() {
+    if (voiceState !== 'recording') return
+    const rec = recorderRef.current
+    recorderRef.current = null
+    if (!rec) { setVoiceState('idle'); return }
+    setVoiceState('transcribing')
+    try {
+      const text = await rec.stopAndTranscribe(studentId)
+      setVoiceState('idle')
+      if (text) handleChatSend(text)   // straight into the normal send → Hero speaks reply
+    } catch (err) {
+      setVoiceState('idle')
+      if (String(err?.message) === 'premium_required') {
+        addHeroMessage("Talking to me is a Premium feature 💎 You can still type your question!", 'talking')
+      }
+      // Otherwise stay silent — the student can just type.
     }
   }
 
@@ -235,8 +241,12 @@ export default function AskHero({
   // embedded (HeroTutor tab) layout.
   const chatBody = (
     <>
-      {/* Mic pulse keyframe — available in both standalone + embedded layouts. */}
-      <style>{`@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.05); } }`}</style>
+      {/* Walkie-talkie mic animations — available in both standalone + embedded layouts. */}
+      <style>{`
+        @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.05); } }
+        /* Expanding "signal" rings behind the button while recording (transmitting). */
+        @keyframes talkieRing { 0% { transform: scale(0.85); opacity: 0.55; } 100% { transform: scale(1.6); opacity: 0; } }
+      `}</style>
       {/* Chat messages */}
       <div style={{
         flex: 1, overflowY: 'auto',
@@ -297,28 +307,55 @@ export default function AskHero({
         borderTop: '1px solid var(--border-color)',
       }}>
         {voiceSupported && !typeMode ? (
-          // Big centered mic + "type instead" link.
+          // Big centered walkie-talkie + "type instead" link.
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
             <button
-              onClick={handleMicTap}
+              onPointerDown={(e) => { e.preventDefault(); startTalk() }}
+              onPointerUp={(e) => { e.preventDefault(); stopTalk() }}
+              onPointerLeave={() => { if (voiceState === 'recording') stopTalk() }}
+              onContextMenu={(e) => e.preventDefault()}
               disabled={loading || voiceState === 'transcribing'}
-              aria-label={voiceState === 'recording' ? 'Tap to send' : 'Talk to Hero'}
+              aria-label={voiceState === 'recording' ? 'Release to send' : 'Hold to talk to Hero'}
               style={{
-                background: voiceState === 'recording' ? '#EF4444' : '#C49A1A',
-                color: 'white', border: 'none', borderRadius: '50%',
-                width: 76, height: 76, flexShrink: 0,
-                cursor: loading ? 'default' : 'pointer', fontSize: 30,
+                position: 'relative',
+                background: 'transparent', border: 'none', padding: 0,
+                width: 168, height: 168, flexShrink: 0,
+                cursor: loading ? 'default' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(196,154,26,0.4)',
-                animation: voiceState === 'recording' ? 'pulse 1s infinite' : 'none',
+                touchAction: 'none', WebkitUserSelect: 'none', userSelect: 'none',
               }}
             >
-              {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
+              {/* Signal rings while transmitting. */}
+              {voiceState === 'recording' && (
+                <>
+                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #EF4444', animation: 'talkieRing 1.2s ease-out infinite' }} />
+                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #EF4444', animation: 'talkieRing 1.2s ease-out infinite 0.6s' }} />
+                </>
+              )}
+              {/* Glow halo behind the talkie. */}
+              <span style={{
+                position: 'absolute', width: 150, height: 150, borderRadius: '50%',
+                background: voiceState === 'recording'
+                  ? 'radial-gradient(circle, rgba(239,68,68,0.35), transparent 70%)'
+                  : 'radial-gradient(circle, rgba(196,154,26,0.30), transparent 70%)',
+              }} />
+              <img
+                src="/assets/heroTalkie.png"
+                alt=""
+                draggable={false}
+                style={{
+                  position: 'relative', width: 148, height: 148, objectFit: 'contain',
+                  filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.28))',
+                  transform: voiceState === 'recording' ? 'scale(1.04)' : 'scale(1)',
+                  transition: 'transform 0.15s ease',
+                  pointerEvents: 'none',
+                }}
+              />
             </button>
-            <span style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, minHeight: 18 }}>
-              {voiceState === 'recording' ? 'Listening… tap to send'
+            <span style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 700, minHeight: 18 }}>
+              {voiceState === 'recording' ? '🔴 Listening… release to send'
                 : voiceState === 'transcribing' ? 'Got it — thinking…'
-                : 'Tap to talk to Hero'}
+                : 'Hold to talk to Hero'}
             </span>
             <button
               onClick={() => setTypeMode(true)}
@@ -339,9 +376,12 @@ export default function AskHero({
                 aria-label="Use voice"
                 style={{
                   background: '#1B2B4B', color: 'white', border: 'none', borderRadius: 10,
-                  width: 44, height: 44, flexShrink: 0, cursor: 'pointer', fontSize: 18,
+                  width: 44, height: 44, flexShrink: 0, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
-              >🎤</button>
+              >
+                <img src="/assets/heroTalkie.png" alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+              </button>
             )}
             <input
               value={chatInput}

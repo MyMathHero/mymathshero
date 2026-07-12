@@ -4,6 +4,7 @@ import { getRequestToken, verifyToken } from '@/lib/auth'
 import { getPlanFeatures } from '@/lib/planGating'
 import { normaliseManipulative } from '@/lib/manipulatives'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
+import { getHeroConfig, buildAvoidInstruction } from '@/lib/heroConfig'
 
 let client
 async function connectDB() {
@@ -269,12 +270,15 @@ export async function POST(request) {
       // Inject the student's recent history on this skill (if we know the skill)
       // so Hero can tailor its approach. Empty string when there's no history.
       const studentContext = await buildStudentContext(db, sid, skillId)
+      // Admin-managed words/phrases Hero must avoid (e.g. no over-familiar
+      // "g'day <name>"). Empty list → no change to the prompt.
+      const heroConfig = await getHeroConfig(db)
       const systemPrompt = buildSystemPrompt(
         studentName || student.name || 'Hero',
         grade ?? student.grade ?? 3,
         questionText || null,
         studentContext
-      )
+      ) + buildAvoidInstruction(heroConfig.avoidWords)
       const rawReply = await callOpenRouter(
         systemPrompt,
         // Only pass clean role/content pairs to the model.

@@ -306,6 +306,10 @@ export default function StudentDashboard() {
   // A due monthly exam supersedes the daily task — it locks everything until done.
   const [examDue, setExamDue] = useState(false)
   const dailyTaskLocked = examDue || (!!dailyTask && dailyTask.done !== true)
+  // Mirror into a ref so the nudge interval (not re-created when the lock flips)
+  // always reads the live value.
+  const dailyTaskLockedRef = useRef(dailyTaskLocked)
+  dailyTaskLockedRef.current = dailyTaskLocked
   const [showMonthlyExam, setShowMonthlyExam] = useState(false)
 
   // ── Fetch progress on mount ─────────────────────────────────────────────────
@@ -527,9 +531,13 @@ export default function StudentDashboard() {
     if (!student || !recommendations?.length) return
     nudgeTimerRef.current = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        // While the HERO Daily Task is locked, don't surface freestyle nudges —
+        // the task card is the only call to action until it's done.
+        if (dailyTaskLockedRef.current) return
         nudgeCountRef.current += 1
         const nudge = getHeroNudge(student, recommendations, stats)
         if (nudge) {
+          if (nudge.streak) markStreakNudgeShown() // count this as today's streak nudge
           setHeroNudge(nudge)
           setTimeout(() => setHeroNudge(null), 8000)
         }
@@ -1219,6 +1227,17 @@ export default function StudentDashboard() {
   }
 
   // ── AI Hero Nudge ─────────────────────────────────────────────────────────
+  // Streak nudge is capped to once per calendar day, per student. We stamp the
+  // date in localStorage when it's shown and skip it for the rest of the day.
+  function streakNudgeKey() { return `streakNudge:${authStudentId || 'me'}` }
+  function todayStamp() { return new Date().toISOString().slice(0, 10) } // YYYY-MM-DD (local-ish)
+  function streakNudgeShownToday() {
+    try { return localStorage.getItem(streakNudgeKey()) === todayStamp() } catch { return false }
+  }
+  function markStreakNudgeShown() {
+    try { localStorage.setItem(streakNudgeKey(), todayStamp()) } catch { /* private window */ }
+  }
+
   function getHeroNudge(currentStudent, recs, currentStats) {
     const nudges = []
     if (recs?.length > 0) {
@@ -1274,9 +1293,13 @@ export default function StudentDashboard() {
         }
       }
     }
-    if (currentStudent?.streak > 0) {
+    // Streak nudge — show AT MOST ONCE PER DAY (it was re-appearing on every
+    // 2-min rotation, which felt like spam). streakNudgeShownToday() checks a
+    // per-student localStorage date stamp.
+    if (currentStudent?.streak > 0 && !streakNudgeShownToday()) {
       nudges.push({
         emoji: '🔥',
+        streak: true,
         title: `${currentStudent.streak}-day streak!`,
         message: `You're on a ${currentStudent.streak}-day learning streak! Don't break it — practice at least one skill today!`,
         action: 'Practice Now',
@@ -3388,6 +3411,12 @@ export default function StudentDashboard() {
             <button
               onClick={() => {
                 setHeroNudge(null)
+                // Respect the HERO Daily Task gate — a nudge must not be a back
+                // door into freestyle questions before today's task is done.
+                if (dailyTaskLocked) {
+                  alert('🦸 Finish today’s HERO task first to unlock freestyle practice!')
+                  return
+                }
                 if (heroNudge.isExam) {
                   openSkillExam(heroNudge.skill)
                 } else {

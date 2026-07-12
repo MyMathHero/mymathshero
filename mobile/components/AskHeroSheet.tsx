@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, TextInput,
-  KeyboardAvoidingView, Platform, Animated, Image,
+  KeyboardAvoidingView, Platform, Animated, Image, Pressable,
 } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
 import {
@@ -17,6 +17,9 @@ import { uploadAsync, FileSystemUploadType } from 'expo-file-system/legacy'
 import { fetch as expoFetch } from 'expo/fetch'
 import api, { API_URL } from '../lib/api'
 import Manipulative from './manipulatives/Manipulative'
+
+// Walkie-talkie graphic used as the "talk to Hero" mic (animated bob/shake).
+const TALKIE = require('../assets/heroTalkie.png')
 
 // Audio playback uses expo-audio + expo-file-system (SDK 56-correct).
 // expo-av was removed in SDK 56. We stream the OpenAI proxy response straight
@@ -78,11 +81,28 @@ export default function AskHeroSheet({
     return () => clearTimeout(id)
   }, [stepIndex, lesson])
   const playerRef = useRef<AudioPlayer | null>(null)
+  // Generation token: stopAllAudio() bumps it so a TTS fetch that resolves AFTER
+  // the student presses the mic can't start playing Hero over the open recorder
+  // ("Hero records itself" bug).
+  const speakGenRef = useRef(0)
   // Voice input — talk to Hero (speech-to-speech, report #6).
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
   const [voiceState, setVoiceState] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   // Voice-first Ask Hero: lead with a big mic, let the student switch to typing.
   const [typeMode, setTypeMode] = useState(false)
+  // Expanding "signal" rings pulse only while transmitting (press-and-hold).
+  const ringAnim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    ringAnim.stopAnimation(); ringAnim.setValue(0)
+    if (voiceState !== 'recording') return
+    const loop = Animated.loop(
+      Animated.timing(ringAnim, { toValue: 1, duration: 1200, useNativeDriver: true })
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [voiceState, ringAnim])
+  const ringScale = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.6] })
+  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] })
 
   // Open/close animation + fresh conversation each time the sheet opens.
   useEffect(() => {
@@ -217,10 +237,15 @@ export default function AskHeroSheet({
       .trim()
     if (!clean) return
 
+    // Claim this generation. If stopAllAudio() bumps it while we await below,
+    // we abort before creating/playing any audio.
+    const myGen = ++speakGenRef.current
     setSpeaking(true)
 
     try {
       await stopAllAudio()
+      // stopAllAudio bumped the generation — re-claim for THIS utterance.
+      speakGenRef.current = myGen
 
       // Play through the device even when the iOS silent switch is on, so Hero's
       // voice is actually audible. Best-effort — never block playback if it fails.
@@ -255,10 +280,16 @@ export default function AskHeroSheet({
         throw new Error('Empty audio response')
       }
 
+      // Stopped (student pressed the mic) while fetching — bail before playing.
+      if (myGen !== speakGenRef.current) { setSpeaking(false); return }
+
       // Write the audio bytes to a cache file via the modern File API.
       const file = new File(Paths.cache, `hero-${Date.now()}.mp3`)
       try { file.create() } catch {}
       file.write(bytes)
+
+      // Final check right before playback (file write is async-ish).
+      if (myGen !== speakGenRef.current) { try { file.delete() } catch {}; setSpeaking(false); return }
 
       // Play via expo-audio. createAudioPlayer is the imperative SDK 56 API.
       const player = createAudioPlayer({ uri: file.uri })
@@ -300,6 +331,8 @@ export default function AskHeroSheet({
   }
 
   async function stopAllAudio() {
+    // Invalidate any in-flight TTS so it can't start playing after this.
+    speakGenRef.current++
     setSpeaking(false)
     setReveal({ index: -1, chars: 0 }) // snap any partial caption to full
     if (playerRef.current) {
@@ -368,60 +401,13 @@ export default function AskHeroSheet({
     }
   }
 
-  // Mic tap (speech-to-speech, report #6): tap to record, tap to stop →
-  // transcribe (Whisper) → auto-send → Hero speaks the reply.
-  async function handleMicTap() {
-    if (loading || speaking) return
-    if (voiceState === 'recording') {
-      setVoiceState('transcribing')
-      try {
-        await audioRecorder.stop()
-        const uri = audioRecorder.uri
-        if (!uri) {
-          setVoiceState('idle')
-          addHeroMessage("I didn't catch that recording — try again! 🎤")
-          return
-        }
-        const token = await SecureStore.getItemAsync('auth_token')
-        const studentId = (await SecureStore.getItemAsync('user_id')) || ''
-
-        // MULTIPART upload of the recorded m4a — uploadAsync actually sends the
-        // file bytes (unlike expo/fetch + FormData, which sent an empty body).
-        const res = await uploadAsync(`${API_URL}/api/student/voice-transcribe`, uri, {
-          httpMethod: 'POST',
-          uploadType: FileSystemUploadType.MULTIPART,
-          fieldName: 'audio',
-          mimeType: 'audio/m4a',
-          parameters: studentId ? { studentId } : {},
-          headers: token
-            ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` }
-            : {},
-        })
-        setVoiceState('idle')
-
-        if (res.status === 403) {
-          addHeroMessage('Talking to me is a Premium feature 💎 You can still type your question!')
-          return
-        }
-        if (res.status < 200 || res.status >= 300) {
-          addHeroMessage("I couldn't hear that clearly — please try again, or type your question. 🤖")
-          return
-        }
-        let text = ''
-        try { text = (JSON.parse(res.body)?.text || '').trim() } catch { /* bad json */ }
-        if (text) {
-          sendHeroMessage(text)
-        } else {
-          addHeroMessage("I didn't quite catch that — try speaking again, or type it. 🎤")
-        }
-      } catch {
-        setVoiceState('idle')
-        addHeroMessage('Something went wrong hearing you — please try again. 🤖')
-      }
-      return
-    }
-    // Start recording.
-    if (speaking) await stopAllAudio()
+  // PRESS-AND-HOLD walkie-talkie (speech-to-speech, report #6): hold to record,
+  // release to stop → transcribe (Whisper) → auto-send → Hero speaks the reply.
+  async function startTalk() {
+    if (loading || voiceState !== 'idle') return
+    // ALWAYS stop Hero first (barge-in): this also invalidates any in-flight TTS
+    // fetch so Hero can never be captured by the recorder we're about to open.
+    await stopAllAudio()
     try {
       const perm = await requestRecordingPermissionsAsync()
       if (!perm.granted) return
@@ -431,6 +417,55 @@ export default function AskHeroSheet({
       setVoiceState('recording')
     } catch {
       setVoiceState('idle')
+    }
+  }
+
+  async function stopTalk() {
+    if (voiceState !== 'recording') return
+    setVoiceState('transcribing')
+    try {
+      await audioRecorder.stop()
+      const uri = audioRecorder.uri
+      if (!uri) {
+        setVoiceState('idle')
+        addHeroMessage("I didn't catch that recording — try again! 🎤")
+        return
+      }
+      const token = await SecureStore.getItemAsync('auth_token')
+      const studentId = (await SecureStore.getItemAsync('user_id')) || ''
+
+      // MULTIPART upload of the recorded m4a — uploadAsync actually sends the
+      // file bytes (unlike expo/fetch + FormData, which sent an empty body).
+      const res = await uploadAsync(`${API_URL}/api/student/voice-transcribe`, uri, {
+        httpMethod: 'POST',
+        uploadType: FileSystemUploadType.MULTIPART,
+        fieldName: 'audio',
+        mimeType: 'audio/m4a',
+        parameters: studentId ? { studentId } : {},
+        headers: token
+          ? { Cookie: `mymathshero_token=${token}`, Authorization: `Bearer ${token}` }
+          : {},
+      })
+      setVoiceState('idle')
+
+      if (res.status === 403) {
+        addHeroMessage('Talking to me is a Premium feature 💎 You can still type your question!')
+        return
+      }
+      if (res.status < 200 || res.status >= 300) {
+        addHeroMessage("I couldn't hear that clearly — please try again, or type your question. 🤖")
+        return
+      }
+      let text = ''
+      try { text = (JSON.parse(res.body)?.text || '').trim() } catch { /* bad json */ }
+      if (text) {
+        sendHeroMessage(text)
+      } else {
+        addHeroMessage("I didn't quite catch that — try speaking again, or type it. 🎤")
+      }
+    } catch {
+      setVoiceState('idle')
+      addHeroMessage('Something went wrong hearing you — please try again. 🤖')
     }
   }
 
@@ -672,19 +707,30 @@ export default function AskHeroSheet({
           {tab === 'ask' && !typeMode ? (
             // VOICE-FIRST: big centered round mic + "type instead" link.
             <View style={s.voiceFirst}>
-              <TouchableOpacity
-                style={[s.bigMic, voiceState === 'recording' && s.micBtnRecording]}
-                onPress={handleMicTap}
+              <Pressable
+                style={s.bigMicWrap}
+                onPressIn={startTalk}
+                onPressOut={stopTalk}
                 disabled={loading || speaking || voiceState === 'transcribing'}
               >
-                <Text style={s.bigMicText}>
-                  {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
-                </Text>
-              </TouchableOpacity>
+                {/* Signal rings while transmitting. */}
+                {voiceState === 'recording' && (
+                  <Animated.View style={[s.talkieRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
+                )}
+                {voiceState === 'transcribing' ? (
+                  <View style={s.bigMic}><Text style={s.bigMicText}>…</Text></View>
+                ) : (
+                  <Image
+                    source={TALKIE}
+                    style={[s.bigTalkieImg, voiceState === 'recording' && s.bigTalkieRecording]}
+                    resizeMode="contain"
+                  />
+                )}
+              </Pressable>
               <Text style={s.voiceHint}>
-                {voiceState === 'recording' ? 'Listening… tap to send'
+                {voiceState === 'recording' ? '🔴 Listening… release to send'
                   : voiceState === 'transcribing' ? 'Got it — thinking…'
-                  : 'Tap to talk to Hero'}
+                  : 'Hold to talk to Hero'}
               </Text>
               <TouchableOpacity onPress={() => setTypeMode(true)} disabled={loading}>
                 <Text style={s.switchLink}>⌨️ Type instead</Text>
@@ -693,15 +739,30 @@ export default function AskHeroSheet({
           ) : (
           <View style={s.inputRow}>
             {/* Mic / back-to-voice (talk to Hero, speech-to-speech). */}
-            <TouchableOpacity
-              style={[s.micBtn, voiceState === 'recording' && s.micBtnRecording]}
-              onPress={tab === 'ask' ? () => setTypeMode(false) : handleMicTap}
-              disabled={loading || speaking || voiceState === 'transcribing'}
-            >
-              <Text style={s.micBtnText}>
-                {voiceState === 'transcribing' ? '…' : voiceState === 'recording' ? '⏺' : '🎤'}
-              </Text>
-            </TouchableOpacity>
+            {tab === 'ask' ? (
+              // Back to the big voice mic.
+              <TouchableOpacity
+                style={s.micBtn}
+                onPress={() => setTypeMode(false)}
+                disabled={loading || speaking || voiceState === 'transcribing'}
+              >
+                <Image source={TALKIE} style={s.micTalkieImg} resizeMode="contain" />
+              </TouchableOpacity>
+            ) : (
+              // Teach tab: press-and-hold to talk.
+              <Pressable
+                style={[s.micBtn, voiceState === 'recording' && s.micBtnRecording]}
+                onPressIn={startTalk}
+                onPressOut={stopTalk}
+                disabled={loading || speaking || voiceState === 'transcribing'}
+              >
+                {voiceState === 'transcribing' ? (
+                  <Text style={s.micBtnText}>…</Text>
+                ) : (
+                  <Image source={TALKIE} style={s.micTalkieImg} resizeMode="contain" />
+                )}
+              </Pressable>
+            )}
             <TextInput
               style={s.input}
               placeholder={voiceState === 'recording' ? 'Listening… tap ⏺ to send' : 'Ask Hero anything about Maths...'}
@@ -872,13 +933,19 @@ const s = StyleSheet.create({
   },
   sendBtnOff: { backgroundColor: '#E2E8F0' },
   sendBtnText: { color: 'white', fontSize: 22, fontWeight: '800' },
-  micBtn: { backgroundColor: '#1B2B4B', borderRadius: 12, width: 48, alignItems: 'center', justifyContent: 'center' },
+  micBtn: { backgroundColor: '#1B2B4B', borderRadius: 12, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   micBtnRecording: { backgroundColor: '#EF4444' },
-  micBtnText: { fontSize: 20 },
+  micBtnText: { fontSize: 20, color: 'white' },
+  micTalkieImg: { width: 30, height: 30 },
   // Voice-first Ask Hero
   voiceFirst: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 },
-  bigMic: { backgroundColor: '#C49A1A', width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', shadowColor: '#C49A1A', shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  bigMicText: { fontSize: 34 },
+  // Press-and-hold voice control: a large, static walkie-talkie image.
+  bigMicWrap: { width: 168, height: 168, alignItems: 'center', justifyContent: 'center' },
+  talkieRing: { position: 'absolute', width: 168, height: 168, borderRadius: 84, borderWidth: 4, borderColor: '#EF4444' },
+  bigMic: { backgroundColor: '#C49A1A', width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  bigMicText: { fontSize: 40, color: 'white' },
+  bigTalkieImg: { width: 150, height: 150 },
+  bigTalkieRecording: { transform: [{ scale: 1.04 }] },
   voiceHint: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
   switchLink: { color: '#C49A1A', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
 })

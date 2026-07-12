@@ -32,6 +32,7 @@ interface NudgeMessage {
   action: string
   skill?: any
   isExam?: boolean
+  streak?: boolean
   icon?: 'askHero'
   color: string
   borderColor: string
@@ -40,7 +41,8 @@ interface NudgeMessage {
 function buildNudges(
   currentStudent: any,
   recs: any[],
-  currentStats: any
+  currentStats: any,
+  streakShownToday = false
 ): NudgeMessage[] {
   const nudges: NudgeMessage[] = []
   if (recs.length > 0) {
@@ -96,9 +98,11 @@ function buildNudges(
       }
     }
   }
-  if (currentStudent?.streak > 0) {
+  // Streak nudge — at most once per day (was re-appearing on every rotation).
+  if (currentStudent?.streak > 0 && !streakShownToday) {
     nudges.push({
       emoji: '🔥',
+      streak: true,
       title: `${currentStudent.streak}-day streak!`,
       message: `Don't break your ${currentStudent.streak}-day streak — practise at least one skill today!`,
       action: 'Practice Now',
@@ -140,6 +144,9 @@ export default function StudentDashboard() {
 
   // AI nudge banner
   const [heroNudge, setHeroNudge] = useState<NudgeMessage | null>(null)
+  // Streak nudge shown-today flag (once/day cap). Backed by SecureStore so it
+  // survives remounts; loaded on mount below.
+  const streakShownRef = useRef(false)
   const nudgeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const nudgeDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nudgeCountRef = useRef(0)
@@ -243,6 +250,12 @@ export default function StudentDashboard() {
       const data = res?.data || {}
       setStudent(data.student || null)
 
+      // Load today's streak-nudge flag so the 🔥 nudge shows at most once/day.
+      try {
+        const stamp = await SecureStore.getItemAsync(`streakNudge_${data.student?.id || 'me'}`)
+        streakShownRef.current = stamp === new Date().toISOString().slice(0, 10)
+      } catch { streakShownRef.current = false }
+
       // Schedule the 6pm local streak reminder (DAILY trigger — fires every day).
       // Wraps the call so a notification scheduling failure can't break the
       // dashboard render.
@@ -286,10 +299,14 @@ export default function StudentDashboard() {
   useEffect(() => {
     if (!student || recommendations.length === 0) return
     nudgeTimerRef.current = setInterval(() => {
+      // While the HERO Daily Task is locked, don't surface freestyle nudges —
+      // the task card is the only call to action until it's done.
+      if (dailyTaskLockedRef.current) return
       nudgeCountRef.current += 1
-      const nudges = buildNudges(student, recommendations, stats)
+      const nudges = buildNudges(student, recommendations, stats, streakShownRef.current)
       if (nudges.length === 0) return
       const next = nudges[nudgeCountRef.current % nudges.length]
+      if (next.streak) void markStreakNudgeShown() // count this as today's streak nudge
       setHeroNudge(next)
       if (nudgeDismissRef.current) clearTimeout(nudgeDismissRef.current)
       nudgeDismissRef.current = setTimeout(() => setHeroNudge(null), 6000)
@@ -373,6 +390,10 @@ export default function StudentDashboard() {
   )
 
   const dailyTaskLocked = examDue || (!!dailyTask && dailyTask.done !== true)
+  // Mirror into a ref so the nudge interval (which isn't re-created when the lock
+  // changes) always reads the live value.
+  const dailyTaskLockedRef = useRef(dailyTaskLocked)
+  dailyTaskLockedRef.current = dailyTaskLocked
 
   function openDailyTask() {
     if (!dailyTask?.skillId) return
@@ -389,6 +410,14 @@ export default function StudentDashboard() {
       return
     }
     fn()
+  }
+
+  // Streak nudge once-per-day cap (SecureStore date stamp per student).
+  function streakStampKey() { return `streakNudge_${student?.id || 'me'}` }
+  function todayStamp() { return new Date().toISOString().slice(0, 10) }
+  async function markStreakNudgeShown() {
+    streakShownRef.current = true
+    try { await SecureStore.setItemAsync(streakStampKey(), todayStamp()) } catch {}
   }
 
   function openDailyPuzzle() {
@@ -433,8 +462,10 @@ export default function StudentDashboard() {
             const nudge = heroNudge
             setHeroNudge(null)
             if (!nudge?.skill) return
-            if (nudge.isExam) handleExamUnlock(nudge.skill)
-            else pushPractice(nudge.skill)
+            // Exams are always allowed; but freestyle practice from a nudge must
+            // respect the HERO Daily Task gate (no back door into questions).
+            if (nudge.isExam) { handleExamUnlock(nudge.skill); return }
+            guardedOpen(() => pushPractice(nudge.skill))
           }}
           style={[
             s.nudgeBanner,

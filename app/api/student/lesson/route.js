@@ -4,6 +4,7 @@ import { getRequestToken, verifyToken } from '@/lib/auth'
 import { getPlanFeatures } from '@/lib/planGating'
 import { resolveEffectivePlan } from '@/lib/freeTrial'
 import { parseLesson, fallbackLesson } from '@/lib/heroLesson'
+import { getHeroConfig, buildAvoidInstruction } from '@/lib/heroConfig'
 
 // The Opus lesson can take 10–20s; give the serverless function room so it
 // doesn't 504 (which surfaced as "I had trouble connecting" in the app).
@@ -124,12 +125,15 @@ export async function POST(request) {
       ? await db.collection('questions').findOne({ id: questionId })
       : null
 
+    // Admin-managed avoid-words (shared hero_config doc) — appended so the
+    // narrated lesson also never uses banned greetings/phrases.
+    const heroConfig = await getHeroConfig(db)
     const prompt = buildLessonPrompt({
       studentName: student.name || 'Hero',
       grade: grade ?? student.grade ?? 3,
       questionText,
       skillId,
-    })
+    }) + buildAvoidInstruction(heroConfig.avoidWords)
     const raw = await callOpenRouter(prompt)
     const lesson = (raw && parseLesson(raw, { questionText })) || fallbackLesson({
       questionText,

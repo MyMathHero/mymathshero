@@ -1,0 +1,216 @@
+import { MongoClient } from 'mongodb'
+import { NextResponse } from 'next/server'
+import { solveBlind, answersAgree, verifyQuestion, isVisualQuestion, VERIFIER_MODEL } from '@/lib/verifyQuestion'
+
+// Grade-by-grade question-bank verifier + healer.
+//
+// The self-heal loop in /api/admin/recheck-questions only touches questions the
+// verifier has ALREADY flagged. But wrong answers can slip through un-flagged
+// (a weak single-pass solve passing them). This route RE-SCANS active, unflagged
+// questions with the HARDENED verifier (chain-of-thought + 2-of-3 consensus +
+// numeric/fraction equality) so it catches those, one grade at a time — and it
+// reports what it finds broken down BY SOURCE (AI-Generated vs seed/scraper/
+// other), so you can see where the bad questions come from before fixing.
+//
+//   GET  ?grade=8            → stats for that grade (total active, by source,
+//                              flagged, retired, corrected, unverified). Omit
+//                              grade for an all-grades roll-up.
+//   POST { mode:'scan', grade, limit } → re-verify a capped batch; flag suspects;
+//                              return counts + a per-source breakdown of wrongs.
+//   POST { mode:'fix', grade, limit, regenerate } → heal flagged questions for
+//                              that grade: auto-correct if an option is right,
+//                              else deactivate + regenerate a verified replacement.
+//
+// Admin-gated via ADMIN_API_KEY. Capped batches → safe to call repeatedly.
+
+let client
+async function connectDB() {
+  if (!client) { client = new MongoClient(process.env.MONGODB_URI); await client.connect() }
+  return client.db(process.env.DB_NAME || 'mymathshero')
+}
+
+function authed(request) {
+  const key = request.headers.get('x-admin-key') || new URL(request.url).searchParams.get('key')
+  return process.env.ADMIN_API_KEY && key === process.env.ADMIN_API_KEY
+}
+
+// Bucket a question by where it came from, for the source report. AI questions
+// carry source:'AI-Generated' and an `ai_` id prefix; everything else is grouped
+// by its `source` field or, failing that, an id-prefix guess.
+function sourceOf(q) {
+  const s = String(q.source || '').trim()
+  if (s) return s
+  const id = String(q.id || '')
+  if (id.startsWith('ai_')) return 'AI-Generated'
+  if (id.startsWith('q_seed_') || id.includes('seed')) return 'Seed'
+  return 'Unknown'
+}
+
+function gradeFilter(grade) {
+  return grade === null || grade === undefined || grade === ''
+    ? {}
+    : { grade: typeof grade === 'number' ? grade : parseInt(grade, 10) }
+}
+
+export async function GET(request) {
+  if (!authed(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = await connectDB()
+  const col = db.collection('questions')
+  const gradeParam = new URL(request.url).searchParams.get('grade')
+  const gf = gradeFilter(gradeParam)
+
+  // Source breakdown of ACTIVE questions for this grade.
+  const bySource = await col.aggregate([
+    { $match: { active: { $ne: false }, ...gf } },
+    { $group: { _id: { $ifNull: ['$source', 'Unknown'] }, count: { $sum: 1 } } },
+  ]).toArray()
+
+  return NextResponse.json({
+    grade: gradeParam ?? 'all',
+    totalActive: await col.countDocuments({ active: { $ne: false }, ...gf }),
+    bySource: Object.fromEntries(bySource.map(r => [r._id || 'Unknown', r.count])),
+    flagged: await col.countDocuments({ verifierFlagged: true, ...gf }),
+    retired: await col.countDocuments({ active: false, retiredAt: { $exists: true }, ...gf }),
+    corrected: await col.countDocuments({ corrected: true, ...gf }),
+    unverified: await col.countDocuments({ unverified: true, ...gf }),
+    unscanned: await col.countDocuments({ active: { $ne: false }, verifierScannedAt: { $exists: false }, ...gf }),
+  })
+}
+
+export async function POST(request) {
+  if (!authed(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!process.env.OPENROUTER_API_KEY) return NextResponse.json({ error: 'OPENROUTER_API_KEY not set' }, { status: 503 })
+
+  const body = await request.json().catch(() => ({}))
+  const mode = body.mode || 'scan'
+  const db = await connectDB()
+
+  if (mode === 'scan') return scan(db, body)
+  if (mode === 'fix') return fix(db, body)
+  return NextResponse.json({ error: "mode must be 'scan' or 'fix'" }, { status: 400 })
+}
+
+// Re-verify a capped batch of active, not-yet-scanned questions for a grade.
+async function scan(db, { grade = null, limit = 20 }) {
+  const col = db.collection('questions')
+  const gf = gradeFilter(grade)
+
+  // Prefer questions we haven't scanned with the hardened verifier yet; skip
+  // visual ones (can't be solved from text) and already-flagged ones.
+  const batch = await col.find({
+    active: { $ne: false },
+    verifierFlagged: { $ne: true },
+    verifierScannedAt: { $exists: false },
+    ...gf,
+  }).project({ id: 1, skillId: 1, grade: 1, question: 1, options: 1, correctAnswer: 1, source: 1, mode: 1, visual: 1 })
+    .limit(Math.min(limit, 50)).toArray()
+
+  const out = {
+    grade: grade ?? 'all', scanned: 0, ok: 0, suspect: 0, skipped: 0, errors: 0,
+    wrongBySource: {}, items: [],
+  }
+
+  for (const q of batch) {
+    out.scanned++
+    if (isVisualQuestion(q)) {
+      out.skipped++
+      await col.updateOne({ id: q.id }, { $set: { verifierScannedAt: new Date(), verifierSkipped: 'visual' } })
+      continue
+    }
+    try {
+      const r = await verifyQuestion(q, { double: true }) // hardened path
+      if (r.status === 'ok') {
+        out.ok++
+        await col.updateOne({ id: q.id }, { $set: { verifierScannedAt: new Date() }, $unset: { unverified: '' } })
+      } else if (r.status === 'suspect') {
+        out.suspect++
+        const src = sourceOf(q)
+        out.wrongBySource[src] = (out.wrongBySource[src] || 0) + 1
+        await col.updateOne({ id: q.id }, {
+          $set: {
+            verifierFlagged: true,
+            verifierAnswer: r.verifierAnswer,
+            verifierReason: r.reason || 'suspect',
+            verifierModel: VERIFIER_MODEL,
+            verifierScannedAt: new Date(),
+          },
+          $unset: { unverified: '' },
+        })
+        out.items.push({ id: q.id, source: src, stored: q.correctAnswer, verifier: r.verifierAnswer, reason: r.reason })
+      } else {
+        // 'error' or 'skipped' — don't stamp scannedAt so it's retried next run.
+        out.errors++
+      }
+    } catch (e) {
+      out.errors++
+      out.items.push({ id: q.id, action: 'error', error: e.message })
+    }
+  }
+
+  out.remainingUnscanned = await col.countDocuments({
+    active: { $ne: false }, verifierScannedAt: { $exists: false }, ...gf,
+  })
+  return NextResponse.json(out)
+}
+
+// Heal flagged questions for a grade: auto-correct where an option is right,
+// else deactivate + regenerate a verified replacement. Mirrors recheck-questions
+// but scoped to the grade.
+async function fix(db, { grade = null, limit = 20, regenerate = true }) {
+  const col = db.collection('questions')
+  const gf = gradeFilter(grade)
+
+  const flagged = await col.find({ verifierFlagged: true, ...gf })
+    .project({ id: 1, skillId: 1, grade: 1, question: 1, options: 1, correctAnswer: 1, verifierAnswer: 1, source: 1 })
+    .limit(Math.min(limit, 50)).toArray()
+
+  const out = { grade: grade ?? 'all', processed: 0, corrected: 0, deactivated: 0, regenerated: 0, errors: 0, items: [] }
+
+  for (const q of flagged) {
+    out.processed++
+    try {
+      const v = await solveBlind(q)
+      const ans = v.answer
+      const matchingOption = (q.options || []).find(o => answersAgree(ans, o, q.options))
+
+      if (matchingOption && v.confident) {
+        // Re-verify against the PROPOSED answer with the hardened path.
+        const recheck = await verifyQuestion({ ...q, correctAnswer: matchingOption }, { double: true })
+        if (recheck.status === 'ok') {
+          await col.updateOne({ id: q.id }, {
+            $set: {
+              correctAnswer: matchingOption, corrected: true,
+              correctionFrom: q.correctAnswer, correctedBy: VERIFIER_MODEL, correctedAt: new Date(),
+            },
+            $unset: { verifierFlagged: '', verifierAnswer: '', verifierReason: '' },
+          })
+          out.corrected++
+          out.items.push({ id: q.id, action: 'corrected', from: q.correctAnswer, to: matchingOption, source: sourceOf(q) })
+          continue
+        }
+      }
+
+      // Broken — retire it.
+      await col.updateOne({ id: q.id }, {
+        $set: { active: false, brokenReason: matchingOption ? 'ambiguous-options' : 'no-correct-option', retiredAt: new Date() },
+        $unset: { verifierFlagged: '' },
+      })
+      out.deactivated++
+      out.items.push({ id: q.id, action: 'deactivated', reason: matchingOption ? 'ambiguous-options' : 'no-correct-option', source: sourceOf(q) })
+
+      if (regenerate && q.skillId) {
+        try {
+          const { generateMoreQuestions } = await import('@/app/api/student/questions/route')
+          await generateMoreQuestions(q.skillId, q.grade ?? 3, 'Maths', db)
+          out.regenerated++
+        } catch { /* best-effort */ }
+      }
+    } catch (e) {
+      out.errors++
+      out.items.push({ id: q.id, action: 'error', error: e.message })
+    }
+  }
+
+  out.remainingFlagged = await col.countDocuments({ verifierFlagged: true, ...gf })
+  return NextResponse.json(out)
+}
