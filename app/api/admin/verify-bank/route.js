@@ -34,6 +34,15 @@ function authed(request) {
   return process.env.ADMIN_API_KEY && key === process.env.ADMIN_API_KEY
 }
 
+// How many questions to verify in parallel within one batch. Each verify is
+// mostly LLM wait time, so overlapping them cuts batch wall-time ~CONCURRENCY×.
+// Kept modest to stay under OpenRouter rate limits and serverless memory.
+const CONCURRENCY = 8
+
+// Give the batch room: each question is up to 3 Opus calls; a 60-question batch
+// at CONCURRENCY 8 is well within a 300s function budget.
+export const maxDuration = 300
+
 // Bucket a question by where it came from, for the source report. AI questions
 // carry source:'AI-Generated' and an `ai_` id prefix; everything else is grouped
 // by its `source` field or, failing that, an id-prefix guess.
@@ -91,7 +100,7 @@ export async function POST(request) {
 }
 
 // Re-verify a capped batch of active, not-yet-scanned questions for a grade.
-async function scan(db, { grade = null, limit = 20 }) {
+async function scan(db, { grade = null, limit = 60 }) {
   const col = db.collection('questions')
   const gf = gradeFilter(grade)
 
@@ -103,19 +112,22 @@ async function scan(db, { grade = null, limit = 20 }) {
     verifierScannedAt: { $exists: false },
     ...gf,
   }).project({ id: 1, skillId: 1, grade: 1, question: 1, options: 1, correctAnswer: 1, source: 1, mode: 1, visual: 1 })
-    .limit(Math.min(limit, 50)).toArray()
+    .limit(Math.min(limit, 100)).toArray()
 
   const out = {
     grade: grade ?? 'all', scanned: 0, ok: 0, suspect: 0, skipped: 0, errors: 0,
     wrongBySource: {}, items: [],
   }
 
-  for (const q of batch) {
+  // Verify one question and apply its result. Extracted so a batch can run
+  // several of these CONCURRENTLY (each is mostly waiting on the LLM), which is
+  // what makes a big batch finish in seconds rather than minutes.
+  async function processOne(q) {
     out.scanned++
     if (isVisualQuestion(q)) {
       out.skipped++
       await col.updateOne({ id: q.id }, { $set: { verifierScannedAt: new Date(), verifierSkipped: 'visual' } })
-      continue
+      return
     }
     try {
       const r = await verifyQuestion(q, { double: true }) // hardened path
@@ -138,13 +150,19 @@ async function scan(db, { grade = null, limit = 20 }) {
         })
         out.items.push({ id: q.id, source: src, stored: q.correctAnswer, verifier: r.verifierAnswer, reason: r.reason })
       } else {
-        // 'error' or 'skipped' — don't stamp scannedAt so it's retried next run.
+        // 'error' — don't stamp scannedAt so it's retried next run.
         out.errors++
       }
     } catch (e) {
       out.errors++
       out.items.push({ id: q.id, action: 'error', error: e.message })
     }
+  }
+
+  // Run the batch in concurrent chunks (CONCURRENCY at a time) so LLM latency
+  // overlaps instead of stacking up.
+  for (let i = 0; i < batch.length; i += CONCURRENCY) {
+    await Promise.all(batch.slice(i, i + CONCURRENCY).map(processOne))
   }
 
   out.remainingUnscanned = await col.countDocuments({
@@ -156,17 +174,17 @@ async function scan(db, { grade = null, limit = 20 }) {
 // Heal flagged questions for a grade: auto-correct where an option is right,
 // else deactivate + regenerate a verified replacement. Mirrors recheck-questions
 // but scoped to the grade.
-async function fix(db, { grade = null, limit = 20, regenerate = true }) {
+async function fix(db, { grade = null, limit = 40, regenerate = true }) {
   const col = db.collection('questions')
   const gf = gradeFilter(grade)
 
   const flagged = await col.find({ verifierFlagged: true, ...gf })
     .project({ id: 1, skillId: 1, grade: 1, question: 1, options: 1, correctAnswer: 1, verifierAnswer: 1, source: 1 })
-    .limit(Math.min(limit, 50)).toArray()
+    .limit(Math.min(limit, 100)).toArray()
 
   const out = { grade: grade ?? 'all', processed: 0, corrected: 0, deactivated: 0, regenerated: 0, errors: 0, items: [] }
 
-  for (const q of flagged) {
+  async function healOne(q) {
     out.processed++
     try {
       const v = await solveBlind(q)
@@ -186,7 +204,7 @@ async function fix(db, { grade = null, limit = 20, regenerate = true }) {
           })
           out.corrected++
           out.items.push({ id: q.id, action: 'corrected', from: q.correctAnswer, to: matchingOption, source: sourceOf(q) })
-          continue
+          return
         }
       }
 
@@ -209,6 +227,11 @@ async function fix(db, { grade = null, limit = 20, regenerate = true }) {
       out.errors++
       out.items.push({ id: q.id, action: 'error', error: e.message })
     }
+  }
+
+  // Heal in concurrent chunks (fewer than scan — each may also regenerate).
+  for (let i = 0; i < flagged.length; i += CONCURRENCY) {
+    await Promise.all(flagged.slice(i, i + CONCURRENCY).map(healOne))
   }
 
   out.remainingFlagged = await col.countDocuments({ verifierFlagged: true, ...gf })
