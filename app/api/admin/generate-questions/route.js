@@ -5,6 +5,7 @@ import { SKILL_ID_MAP } from '@/lib/skillNames'
 import { bandForDifficulty, BAND_ORDER, BAND_RANGE } from '@/lib/difficulty'
 import { parseFractionVisual } from '@/lib/fractionVisual'
 import { insertQuestions } from '@/lib/questionDedup'
+import { buildCurriculumBlock } from '@/lib/curriculumRef'
 
 // Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
 // taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
@@ -52,9 +53,12 @@ async function generateForSkill(skill, count, band = null) {
   }
 
   const gradeLabel = skill.grade === 0 ? 'Prep/Foundation' : `Grade ${skill.grade}`
+  // ACARA v9 scope for this skill's strand + grade — keeps questions in-level.
+  const curriculumBlock = buildCurriculumBlock(skill.category, skill.grade)
 
   const userPrompt = [
-    `Generate ${count} multiple choice questions for "${skill.name}", ${skill.subject}, ${gradeLabel} Australian Victorian Curriculum.`,
+    `Generate ${count} multiple choice questions for "${skill.name}", ${skill.subject}, ${gradeLabel} Australian Curriculum.`,
+    ...(curriculumBlock ? [curriculumBlock, ''] : []),
     ...(band ? [BAND_INSTRUCTION[band], ''] : []),
     `Each question needs:`,
     `- question: clear, age-appropriate question string`,
@@ -86,7 +90,7 @@ async function generateForSkill(skill, count, band = null) {
       messages: [
         {
           role: 'system',
-          content: 'You are an Australian primary school curriculum expert creating multiple choice questions. All questions must be aligned to the Victorian Curriculum. Return ONLY a valid JSON array.',
+          content: 'You are an Australian school curriculum expert creating multiple choice questions aligned to the Australian Curriculum (ACARA v9). Keep every question strictly at the stated grade level — never above or below. Return ONLY a valid JSON array.',
         },
         { role: 'user', content: userPrompt },
       ],

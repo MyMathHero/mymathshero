@@ -5,6 +5,8 @@ import { bandForDifficulty, bandForScore, adjacentBands, shiftBand } from '@/lib
 import { verifyQuestion } from '@/lib/verifyQuestion'
 import { parseFractionVisual } from '@/lib/fractionVisual'
 import { insertQuestions } from '@/lib/questionDedup'
+import { buildCurriculumBlock } from '@/lib/curriculumRef'
+import { SKILL_ID_MAP } from '@/lib/skillNames'
 
 let client
 async function connectDB() {
@@ -188,8 +190,12 @@ export async function generateMoreQuestions(skillId, grade, subject, db) {
     if (existingCount >= 30) return // already plenty
 
     const skillName = skillId.replace(/^[a-z]_\d+_/, '').replace(/_/g, ' ')
+    // ACARA v9 scope for this skill's strand + grade — keeps regenerated
+    // questions in-level (mirrors the admin generator).
+    const category = SKILL_ID_MAP[skillId]?.category
+    const curriculumBlock = buildCurriculumBlock(category, grade)
 
-    const prompt = `Generate 10 multiple choice maths questions for Australian Year ${grade} students about "${skillName}".
+    const prompt = `Generate 10 multiple choice maths questions for Australian Year ${grade} students about "${skillName}".${curriculumBlock}
 
 Return ONLY a JSON array. Each question must have:
 - question: the question text. IMPORTANT: questions are shown as TEXT ONLY — no image, diagram, shape or graph is displayed. Never ask something that needs a picture (e.g. "how many parts are shaded?"). State all shape/graph/data in words so it is answerable from the text alone.
