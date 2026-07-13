@@ -6,6 +6,7 @@ import { bandForDifficulty, BAND_ORDER, BAND_RANGE } from '@/lib/difficulty'
 import { parseFractionVisual } from '@/lib/fractionVisual'
 import { insertQuestions } from '@/lib/questionDedup'
 import { buildCurriculumBlock } from '@/lib/curriculumRef'
+import { deriveVisual } from '@/lib/deriveVisual'
 
 // Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
 // taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
@@ -147,8 +148,13 @@ function buildQuestionDoc(q, skill, index, band = null) {
     difficultyBand: band || bandForDifficulty(difficulty),
     hint: q.hint || '',
     explanation: q.explanation || '',
-    // Auto-attach a fraction diagram when the wording describes one.
-    ...(parseFractionVisual(q.question) ? { visual: parseFractionVisual(q.question) } : {}),
+    // Auto-attach a diagram/shape/equation for young grades (Prep–3): fractions
+    // first, then the broader derive (shape/count/add/takeaway/equation). Above
+    // grade 3 only the fraction diagram is attached (deriveVisual returns null).
+    ...(() => {
+      const v = deriveVisual(q.question, skill.grade) || parseFractionVisual(q.question)
+      return v ? { visual: v } : {}
+    })(),
     active: true,
     source: 'AI-Generated',
     unverified: true, // cleared by verifyDocs() once the inline verifier passes

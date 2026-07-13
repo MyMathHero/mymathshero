@@ -16,6 +16,7 @@ import HeroRobot from '../../components/HeroRobot'
 import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBurst'
 import { formatMath } from '../../components/MathText'
 import ColumnMath from '../../components/ColumnMath'
+import VisualRender from '../../components/junior/VisualRender'
 import { columnMathFor } from '../../lib/columnMath'
 import { shouldAutoNarrate } from '../../lib/juniorMode'
 import { checkHeroGate } from '../../lib/heroGate'
@@ -501,6 +502,14 @@ export default function Practice() {
         <View style={styles.questionCard}>
           <Text style={styles.questionText}>{formatMath(q.question)}</Text>
         </View>
+
+        {/* Prep–3 visual (diagram/shape/count/equation) derived server-side and
+            served on q.visual. Phase 3: young questions always show a picture. */}
+        {q.visual && (
+          <View style={styles.questionCard}>
+            <VisualRender visual={q.visual} />
+          </View>
+        )}
 
         {/* Column-arithmetic visual (worksheet style) for Prep–3 on +,−,×,÷.
             Derived from the question text; re-animates per question via key. */}

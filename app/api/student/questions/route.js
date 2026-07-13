@@ -7,6 +7,7 @@ import { parseFractionVisual } from '@/lib/fractionVisual'
 import { insertQuestions } from '@/lib/questionDedup'
 import { buildCurriculumBlock } from '@/lib/curriculumRef'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
+import { deriveVisual } from '@/lib/deriveVisual'
 
 let client
 async function connectDB() {
@@ -160,15 +161,18 @@ export async function GET(request) {
     }
 
     // Strip correctAnswer — validation happens server-side on POST /api/student/answer.
-    // Also RE-VALIDATE any stored `visual`: only keep the fraction diagram if the
-    // question wording still parses to one. This stops stale/incorrect `visual`
-    // fields (from earlier backfills) showing a fraction bar on unrelated
-    // questions — the diagram must always match the text.
+    // RE-DERIVE the `visual` from the wording every time (never trust a stale
+    // stored one) so the picture always matches the text. For Prep–3 this draws
+    // a shape/count/add/takeaway/equation as well as fractions; for older grades
+    // only a fraction diagram is derived. Phase 3: young questions always show a
+    // diagram when one can be drawn.
     const safe = questions.slice(0, limit).map(({ correctAnswer, _id, visual, ...rest }) => {
-      const validVisual = rest.question ? parseFractionVisual(rest.question) : null
+      const derived = rest.question
+        ? (deriveVisual(rest.question, gradeNum) || parseFractionVisual(rest.question))
+        : null
       return {
         ...rest,
-        ...(validVisual ? { visual: validVisual } : {}),
+        ...(derived ? { visual: derived } : {}),
         questionId: rest.id || _id?.toString(),
       }
     })

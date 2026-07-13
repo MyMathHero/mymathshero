@@ -5,7 +5,7 @@ import { View, Text } from 'react-native'
 
 const SHAPE_EMOJI: Record<string, string> = {
   circle: '⭕', square: '🟦', triangle: '🔺', rectangle: '▭',
-  star: '⭐', heart: '❤️', oval: '⬭', diamond: '🔷',
+  star: '⭐', heart: '❤️', oval: '⬭', diamond: '🔷', pentagon: '⬠', hexagon: '⬡',
 }
 
 function Group({ icon, n, faded = 0 }: { icon: string; n: number; faded?: number }) {
@@ -53,11 +53,45 @@ export default function VisualRender({ visual }: { visual: any }) {
     case 'pattern':
       return (
         <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
-          {visual.sequence.map((s: string, i: number) => <Text key={i} style={{ fontSize: 40 }}>{s}</Text>)}
+          {(visual.sequence || []).map((s: string, i: number) => <Text key={i} style={{ fontSize: 40 }}>{s}</Text>)}
           <Text style={{ fontSize: 40, color: '#C49A1A', fontWeight: '900' }}>❓</Text>
         </View>
       )
+    case 'equation':
+      return (
+        <View style={wrap}>
+          <Text style={{ fontSize: 46, fontWeight: '900', color: '#1B2B4B', letterSpacing: 2 }}>
+            {visual.a} {visual.op} {visual.b} = <Text style={{ color: '#C49A1A' }}>?</Text>
+          </Text>
+        </View>
+      )
+    case 'fraction-bar':
+    case 'fraction-circle':
+      return <FractionDiagram visual={visual} />
     default:
       return null
   }
+}
+
+// A simple fraction diagram: `parts` boxes in a row, `shaded` filled (blue).
+// Circle fractions fall back to the same bar (RN has no cheap pie without svg,
+// and the bar reads clearly for young students).
+function FractionDiagram({ visual }: { visual: any }) {
+  const parts = Math.max(1, Math.min(12, Number(visual.parts) || 0))
+  const shaded = Math.max(0, Math.min(parts, Number(visual.shaded) || 0))
+  if (!parts) return null
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: 6 }}>
+      {Array.from({ length: parts }).map((_, i) => (
+        <View
+          key={i}
+          style={{
+            width: Math.min(40, 240 / parts), height: 56,
+            backgroundColor: i < shaded ? '#93C5FD' : '#FFFFFF',
+            borderWidth: 2, borderColor: '#1B2B4B',
+          }}
+        />
+      ))}
+    </View>
+  )
 }
