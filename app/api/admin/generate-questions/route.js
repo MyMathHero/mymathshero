@@ -4,6 +4,7 @@ import { getSkillGraph } from '@/lib/recommender'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
 import { bandForDifficulty, BAND_ORDER, BAND_RANGE } from '@/lib/difficulty'
 import { parseFractionVisual } from '@/lib/fractionVisual'
+import { insertQuestions } from '@/lib/questionDedup'
 
 // Build the canonical Maths skill list from SKILL_ID_MAP. This is the broader
 // taxonomy (~77 skills) the dashboard uses; getSkillGraph() only has ~15. The
@@ -293,7 +294,7 @@ export async function POST(request) {
           try {
             const questions = await generateForSkill(skill, needed, band)
             const docs = questions.slice(0, needed).map((q, i) => buildQuestionDoc(q, skill, i, band))
-            if (docs.length > 0) { await verifyDocs(docs); await db.collection('questions').insertMany(docs) }
+            if (docs.length > 0) { await verifyDocs(docs); await insertQuestions(db, docs) }
             totalGenerated += docs.length
             details.push({ skillId: skill.id, band, generated: docs.length, existing })
           } catch (err) {
@@ -348,7 +349,7 @@ export async function POST(request) {
           const docs = questions.slice(0, needed).map((q, i) => buildQuestionDoc(q, skill, i))
           if (docs.length > 0) {
             await verifyDocs(docs)
-            await db.collection('questions').insertMany(docs)
+            await insertQuestions(db, docs)
           }
           totalGenerated += docs.length
           details.push({ skillId: skill.id, name: skill.name, generated: docs.length, existing })
@@ -414,7 +415,7 @@ export async function POST(request) {
     const docs = questions.slice(0, count).map((q, i) => buildQuestionDoc(q, skill, i))
     if (docs.length > 0) {
       await verifyDocs(docs)
-      await db.collection('questions').insertMany(docs)
+      await insertQuestions(db, docs)
     }
 
     return NextResponse.json({

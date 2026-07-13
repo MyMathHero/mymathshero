@@ -4,6 +4,7 @@ import { normaliseGrade } from '@/lib/normaliseGrade'
 import { bandForDifficulty, bandForScore, adjacentBands, shiftBand } from '@/lib/difficulty'
 import { verifyQuestion } from '@/lib/verifyQuestion'
 import { parseFractionVisual } from '@/lib/fractionVisual'
+import { insertQuestions } from '@/lib/questionDedup'
 
 let client
 async function connectDB() {
@@ -277,9 +278,9 @@ Return only the JSON array, no other text.`
           // 'skipped' (visual) / 'error' → stays unverified (servable)
         } catch { /* keep unverified */ }
       }))
-      await db.collection('questions').insertMany(toInsert)
+      const { inserted, skipped } = await insertQuestions(db, toInsert)
       const flagged = toInsert.filter(d => d.verifierFlagged).length
-      console.log(`[questions] Generated ${toInsert.length} for ${skillId} (${flagged} flagged by verifier, withheld)`)
+      console.log(`[questions] Generated ${inserted} for ${skillId} (${flagged} flagged, ${skipped} duplicate-skipped)`)
     }
   } catch (err) {
     console.error('Question generation failed:', err.message)
@@ -303,11 +304,12 @@ export async function POST(request) {
       createdAt: new Date(),
     }))
 
-    const result = await db.collection('questions').insertMany(docs)
+    const { inserted, skipped } = await insertQuestions(db, docs)
 
     return NextResponse.json({
       success: true,
-      insertedCount: result.insertedCount,
+      insertedCount: inserted,
+      duplicatesSkipped: skipped,
     }, { status: 201 })
   } catch (error) {
     console.error('Questions POST error:', error.message)
