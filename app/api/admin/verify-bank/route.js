@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
-import { solveBlind, answersAgree, verifyQuestion, isVisualQuestion, VERIFIER_MODEL } from '@/lib/verifyQuestion'
+import { solveBlind, answersAgree, verifyQuestion, verifyQuestionCheap, isVisualQuestion, VERIFIER_MODEL } from '@/lib/verifyQuestion'
 
 // Grade-by-grade question-bank verifier + healer.
 //
@@ -96,11 +96,46 @@ export async function POST(request) {
 
   if (mode === 'scan') return scan(db, body)
   if (mode === 'fix') return fix(db, body)
-  return NextResponse.json({ error: "mode must be 'scan' or 'fix'" }, { status: 400 })
+  if (mode === 'audit') return audit(db, body)
+  return NextResponse.json({ error: "mode must be 'scan', 'fix' or 'audit'" }, { status: 400 })
+}
+
+// AUDIT the cheap path: take a random sample of questions the CHEAP verifier
+// cleared as 'ok' (verifierScannedAt set, not flagged) for a young grade, and
+// re-check each with the FULL Opus verifier. If Opus disagrees with any, the
+// cheap screen let a wrong answer through — proof to tighten it. Returns the
+// disagreements. Cheap to run (~sample × Opus). Use before trusting a cheap run.
+async function audit(db, { grade = null, sample = 30 }) {
+  const col = db.collection('questions')
+  const gf = gradeFilter(grade)
+  const pool = await col.aggregate([
+    { $match: { active: { $ne: false }, verifierFlagged: { $ne: true }, verifierScannedAt: { $exists: true }, mode: { $ne: 'junior' }, ...gf } },
+    { $sample: { size: Math.min(sample, 50) } },
+    { $project: { id: 1, grade: 1, question: 1, options: 1, correctAnswer: 1 } },
+  ]).toArray()
+
+  const out = { grade: grade ?? 'all', audited: 0, agreed: 0, disagreed: 0, misses: [] }
+  for (let i = 0; i < pool.length; i += CONCURRENCY) {
+    await Promise.all(pool.slice(i, i + CONCURRENCY).map(async q => {
+      out.audited++
+      const r = await verifyQuestion(q, { double: true }) // full Opus
+      if (r.status === 'ok') out.agreed++
+      else {
+        out.disagreed++
+        out.misses.push({ id: q.id, stored: q.correctAnswer, opus: r.verifierAnswer, reason: r.reason })
+      }
+    }))
+  }
+  out.verdict = out.disagreed === 0
+    ? 'PASS — Opus agreed with every cheap-cleared question in the sample.'
+    : `REVIEW — Opus disagreed on ${out.disagreed}/${out.audited}; the cheap screen may be letting some through.`
+  return NextResponse.json(out)
 }
 
 // Re-verify a capped batch of active, not-yet-scanned questions for a grade.
-async function scan(db, { grade = null, limit = 60 }) {
+// `cheap:true` uses the cost-aware verifier (Haiku screen + Opus arbitrate for
+// young grades; full Opus for hard grades). Default false = full Opus for all.
+async function scan(db, { grade = null, limit = 60, cheap = false }) {
   const col = db.collection('questions')
   const gf = gradeFilter(grade)
 
@@ -130,7 +165,8 @@ async function scan(db, { grade = null, limit = 60 }) {
       return
     }
     try {
-      const r = await verifyQuestion(q, { double: true }) // hardened path
+      const r = cheap ? await verifyQuestionCheap(q) : await verifyQuestion(q, { double: true })
+      if (r.via) out.via = { ...(out.via || {}), [r.via]: (out.via?.[r.via] || 0) + 1 }
       if (r.status === 'ok') {
         out.ok++
         await col.updateOne({ id: q.id }, { $set: { verifierScannedAt: new Date() }, $unset: { unverified: '' } })
