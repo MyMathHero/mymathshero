@@ -14,7 +14,12 @@ export default function sitemap() {
     ...YEAR_ORDER.map(y => ({ path: `/curriculum/${y}`, priority: 0.8, changeFrequency: 'monthly' })),
     { path: '/for-parents', priority: 0.9, changeFrequency: 'monthly' },
     { path: '/meet-hero', priority: 0.9, changeFrequency: 'monthly' },
+    { path: '/about', priority: 0.8, changeFrequency: 'monthly' },
+    { path: '/faq', priority: 0.8, changeFrequency: 'monthly' },
     { path: '/for-schools', priority: 0.7, changeFrequency: 'monthly' },
+    // Legal pages — indexable but low priority / rarely changing.
+    { path: '/privacy', priority: 0.3, changeFrequency: 'yearly' },
+    { path: '/terms', priority: 0.3, changeFrequency: 'yearly' },
   ]
   return routes.map(({ path, priority, changeFrequency }) => ({
     url: `${BASE}${path}`,

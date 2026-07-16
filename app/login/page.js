@@ -138,14 +138,8 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Logo / Branding */}
+      {/* Branding — logo removed per request; tagline kept. */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <img
-          src="/assets/logos/logo-full.png"
-          alt="MyMathsHero"
-          style={{ height: 48, width: 'auto', margin: '0 auto 14px', display: 'block' }}
-          className="h-12 w-auto mx-auto"
-        />
         <p style={{ color: BRAND_SUBTEXT, fontSize: 15, margin: 0, fontWeight: 500 }}>
           Personalised AI Maths Learning
         </p>

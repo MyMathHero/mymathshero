@@ -118,6 +118,7 @@ export default function Navbar() {
           <Link href="/curriculum" style={linkStyle(pathname === '/curriculum')}>Curriculum</Link>
           <Link href="/for-parents" style={linkStyle(pathname === '/for-parents')}>For Parents</Link>
           <Link href="/meet-hero" style={linkStyle(pathname === '/meet-hero')}>Meet Hero</Link>
+          <Link href="/about" style={linkStyle(pathname === '/about')}>About</Link>
           {/* For Schools — hidden until forSchoolsPage flag is on (lives in the footer) */}
           {flags.forSchoolsPage && (
             <Link href="/for-schools" style={linkStyle(pathname === '/for-schools')}>For Schools</Link>

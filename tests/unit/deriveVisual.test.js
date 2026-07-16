@@ -54,6 +54,19 @@ describe('deriveVisual (Prep–3 only)', () => {
   it('returns null when nothing sensible can be drawn', () => {
     expect(deriveVisual('What is the name of the first month of the year?', 2)).toBeNull()
   })
+
+  it('does NOT draw a "3 ÷ 6" equation for a fraction written as 3/6', () => {
+    // Regression: the bare "/" once matched as a division operator, drawing a
+    // nonsensical "3 ÷ 6 = ?" over "Which fraction is equivalent to 3/6?".
+    const v = deriveVisual('Which fraction is equivalent to 3/6?', 3)
+    expect(v?.type).not.toBe('equation')
+  })
+
+  it('still draws an equation for an explicit ÷ division', () => {
+    const v = deriveVisual('What is 12 ÷ 3?', 3)
+    expect(v.type).toBe('equation')
+    expect(v.op).toBe('÷'); expect(v.a).toBe(12); expect(v.b).toBe(3)
+  })
 })
 
 describe('withDerivedVisual', () => {

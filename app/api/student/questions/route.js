@@ -8,6 +8,7 @@ import { insertQuestions } from '@/lib/questionDedup'
 import { buildCurriculumBlock } from '@/lib/curriculumRef'
 import { SKILL_ID_MAP } from '@/lib/skillNames'
 import { deriveVisual } from '@/lib/deriveVisual'
+import { validateVisual } from '@/lib/juniorQuestion'
 
 let client
 async function connectDB() {
@@ -161,18 +162,30 @@ export async function GET(request) {
     }
 
     // Strip correctAnswer — validation happens server-side on POST /api/student/answer.
-    // RE-DERIVE the `visual` from the wording every time (never trust a stale
-    // stored one) so the picture always matches the text. For Prep–3 this draws
-    // a shape/count/add/takeaway/equation as well as fractions; for older grades
-    // only a fraction diagram is derived. Phase 3: young questions always show a
-    // diagram when one can be drawn.
+    //
+    // JUNIOR questions are answered by LOOKING: their `visual` is authored and
+    // validated at seed time (the count/compare/shape/pattern picture the whole
+    // question is built around). We must KEEP that stored visual verbatim — never
+    // re-derive it from the short prompt text, or an incidental number in the
+    // wording would swap in an unrelated fraction/equation diagram (this caused
+    // the same 3/2 shaded shape to appear across different questions).
+    //
+    // STANDARD (text) questions have no authored visual; for Prep–3 we RE-DERIVE
+    // one from the wording (never trust a stale stored one) so the picture always
+    // matches the text — shape/count/add/takeaway/equation, plus fractions. Older
+    // grades derive only a fraction diagram. Phase 3: young questions always show
+    // a diagram when one can be drawn.
     const safe = questions.slice(0, limit).map(({ correctAnswer, _id, visual, ...rest }) => {
-      const derived = rest.question
-        ? (deriveVisual(rest.question, gradeNum) || parseFractionVisual(rest.question))
-        : null
+      let outVisual = null
+      if (junior) {
+        // Trust the authored junior visual (validated to a safe shape).
+        outVisual = validateVisual(visual)
+      } else if (rest.question) {
+        outVisual = deriveVisual(rest.question, gradeNum) || parseFractionVisual(rest.question)
+      }
       return {
         ...rest,
-        ...(derived ? { visual: derived } : {}),
+        ...(outVisual ? { visual: outVisual } : {}),
         questionId: rest.id || _id?.toString(),
       }
     })

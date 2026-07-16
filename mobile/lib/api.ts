@@ -88,6 +88,10 @@ export const studentAPI = {
   // Junior Mode visual questions for a skill (mode:'junior').
   juniorQuestions: (skillId: string, studentId?: string) =>
     api.get(`/api/student/questions?skillId=${skillId}&mode=junior&limit=8${studentId ? `&studentId=${studentId}` : ''}`),
+  // Skills that actually HAVE junior questions (optionally scoped to a world).
+  // Used so the junior play screen never picks a Grade-3 rec with no junior stock.
+  juniorSkills: (world?: string) =>
+    api.get(`/api/student/junior-skills${world ? `?world=${world}` : ''}`),
   recommendations: (studentId: string) =>
     api.get(`/api/student/recommendations?studentId=${studentId}`),
   // HERO Daily Task — GET today's task, POST progress toward it.

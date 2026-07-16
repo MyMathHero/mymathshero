@@ -3,8 +3,10 @@ import {
   View, Text, Modal, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, TextInput,
   KeyboardAvoidingView, Platform, Animated, Image, Pressable,
+  useWindowDimensions,
 } from 'react-native'
 import * as SecureStore from 'expo-secure-store'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   createAudioPlayer, setAudioModeAsync, type AudioPlayer,
   useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync,
@@ -48,6 +50,13 @@ export default function AskHeroSheet({
 }: Props) {
   const general = !question
 
+  // Tablet/iPad detection — on tablets the walkie-talkie docks to the BOTTOM-RIGHT
+  // (easy thumb reach while holding the iPad) instead of centre. Phones keep it
+  // centred. ≥768pt shortest side ≈ iPad.
+  const { width: winW, height: winH } = useWindowDimensions()
+  const isTablet = Math.min(winW, winH) >= 768
+  const insets = useSafeAreaInsets()
+
   const [messages, setMessages] = useState<Message[]>([])
   // Conversation history sent to the API (gives the model memory).
   const [conversation, setConversation] =
@@ -71,7 +80,10 @@ export default function AskHeroSheet({
   const [practicePick, setPracticePick] = useState<string | null>(null)
   // Caption sync (item 4): reveal a Hero chat message in time with its audio.
   const [reveal, setReveal] = useState<{ index: number; chars: number }>({ index: -1, chars: 0 })
-  const slideAnim = useRef(new Animated.Value(600)).current
+  // Hidden position = fully below the screen. Full-screen sheet needs the whole
+  // window height (a fixed 600 wouldn't clear the sheet on tall devices).
+  const hiddenY = winH || 900
+  const slideAnim = useRef(new Animated.Value(hiddenY)).current
   const scrollRef = useRef<ScrollView>(null)
   // Separate scroller for the Teach Me whiteboard — auto-scrolls to the newest
   // step so students never have to scroll manually to follow along.
@@ -124,7 +136,7 @@ export default function AskHeroSheet({
       return () => clearTimeout(t)
     }
     Animated.timing(slideAnim, {
-      toValue: 600, duration: 250, useNativeDriver: true,
+      toValue: hiddenY, duration: 250, useNativeDriver: true,
     }).start()
     void stopAllAudio()
     return undefined
@@ -477,15 +489,6 @@ export default function AskHeroSheet({
     onClose()
   }
 
-  // Switch tabs: stop any lesson/voice, then enter the chosen mode.
-  function switchTab(next: 'teach' | 'ask') {
-    if (next === tab) return
-    lessonPlayingRef.current = false
-    void stopAllAudio()
-    setTab(next)
-    if (next === 'teach') { if (!lesson) void runLesson() }
-    else if (messages.length === 0) { void playIntroduction() }
-  }
 
   function replayLesson() {
     if (!lesson) return
@@ -509,11 +512,9 @@ export default function AskHeroSheet({
       />
 
       <Animated.View style={[s.sheet, tab === 'teach' && s.sheetTall, { transform: [{ translateY: slideAnim }] }]}>
-        <View style={s.handle} />
-
         {/* Hero header — clean static chatbot avatar (matches web's AskHeroIcon).
-            The full-body animated robot looked cramped/messy in the small circle. */}
-        <View style={s.header}>
+            Top padding clears the notch/status bar now the sheet is full-screen. */}
+        <View style={[s.header, { paddingTop: 12 + insets.top }]}>
           <View style={s.robotContainer}>
             <Image source={require('../assets/askheroCHATBOT.png')} style={s.headerAvatar} resizeMode="cover" />
             {speaking && <View style={s.speakingRing} />}
@@ -535,17 +536,9 @@ export default function AskHeroSheet({
           </TouchableOpacity>
         </View>
 
-        {/* Tabs (only when a question is present to teach) */}
-        {!general && (
-          <View style={s.tabsRow}>
-            <TouchableOpacity onPress={() => switchTab('teach')} style={[s.tab, tab === 'teach' && s.tabActive]}>
-              <Text style={[s.tabText, tab === 'teach' && s.tabTextActive]}>✏️ Teach Me</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => switchTab('ask')} style={[s.tab, tab === 'ask' && s.tabActive]}>
-              <Text style={[s.tabText, tab === 'ask' && s.tabTextActive]}>💬 Ask Hero</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Teach Me is a focused, single-purpose screen — the "Ask Hero" chat
+            tab was removed from here (Ask Hero is still reachable from the
+            floating launcher on the dashboard). General mode stays chat-only. */}
 
         {/* ── Teach Me: animated whiteboard lesson ───────────────────────── */}
         {tab === 'teach' && (
@@ -705,10 +698,14 @@ export default function AskHeroSheet({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           {tab === 'ask' && !typeMode ? (
-            // VOICE-FIRST: big centered round mic + "type instead" link.
-            <View style={s.voiceFirst}>
+            // VOICE-FIRST: big modern round walkie-talkie. Centred on phones;
+            // docked bottom-right on tablets/iPad (easy thumb reach).
+            <View style={[s.voiceFirst, isTablet && s.voiceFirstTablet]}>
               <Pressable
-                style={s.bigMicWrap}
+                style={[
+                  s.bigMicWrap,
+                  voiceState === 'recording' ? s.bigMicWrapRecording : s.bigMicWrapIdle,
+                ]}
                 onPressIn={startTalk}
                 onPressOut={stopTalk}
                 disabled={loading || speaking || voiceState === 'transcribing'}
@@ -718,7 +715,7 @@ export default function AskHeroSheet({
                   <Animated.View style={[s.talkieRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]} />
                 )}
                 {voiceState === 'transcribing' ? (
-                  <View style={s.bigMic}><Text style={s.bigMicText}>…</Text></View>
+                  <Text style={s.bigMicText}>…</Text>
                 ) : (
                   <Image
                     source={TALKIE}
@@ -796,23 +793,18 @@ const s = StyleSheet.create({
     top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
+  // FULL-SCREEN sheet — fills the whole screen so the chat + big walkie-talkie
+  // have room. Rounded top corners kept for a soft edge under the status bar.
   sheet: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
+    top: 0, bottom: 0, left: 0, right: 0,
     backgroundColor: 'white',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    maxHeight: '88%',
-    minHeight: '55%',
     borderTopWidth: 3,
     borderColor: '#C49A1A',
   },
-  sheetTall: { maxHeight: '94%', minHeight: '90%' },
-  tabsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 10, backgroundColor: '#1B2B4B' },
-  tab: { paddingHorizontal: 16, paddingVertical: 10, borderTopLeftRadius: 10, borderTopRightRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)' },
-  tabActive: { backgroundColor: '#C49A1A' },
-  tabText: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 13 },
-  tabTextActive: { color: 'white' },
+  sheetTall: {},
   // White whiteboard + navy text (matches web HeroTutor).
   whiteboard: { flex: 1, backgroundColor: '#FFFFFF' },
   wbHint: { color: '#64748B', fontSize: 17 },
@@ -829,13 +821,6 @@ const s = StyleSheet.create({
   backToQ: { backgroundColor: '#C49A1A', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 18 },
   backToQBtnText: { color: '#1B2B4B', fontWeight: '800', fontSize: 15 },
   backToQText: { color: '#C49A1A', fontWeight: '800', fontSize: 14 },
-  handle: {
-    width: 44, height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10, marginBottom: 4,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -887,7 +872,7 @@ const s = StyleSheet.create({
   questionRefText: {
     fontSize: 14, color: '#1B2B4B', fontWeight: '600',
   },
-  chat: { flex: 1, maxHeight: 320 },
+  chat: { flex: 1 },
   heroBubbleRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
   },
@@ -938,14 +923,23 @@ const s = StyleSheet.create({
   micBtnText: { fontSize: 20, color: 'white' },
   micTalkieImg: { width: 30, height: 30 },
   // Voice-first Ask Hero
-  voiceFirst: { alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 },
-  // Press-and-hold voice control: a large, static walkie-talkie image.
-  bigMicWrap: { width: 168, height: 168, alignItems: 'center', justifyContent: 'center' },
-  talkieRing: { position: 'absolute', width: 168, height: 168, borderRadius: 84, borderWidth: 4, borderColor: '#EF4444' },
-  bigMic: { backgroundColor: '#C49A1A', width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
-  bigMicText: { fontSize: 40, color: 'white' },
-  bigTalkieImg: { width: 150, height: 150 },
+  voiceFirst: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 12 },
+  // Tablet/iPad: dock the control to the bottom-right, within thumb reach.
+  voiceFirstTablet: { alignItems: 'flex-end', paddingRight: 24 },
+  // Press-and-hold voice control: big MODERN circular button housing the talkie.
+  bigMicWrap: {
+    width: 200, height: 200, borderRadius: 100,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 3,
+    // soft elevation
+    shadowColor: '#1B2B4B', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6,
+  },
+  bigMicWrapIdle: { backgroundColor: '#F4F7FB', borderColor: '#C49A1A' },
+  bigMicWrapRecording: { backgroundColor: '#FEE2E2', borderColor: '#EF4444', transform: [{ scale: 1.03 }] },
+  talkieRing: { position: 'absolute', width: 200, height: 200, borderRadius: 100, borderWidth: 4, borderColor: '#EF4444' },
+  bigMicText: { fontSize: 44, color: '#C49A1A', fontWeight: '800' },
+  bigTalkieImg: { width: 138, height: 138 },
   bigTalkieRecording: { transform: [{ scale: 1.04 }] },
-  voiceHint: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+  voiceHint: { color: '#64748B', fontSize: 14, fontWeight: '700' },
   switchLink: { color: '#C49A1A', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
 })

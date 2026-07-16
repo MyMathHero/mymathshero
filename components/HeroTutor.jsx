@@ -35,8 +35,16 @@ export default function HeroTutor({
   const [isMuted, setIsMuted] = useState(false)
   // Stack the lesson split vertically on narrow screens.
   const [narrow, setNarrow] = useState(false)
+  // Tablet/iPad: on these widths the embedded chat goes full-width so the
+  // bottom-right-docked walkie-talkie (inside AskHero) reaches the true screen
+  // corner where a child's thumb rests while holding the iPad.
+  const [isTablet, setIsTablet] = useState(false)
   useEffect(() => {
-    const check = () => setNarrow(typeof window !== 'undefined' && window.innerWidth < 860)
+    const check = () => {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 0
+      setNarrow(w < 860)
+      setIsTablet(w >= 768 && w <= 1366)
+    }
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -186,21 +194,9 @@ export default function HeroTutor({
   // Otherwise the whiteboard goes full-width (with Hero peeking inside it).
   const hasDiagram = !!(question && questionVisual)
 
-  // General mode (the floating "Ask Hero" with no question to teach) renders as a
-  // small rounded chat widget docked bottom-right — like a normal site chatbot,
-  // NOT full-screen. Teach-me mode (a real question) stays full-screen so the
-  // whiteboard lesson has room.
-  const shellStyle = general
-    ? {
-        position: 'fixed', bottom: 24, right: 24, zIndex: 3000,
-        width: 'min(400px, calc(100vw - 32px))',
-        height: 'min(620px, calc(100vh - 48px))',
-        background: NAVY, display: 'flex', flexDirection: 'column',
-        borderRadius: 20, overflow: 'hidden',
-        border: `2px solid ${GOLD}`,
-        boxShadow: '0 24px 70px rgba(0,0,0,0.45)',
-      }
-    : { position: 'fixed', inset: 0, zIndex: 3000, background: NAVY, display: 'flex', flexDirection: 'column' }
+  // Both modes are FULL-SCREEN now (general "Ask Hero" + question "Teach Me"),
+  // so the chat/whiteboard and the big walkie-talkie have room to breathe.
+  const shellStyle = { position: 'fixed', inset: 0, zIndex: 3000, background: NAVY, display: 'flex', flexDirection: 'column' }
 
   return (
     <div style={shellStyle}>
@@ -241,13 +237,10 @@ export default function HeroTutor({
         <button onClick={handleClose} aria-label="Close tutor" style={{ ...iconBtn('rgba(255,255,255,0.1)'), fontSize: 20, fontWeight: 700 }}>×</button>
       </div>
 
-      {/* Tabs — hidden in general mode (only one tab, no need for a switcher). */}
-      {!general && (
-        <div style={{ display: 'flex', gap: 8, padding: '10px 18px 0' }}>
-          <TabBtn active={tab === 'teach'} onClick={() => setTab('teach')}>✏️ Teach Me</TabBtn>
-          <TabBtn active={tab === 'ask'} onClick={() => { heroStop(); setPlaying(false); setTab('ask') }}>💬 Ask Hero</TabBtn>
-        </div>
-      )}
+      {/* Teach Me is a focused, single-purpose screen — no tab switcher. The
+          "Ask Hero" chat tab was removed from here (Ask Hero is still reachable
+          from the floating launcher on the dashboard). General mode below is
+          chat-only and never shows Teach Me. */}
 
       {/* Body */}
       <div style={{ flex: 1, minHeight: 0, padding: general ? 12 : 18, display: 'flex', flexDirection: 'column' }}>
@@ -479,7 +472,15 @@ export default function HeroTutor({
           </div>
         ) : (
           // Ask Hero chat, embedded (HeroTutor owns the robot/header/X above).
-          <div style={{ flex: 1, minHeight: 0, background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          // Full-screen: centre the chat in a readable column so it doesn't
+          // stretch edge-to-edge on wide screens.
+          <div style={{
+            flex: 1, minHeight: 0, background: 'var(--bg-card)', borderRadius: 16,
+            overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            // Centre in a readable column on desktop; full-width on tablet so the
+            // walkie-talkie can dock to the true bottom-right corner.
+            width: '100%', maxWidth: isTablet ? '100%' : 720, margin: '0 auto',
+          }}>
             <AskHero
               embedded
               question={question}
@@ -506,15 +507,6 @@ function ctaBtn(bg, color) {
   return { background: bg, color, border: 'none', borderRadius: 14, padding: '12px 22px', fontSize: 15, fontWeight: 800, cursor: 'pointer' }
 }
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      background: active ? GOLD : 'rgba(255,255,255,0.1)',
-      color: 'white', border: 'none', borderRadius: '10px 10px 0 0',
-      padding: '10px 18px', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-    }}>{children}</button>
-  )
-}
 
 function CtrlBtn({ onClick, title, children, disabled, big }) {
   return (

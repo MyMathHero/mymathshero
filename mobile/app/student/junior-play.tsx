@@ -10,7 +10,6 @@ import RewardBurst, { comboMessage, type Burst } from '../../components/RewardBu
 import AskHeroSheet from '../../components/AskHeroSheet'
 import { studentAPI } from '../../lib/api'
 import { getSkillInfo } from '../../lib/skillNames'
-import { categoriesForWorld } from '../../lib/juniorMode'
 import { speak, stopSpeaking } from '../../lib/heroVoice'
 
 const NAVY = '#1B2B4B', GOLD = '#C49A1A'
@@ -41,23 +40,38 @@ export default function JuniorPlay() {
     return () => { void stopSpeaking() }
   }, [])
 
+  // Pick a skill that ACTUALLY has junior questions for this world (mirrors web
+  // /junior/play). Must NOT pick from recommendations — junior testers are Grade
+  // 3+, so recs are all m_3_* skills with zero junior stock, which made every
+  // world dead-end on "Let's try a different game!". Ask the server which junior
+  // skills exist, then try each until one yields visual questions.
   async function loadSkill(id: string) {
     try {
-      const rr = await studentAPI.recommendations(id)
-      const recs = rr.data?.recommendations || []
-      let chosen: any = null
-      if (world) {
-        const cats = categoriesForWorld(String(world))
-        chosen = recs.find((sk: any) => cats.includes(getSkillInfo(sk.id || sk.skillId)?.category as any))
+      const rr = await studentAPI.juniorSkills(world ? String(world) : undefined)
+      let pool = (rr.data?.skills || []).filter((s: any) => s.id)
+      if (!pool.length) {
+        const all = await studentAPI.juniorSkills()
+        pool = (all.data?.skills || []).filter((s: any) => s.id)
       }
-      chosen = chosen || recs[0] || { id: 'm_0_count10', name: 'Counting to 10' }
-      const sid = chosen.id || chosen.skillId
-      setSkill({ id: sid, name: chosen.name || getSkillInfo(sid)?.name || 'Maths' })
+      if (!pool.length) { setError("Let's try a different game!"); return }
+      const shuffled = [...pool].sort(() => Math.random() - 0.5)
+      for (const s of shuffled) {
+        if (await loadQuestions(s.id, id, s.name)) return
+      }
+      setError("Let's try a different game!")
+    } catch { setError('Could not start the game.') }
+  }
+
+  // Fetch junior questions for one skill; returns true if a usable batch loaded.
+  async function loadQuestions(sid: string, id: string, name?: string): Promise<boolean> {
+    try {
       const qr = await studentAPI.juniorQuestions(sid, id)
       const qs = (qr.data?.questions || []).filter((q: any) => q.visual)
-      if (!qs.length) { setError("Let's try a different game!"); return }
-      setQuestions(qs); setIndex(0); setPicked(null); setCorrect(null)
-    } catch { setError('Could not start the game.') }
+      if (!qs.length) return false
+      setSkill({ id: sid, name: name || getSkillInfo(sid)?.name || 'Maths' })
+      setQuestions(qs); setIndex(0); setPicked(null); setCorrect(null); setError('')
+      return true
+    } catch { return false }
   }
 
   // Narrate each question as it appears.

@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics'
 import api, { studentAPI } from '../../lib/api'
 import AskHeroSheet from '../../components/AskHeroSheet'
 import AskHeroIcon from '../../components/AskHeroIcon'
+import DraggableAskHero from '../../components/DraggableAskHero'
 import FloatingTabBar from '../../components/FloatingTabBar'
 import ReviewSurvey from '../../components/ReviewSurvey'
 import { isJuniorGrade } from '../../lib/juniorMode'
@@ -845,23 +846,14 @@ export default function StudentDashboard() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Floating Ask Hero button — sits just above the docked bottom nav
-          (72px tall + safe-area inset), so clear it with insets.bottom + 84. */}
-      <TouchableOpacity
-        onPress={openHeroFromDashboard}
-        style={{
-          position: 'absolute',
-          bottom: insets.bottom + 84,
-          right: 18,
-          zIndex: 100,
-        }}
-        activeOpacity={0.85}
-        hitSlop={12}
-        accessibilityRole="button"
-        accessibilityLabel="Ask Hero"
-      >
-        <AskHeroIcon size={56} badge />
-      </TouchableOpacity>
+      {/* Floating Ask Hero button — DRAGGABLE so kids can place it anywhere.
+          A tap opens Hero; a drag repositions it (remembered across sessions).
+          Its first-run spot clears the docked bottom nav. */}
+      <DraggableAskHero
+        size={56}
+        onOpen={openHeroFromDashboard}
+        defaultBottom={insets.bottom + 84}
+      />
 
       <AskHeroSheet
         visible={showHeroSheet}

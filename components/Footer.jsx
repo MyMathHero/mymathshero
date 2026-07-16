@@ -13,6 +13,8 @@ const exploreLinks = [
   { label: 'For Parents', href: '/for-parents' },
   { label: 'Meet Hero', href: '/meet-hero' },
   { label: 'For Schools', href: '/for-schools' },
+  { label: 'About Us', href: '/about' },
+  { label: 'FAQ', href: '/faq' },
 ]
 
 const learningTopics = [
@@ -98,8 +100,9 @@ export default function Footer() {
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-white/40 text-sm">&copy; {new Date().getFullYear()} MyMathsHero. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Privacy Policy</a>
-            <a href="#" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Terms of Service</a>
+            <Link href="/privacy" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">Terms &amp; Conditions</Link>
+            <Link href="/faq" className="text-white/40 hover:text-[#C49A1A] text-sm transition-colors">FAQ</Link>
           </div>
         </div>
       </div>

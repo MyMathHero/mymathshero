@@ -56,6 +56,16 @@ export default function AskHero({
 
   useEffect(() => { mutedRef.current = isMuted }, [isMuted])
 
+  // Tablet/iPad detection: on tablet-width screens the walkie-talkie docks to the
+  // BOTTOM-RIGHT (where a child's thumb rests while holding an iPad) instead of
+  // centre, so they don't have to reach across the screen. Phones keep it centred.
+  const [isTablet, setIsTablet] = useState(false)
+  useEffect(() => {
+    const check = () => setIsTablet(typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1366)
+    check(); window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // Seed the conversation with a welcome message (and read it aloud).
   useEffect(() => {
     const greetTimer = setTimeout(() => {
@@ -307,8 +317,14 @@ export default function AskHero({
         borderTop: '1px solid var(--border-color)',
       }}>
         {voiceSupported && !typeMode ? (
-          // Big centered walkie-talkie + "type instead" link.
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          // Big walkie-talkie + "type instead" link. Centred on phones; docked to
+          // the bottom-right on tablets/iPad so it's within easy thumb reach.
+          <div style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: isTablet ? 'flex-end' : 'center',
+            gap: 10,
+            paddingRight: isTablet ? 8 : 0,
+          }}>
             <button
               onPointerDown={(e) => { e.preventDefault(); startTalk() }}
               onPointerUp={(e) => { e.preventDefault(); stopTalk() }}
@@ -318,34 +334,37 @@ export default function AskHero({
               aria-label={voiceState === 'recording' ? 'Release to send' : 'Hold to talk to Hero'}
               style={{
                 position: 'relative',
-                background: 'transparent', border: 'none', padding: 0,
-                width: 168, height: 168, flexShrink: 0,
+                // Modern pill button: soft navy surface, ring, big tap target.
+                background: voiceState === 'recording'
+                  ? 'radial-gradient(circle at 50% 40%, #FEE2E2, #FCA5A5)'
+                  : 'radial-gradient(circle at 50% 40%, #FFFFFF, #EEF2F7)',
+                border: `3px solid ${voiceState === 'recording' ? '#EF4444' : '#C49A1A'}`,
+                borderRadius: '50%', padding: 0,
+                width: 200, height: 200, flexShrink: 0,
                 cursor: loading ? 'default' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 touchAction: 'none', WebkitUserSelect: 'none', userSelect: 'none',
+                boxShadow: voiceState === 'recording'
+                  ? '0 10px 30px rgba(239,68,68,0.35)'
+                  : '0 12px 32px rgba(27,43,75,0.18)',
+                transition: 'transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+                transform: voiceState === 'recording' ? 'scale(1.03)' : 'scale(1)',
               }}
             >
-              {/* Signal rings while transmitting. */}
+              {/* Signal rings while transmitting (red, only while recording). */}
               {voiceState === 'recording' && (
                 <>
                   <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #EF4444', animation: 'talkieRing 1.2s ease-out infinite' }} />
                   <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '4px solid #EF4444', animation: 'talkieRing 1.2s ease-out infinite 0.6s' }} />
                 </>
               )}
-              {/* Glow halo behind the talkie. */}
-              <span style={{
-                position: 'absolute', width: 150, height: 150, borderRadius: '50%',
-                background: voiceState === 'recording'
-                  ? 'radial-gradient(circle, rgba(239,68,68,0.35), transparent 70%)'
-                  : 'radial-gradient(circle, rgba(196,154,26,0.30), transparent 70%)',
-              }} />
               <img
                 src="/assets/heroTalkie.png"
                 alt=""
                 draggable={false}
                 style={{
-                  position: 'relative', width: 148, height: 148, objectFit: 'contain',
-                  filter: 'drop-shadow(0 8px 18px rgba(0,0,0,0.28))',
+                  position: 'relative', width: 134, height: 134, objectFit: 'contain',
+                  filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.18))',
                   transform: voiceState === 'recording' ? 'scale(1.04)' : 'scale(1)',
                   transition: 'transform 0.15s ease',
                   pointerEvents: 'none',

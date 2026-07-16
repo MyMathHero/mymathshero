@@ -15,6 +15,12 @@ export default function RoboVideo({
   //   blend="screen"             — always-dark surfaces (e.g. navy headers)
   //   blend="auto"               — follow the active theme (multiply light / screen dark)
   blend = 'multiply',
+  // Wrap the video in a white rounded "card" so its white background reads as a
+  // deliberate framed portrait instead of a messy blend. Use this on GRADIENT /
+  // non-solid-white surfaces where mixBlendMode:multiply leaves a dirty box
+  // (mirrors the mobile HeroRobot containerStyle="card"). When card=true the
+  // blend mode is dropped — the card IS the background, so no keying is needed.
+  card = false,
 }) {
   const videoRef = useRef(null)
   const [mounted, setMounted] = useState(false)
@@ -40,7 +46,7 @@ export default function RoboVideo({
 
   const effectiveBlend = blend === 'auto' ? (isDark ? 'screen' : 'multiply') : blend
 
-  return (
+  const video = (
     <video
       ref={videoRef}
       src={src}
@@ -50,11 +56,36 @@ export default function RoboVideo({
       playsInline
       onEnded={onEnded}
       style={{
-        mixBlendMode: effectiveBlend,
+        // Inside a white card the video sits on its own white background, so no
+        // blend is needed (and multiply over the card would darken edges).
+        mixBlendMode: card ? 'normal' : effectiveBlend,
         width,
         height: 'auto',
+        display: 'block',
       }}
       className={className}
     />
+  )
+
+  if (!card) return video
+
+  // White rounded card — turns the video's white background into a clean framed
+  // portrait on gradient/light surfaces. Matches mobile HeroRobot "card".
+  return (
+    <div
+      style={{
+        background: 'white',
+        borderRadius: 20,
+        border: '2px solid #E2E8F0',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        padding: 8,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      {video}
+    </div>
   )
 }

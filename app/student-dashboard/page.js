@@ -15,7 +15,7 @@ import { isJuniorGrade, shouldAutoNarrate } from '@/lib/juniorMode'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
 import HeroTutor from '@/components/HeroTutor'
 import AskHeroIcon from '@/components/AskHeroIcon'
-import AskHeroLauncher from '@/components/AskHeroLauncher'
+import DraggableAskHero from '@/components/DraggableAskHero'
 import { useFeatureFlags } from '@/lib/useFeatureFlags'
 import { getSkillInfo, SKILL_CATEGORIES, SKILL_ID_MAP } from '@/lib/skillNames'
 import { Analytics } from '@/lib/analytics'
@@ -603,6 +603,10 @@ export default function StudentDashboard() {
             options: q.options,
             hint: q.hint,
             steps: q.steps,
+            // MUST refresh the visual too — without this the previous question's
+            // diagram (e.g. a "3 ÷ 6 = ?" equation) stays on screen over an
+            // unrelated new question. Default to null so no-visual questions clear it.
+            visual: q.visual || null,
           }) : prev)
           setShowHint(false)
           setAiHelpUsed(false)
@@ -969,6 +973,10 @@ export default function StudentDashboard() {
           options: next.options,
           hint: next.hint,
           steps: next.steps,
+          // MUST refresh the visual too — without this the previous question's
+          // diagram (e.g. a "3 ÷ 6 = ?" equation) stays on screen over an
+          // unrelated new question. Default to null so no-visual questions clear it.
+          visual: next.visual || null,
         }) : prev)
         // Restart the per-question timer.
         questionStartTimeRef.current = Date.now()
@@ -3051,19 +3059,9 @@ export default function StudentDashboard() {
 
       {showSupport && <SupportTickets onClose={() => setShowSupport(false)} />}
 
-      {/* Floating Ask Hero button — persistent general-mode tutor */}
-      <button
-        onClick={() => openAskHero(true)}
-        title="Ask Hero"
-        aria-label="Ask Hero"
-        style={{
-          position: 'fixed', bottom: 120, right: 18,
-          background: 'transparent', border: 'none',
-          padding: 0, cursor: 'pointer', zIndex: 200,
-        }}
-      >
-        <AskHeroLauncher size={92} />
-      </button>
+      {/* Floating Ask Hero button — persistent general-mode tutor. Draggable so
+          kids can place it anywhere; a tap opens Hero, a drag repositions it. */}
+      <DraggableAskHero size={92} onOpen={() => openAskHero(true)} />
 
       {/* Dev Mode Panel — only visible for isDev students */}
       {student?.isDev && (

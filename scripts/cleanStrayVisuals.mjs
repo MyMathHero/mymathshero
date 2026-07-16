@@ -16,8 +16,15 @@ const client = new MongoClient(process.env.MONGODB_URI)
 await client.connect()
 const db = client.db(process.env.DB_NAME || 'mymathshero')
 
-const withVisual = await db.collection('questions').find({ visual: { $ne: null, $exists: true } }).toArray()
-console.log(`Questions with a stored visual: ${withVisual.length}`)
+// IMPORTANT: only STANDARD (text) questions are considered. Junior questions
+// (mode:'junior') carry an AUTHORED visual (count/compare/shape/pattern) that is
+// NOT a fraction — running the fraction-only re-parse over them would unset every
+// one (this already happened once; see scripts/rebuildJuniorVisuals.mjs). Never
+// touch junior docs here.
+const withVisual = await db.collection('questions')
+  .find({ visual: { $ne: null, $exists: true }, mode: { $ne: 'junior' } })
+  .toArray()
+console.log(`Standard (non-junior) questions with a stored visual: ${withVisual.length}`)
 
 let unset = 0, fixed = 0, kept = 0
 for (const q of withVisual) {

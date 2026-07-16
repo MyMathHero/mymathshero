@@ -53,9 +53,10 @@ export default function JuniorHome({ studentId, studentName = 'friend', grade = 
         .jr-tile:active { transform: scale(0.94) }
       `}</style>
 
-      {/* Hero */}
+      {/* Hero — carded so the video's white background reads as a clean framed
+          portrait instead of a messy box over the page gradient. */}
       <div style={{ marginTop: 8, animation: 'jrFloat 3s ease-in-out infinite' }}>
-        <RoboVideo src="/assets/robot/wavingrobo.MP4" width={170} loop={true} />
+        <RoboVideo src="/assets/robot/wavingrobo.MP4" width={170} loop={true} card />
       </div>
 
       {!started ? (

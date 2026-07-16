@@ -6,7 +6,6 @@ import RewardBurst, { comboMessage } from '@/components/RewardBurst'
 import VisualRender from '@/components/junior/VisualRender'
 import HeroTutor from '@/components/HeroTutor'
 import { heroSpeak, heroStop } from '@/lib/heroVoice'
-import { categoriesForWorld } from '@/lib/juniorMode'
 import { getSkillInfo } from '@/lib/skillNames'
 
 const NAVY = '#1B2B4B'
@@ -50,33 +49,50 @@ function JuniorPlayInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Pick a skill (world's categories, or AI top rec) then fetch junior questions.
+  // Pick a skill that ACTUALLY has junior questions for this world, then load
+  // them. We must NOT pick from the student's recommendations — junior testers
+  // are Grade 3+, so their recs are all m_3_* skills with zero junior stock,
+  // which made every world dead-end on "Let's try a different game!". Instead we
+  // ask the server which junior skills exist (optionally scoped to the world),
+  // then try them in order until one yields visual questions.
   async function loadSkill(studentId) {
     try {
-      const rr = await fetch(`/api/student/recommendations?studentId=${studentId}`)
+      const rr = await fetch(`/api/student/junior-skills${world ? `?world=${world}` : ''}`)
       const rd = await rr.json()
-      const recs = rd.recommendations || []
-      let chosen = null
-      if (world) {
-        const cats = categoriesForWorld(world)
-        chosen = recs.find(s => cats.includes(getSkillInfo(s.id || s.skillId)?.category))
+      let pool = (rd.skills || []).filter(s => s.id)
+      if (!pool.length) {
+        // World has no junior stock (money/times/fractions) — fall back to the
+        // full junior list so the game still starts.
+        const all = await (await fetch('/api/student/junior-skills')).json()
+        pool = (all.skills || []).filter(s => s.id)
       }
-      // Fall back to the top rec, or a sensible Prep default.
-      chosen = chosen || recs[0] || { id: 'm_0_count10', name: 'Counting to 10' }
-      const sid = chosen.id || chosen.skillId
-      setSkill({ id: sid, name: chosen.name || getSkillInfo(sid)?.name || 'Maths' })
-      await loadQuestions(sid, studentId)
+      if (!pool.length) { setError("Let's try a different game!"); return }
+
+      // Shuffle so repeated visits vary the skill, then try each until one loads.
+      const shuffled = [...pool].sort(() => Math.random() - 0.5)
+      for (const s of shuffled) {
+        const loaded = await loadQuestions(s.id, studentId, s.name)
+        if (loaded) return
+      }
+      setError("Let's try a different game!")
     } catch { setError('Could not start the game.') }
   }
 
-  async function loadQuestions(skillId, studentId) {
-    const res = await fetch(`/api/student/questions?skillId=${skillId}&studentId=${studentId}&mode=junior&limit=8`)
-    const data = await res.json()
-    const qs = (data.questions || []).filter(q => q.visual)
-    if (!qs.length) { setError("Let's try a different game!"); return }
-    setQuestions(qs)
-    setIndex(0)
-    setPicked(null); setCorrect(null)
+  // Fetch junior questions for one skill. Returns true if it produced a usable
+  // batch (and updated state), false so the caller can try the next skill.
+  async function loadQuestions(skillId, studentId, skillName) {
+    try {
+      const res = await fetch(`/api/student/questions?skillId=${skillId}&studentId=${studentId}&mode=junior&limit=8`)
+      const data = await res.json()
+      const qs = (data.questions || []).filter(q => q.visual)
+      if (!qs.length) return false
+      setSkill({ id: skillId, name: skillName || getSkillInfo(skillId)?.name || 'Maths' })
+      setQuestions(qs)
+      setIndex(0)
+      setPicked(null); setCorrect(null)
+      setError('')
+      return true
+    } catch { return false }
   }
 
   // Narrate each question + its options as it appears.
@@ -151,14 +167,14 @@ function JuniorPlayInner() {
   if (error) {
     return (
       <Shell>
-        <RoboVideo src="/assets/robot/thinkinggotidearobo.MP4" width={140} loop />
+        <RoboVideo src="/assets/robot/thinkinggotidearobo.MP4" width={140} loop card />
         <p style={{ color: NAVY, fontSize: 20, fontWeight: 800, marginTop: 8 }}>{error}</p>
         <BigBtn onClick={() => router.push('/student-dashboard')}>🏠 Home</BigBtn>
       </Shell>
     )
   }
   if (!q) {
-    return <Shell><RoboVideo src="/assets/robot/robowalking.MP4" width={150} loop /><p style={{ color: NAVY, fontWeight: 800, marginTop: 8 }}>Getting your game ready…</p></Shell>
+    return <Shell><RoboVideo src="/assets/robot/robowalking.MP4" width={150} loop card /><p style={{ color: NAVY, fontWeight: 800, marginTop: 8 }}>Getting your game ready…</p></Shell>
   }
 
   const robotSrc = {
@@ -184,11 +200,14 @@ function JuniorPlayInner() {
         <button onClick={() => { heroStop(); setShowTutor(true) }} style={{ ...iconBtn, width: 'auto', padding: '0 14px', fontSize: 16, fontWeight: 800 }}>👀 Show me</button>
       </div>
 
-      {/* Hero */}
+      {/* Hero — carded so the robot's white background reads as a clean framed
+          portrait over the page gradient (matches welcome screen + mobile). */}
       <div style={{ marginTop: 36 }}>
         {robotSrc.endsWith('.png')
-          ? <img src={robotSrc} alt="Hero" style={{ width: 96, mixBlendMode: 'multiply' }} />
-          : <RoboVideo src={robotSrc} width={110} loop={robot === 'talking' || robot === 'waving'} />}
+          ? <div style={{ background: 'white', borderRadius: 20, border: '2px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 8, display: 'inline-flex' }}>
+              <img src={robotSrc} alt="Hero" style={{ width: 96, display: 'block' }} />
+            </div>
+          : <RoboVideo src={robotSrc} width={110} loop={robot === 'talking' || robot === 'waving'} card />}
       </div>
 
       {/* Prompt + replay */}
