@@ -25,6 +25,7 @@ export default function robots() {
         '/arcade',
         '/junior',
         '/coming-soon',
+        '/thankyou',
       ],
     },
     sitemap: `${BASE}/sitemap.xml`,

@@ -19,6 +19,7 @@ const TESTER_COOKIE = 'mmh_tester'
 // domain (the standalone admin app) so /admin is no longer listed here.
 const ALWAYS_ALLOWED_PAGES = [
   '/coming-soon',
+  '/thankyou',   // post-waitlist confirmation — must bypass the gate
   '/login',
 ]
 
