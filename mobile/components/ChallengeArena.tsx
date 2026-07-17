@@ -199,13 +199,16 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
 
 function ScorePill({ c, name, avatarId, avatarConfig, photo, heroPic, correct, answered, total, me }: any) {
   // photo → the student's own character avatar → Hero pic (AI bot) → default face.
+  const isEmoji = (v: any) => typeof v === 'string' && !/^[a-z0-9_]+$/i.test(v.trim())
   let face
   if (photo) {
     face = <Image source={{ uri: photo }} style={{ width: 30, height: 30, borderRadius: 15 }} />
-  } else if (avatarConfig || avatarId) {
-    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
   } else if (heroPic) {
+    // Hero Bot — always the real Hero pic (server sends avatar '🤖', so this must
+    // win before the avatar branch).
     face = <Image source={HERO_PIC} style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: c.accentGold }} />
+  } else if (avatarConfig || (avatarId && !isEmoji(avatarId))) {
+    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
   } else {
     face = <CharacterAvatar id={null} size={30} />
   }

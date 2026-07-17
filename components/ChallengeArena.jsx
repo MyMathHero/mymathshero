@@ -7,6 +7,10 @@ import { resultSummary } from '@/lib/challenge'
 
 const HERO_PIC = '/assets/robot/heroprofilepic.png'
 
+// A stored avatar can be a character id ("hero") or a legacy emoji ("🤖"). We
+// never want to render a raw emoji as an avatar, so detect + skip those.
+const isEmoji = (v) => typeof v === 'string' && !/^[a-z0-9_]+$/i.test(v.trim())
+
 // Hero Speed Challenge — a safe 1v1 online maths race. No chat; only the
 // opponent's first name + avatar are shown. Matches a real online peer via
 // polling, or an AI ("Hero Bot") if nobody's around. Winning pays 20 coins.
@@ -247,10 +251,12 @@ function ScorePill({ name, avatarId, avatarConfig, photo, heroPic, correct, answ
   let face
   if (photo) {
     face = <img src={photo} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-  } else if (avatarConfig || avatarId) {
-    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
   } else if (heroPic) {
+    // The Hero Bot / AI opponent — always the real Hero pic (the server sends it
+    // with avatar '🤖', so this MUST win before the avatar branch below).
     face = <img src={HERO_PIC} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--accent-gold)' }} />
+  } else if (avatarConfig || (avatarId && !isEmoji(avatarId))) {
+    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
   } else {
     face = <CharacterAvatar id={null} size={30} />
   }

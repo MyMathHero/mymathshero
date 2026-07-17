@@ -24,7 +24,7 @@ import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
 import MonthlyExam from '@/components/MonthlyExam'
 import ChallengeArena from '@/components/ChallengeArena'
-import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy } from 'lucide-react'
+import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy, Swords } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
 
@@ -2207,13 +2207,14 @@ export default function StudentDashboard() {
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 96px' }}>
           {/* Sub-view toggle */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
-            {[{ id: 'arena', label: '⚔️ Challenge' }, { id: 'leaderboard', label: '🏆 Leaderboard' }].map(v => (
+            {[{ id: 'arena', label: 'Challenge', Icon: Swords }, { id: 'leaderboard', label: 'Leaderboard', Icon: Trophy }].map(v => (
               <button key={v.id} onClick={() => setChallengeView(v.id)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
                 padding: '8px 18px', borderRadius: 20, fontWeight: 700, fontSize: 13, cursor: 'pointer',
                 border: 'none',
                 background: challengeView === v.id ? 'var(--bg-header)' : 'var(--bg-primary)',
                 color: challengeView === v.id ? 'var(--text-on-dark)' : 'var(--text-secondary)',
-              }}>{v.label}</button>
+              }}><v.Icon size={16} />{v.label}</button>
             ))}
           </div>
 
