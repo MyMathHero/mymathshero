@@ -74,10 +74,18 @@ export async function GET(request) {
     { $group: { _id: { $ifNull: ['$source', 'Unknown'] }, count: { $sum: 1 } } },
   ]).toArray()
 
+  // Flagged split by grade — powers the "all grades" view + the cron alert email.
+  const flaggedByGradeRows = await col.aggregate([
+    { $match: { verifierFlagged: true, ...gf } },
+    { $group: { _id: '$grade', n: { $sum: 1 } } },
+    { $sort: { _id: 1 } },
+  ]).toArray()
+
   return NextResponse.json({
     grade: gradeParam ?? 'all',
     totalActive: await col.countDocuments({ active: { $ne: false }, ...gf }),
     bySource: Object.fromEntries(bySource.map(r => [r._id || 'Unknown', r.count])),
+    flaggedByGrade: Object.fromEntries(flaggedByGradeRows.map(r => [String(r._id ?? 'null'), r.n])),
     flagged: await col.countDocuments({ verifierFlagged: true, ...gf }),
     retired: await col.countDocuments({ active: false, retiredAt: { $exists: true }, ...gf }),
     corrected: await col.countDocuments({ corrected: true, ...gf }),

@@ -70,8 +70,31 @@ export async function GET(request) {
       if (!data.scanned || (data.remainingUnscanned ?? 0) <= 0) break
     }
 
-    console.log('[cron verify-bank] ok:', JSON.stringify(totals))
-    return NextResponse.json({ success: true, ...totals })
+    // Email the admin ONLY when this run flagged something. Flagged questions are
+    // already withheld from students, so this is a "come approve the fixes" nudge,
+    // not an outage alert. Never let a mail failure fail the cron.
+    let emailed = false
+    if (totals.flagged > 0) {
+      try {
+        const statsRes = await fetch(`${baseUrl}/api/admin/verify-bank`, {
+          headers: { 'x-admin-key': process.env.ADMIN_API_KEY },
+        })
+        const byGrade = statsRes.ok ? ((await statsRes.json())?.flaggedByGrade || {}) : {}
+        const { sendQuestionBankAlert } = await import('@/lib/emails/sender')
+        const r = await sendQuestionBankAlert({
+          flagged: totals.flagged,
+          scanned: totals.scanned,
+          byGrade,
+          adminUrl: process.env.ADMIN_PANEL_URL || 'https://admin.mymathshero.com.au/questions',
+        })
+        emailed = !!r?.success
+      } catch (e) {
+        console.error('[cron verify-bank] alert email failed:', e?.message)
+      }
+    }
+
+    console.log('[cron verify-bank] ok:', JSON.stringify({ ...totals, emailed }))
+    return NextResponse.json({ success: true, ...totals, emailed })
   } catch (err) {
     console.error('[cron verify-bank] network error:', err?.message)
     return NextResponse.json(
