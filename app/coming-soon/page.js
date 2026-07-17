@@ -94,14 +94,6 @@ export default function ComingSoonPage() {
     return () => { clearTimeout(t); window.removeEventListener('resize', check) }
   }, [])
 
-  // Phases mapped so the whole two-act animation completes by hp≈0.7 and then
-  // HOLDS — the pinned scene stays as "Act 2" for the last stretch, then un-pins
-  // and scrolls up into the pillars with no empty gap. On mobile everything is
-  // forced to its "rest" state (no scroll-driven transforms).
-  const symbolT = isMobile ? 0 : range(hp, 0, 0.6)   // symbols drift outward
-  const act1Out = isMobile ? 0 : range(hp, 0.1, 0.42) // headline fades as act 1 ends
-  const robotZoom = isMobile ? 0 : range(hp, 0.1, 0.66) // robot scales up + centres
-  const act2In = isMobile ? 0 : range(hp, 0.46, 0.72) // cinematic tagline fades in
 
   return (
     // overflow-x: clip (NOT hidden) — clip contains the drifting symbols without
@@ -110,31 +102,22 @@ export default function ComingSoonPage() {
       <GlobalCss />
       <MathCountdownBar />
 
-      {/* ══════════════ SCENE 1 — CINEMATIC PINNED HERO ══════════════ */}
-      {/* 190vh section, 100vh sticky child → 90vh of pinned scroll runway for the
-          two-act transform. The content BELOW is pulled up a full 100vh (cream
-          slab) so it exactly covers the sticky child's final screen — no gap. */}
-      {/* Desktop: 190vh pinned runway. Mobile: auto height, no pin — a normal
-          stacked hero (the cinematic pin doesn't suit small screens). */}
-      <section ref={heroRef} style={{ position: 'relative', height: isMobile ? 'auto' : '190vh' }}>
-        <div style={{
-          position: isMobile ? 'relative' : 'sticky', top: 0,
-          minHeight: isMobile ? 0 : '100vh', height: isMobile ? 'auto' : '100vh',
-          overflow: isMobile ? 'visible' : 'hidden',
-          display: 'flex',
-          flexDirection: isMobile ? 'column' : 'row',
-          alignItems: 'center', justifyContent: 'center',
-          padding: isMobile ? '32px 0 40px' : 0,
-        }}>
-          {/* soft brand aura */}
-          <div className="cs-aura" aria-hidden />
+      {/* ══════════════ SCENE 1 — FULL-BLEED PHOTO HERO ══════════════ */}
+      {/* The scene photo fills the hero left→right as a background; the headline,
+          logo and CTA sit in the empty LEFT area of the photo, in front of it.
+          A left-weighted scrim keeps the text readable over the image. */}
+      <section ref={heroRef} className="cs-hero2">
+        <img src="/assets/comingsoonnew.JPG" alt="Hero, the MyMathsHero AI maths tutor, helping two children with maths at home"
+          className="cs-hero2-bg" draggable={false} />
+        <div className="cs-hero2-scrim" aria-hidden />
 
-          {/* Brand logo + wordmark — top-left, like the original version */}
-          <div className="cs-hero-logo" style={{
-            opacity: (entered ? 1 : 0) * lerp(1, 0, act1Out),
-            transform: entered ? 'none' : 'translateY(-10px)',
-            transition: 'opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1)',
-          }}>
+        <div className="cs-hero2-inner" style={{
+          opacity: entered ? 1 : 0,
+          transform: entered ? 'none' : 'translateY(24px)',
+          transition: 'opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
+        }}>
+          {/* Brand logo + wordmark */}
+          <div className="cs-hero-logo" style={{ position: 'static', marginBottom: 22 }}>
             <img src="/assets/logos/logo-icon.png?v=2" alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />
             <div>
               <div className="cs-hero-logo-word"><span style={{ color: NAVY }}>MyMaths</span><span style={{ color: GOLD }}>Hero</span></div>
@@ -142,99 +125,33 @@ export default function ComingSoonPage() {
             </div>
           </div>
 
-          {/* Floating maths symbols — decorative BACKGROUND (zIndex 0, behind all
-              content). Confined to the right/edge zones; hidden on mobile. */}
-          {FLOAT_SYMBOLS.map((s, i) => (
-            <span key={i} aria-hidden className="cs-float-sym" style={{
-              position: 'absolute', left: s.x, top: s.y, zIndex: 0,
-              fontSize: s.size, fontWeight: 800, color: s.color,
-              opacity: (entered ? 0.85 : 0) * lerp(1, 0, range(hp, 0.3, 0.6)),
-              transform: `translate(${lerp(0, s.dx, symbolT)}px, ${lerp(0, s.dy, symbolT)}px)`,
-              filter: 'drop-shadow(0 6px 14px rgba(27,43,75,0.10))',
-              animation: `csDrift ${s.dur}s ease-in-out ${i * 0.3}s infinite`,
-              transition: 'opacity 0.8s ease',
-              userSelect: 'none', pointerEvents: 'none',
-            }}>{s.ch}</span>
-          ))}
-
-          <div className="cs-hero-grid">
-            {/* Left — headline (fades out as Act 1 ends) */}
-            <div style={{
-              opacity: (entered ? 1 : 0) * lerp(1, 0, act1Out),
-              transform: entered ? `translateY(${lerp(0, -30, act1Out)}px)` : 'translateY(28px)',
-              transition: 'opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
-              pointerEvents: act1Out > 0.5 ? 'none' : 'auto',
-            }}>
-              <div className="cs-eyebrow">
-                <span style={{ width: 8, height: 8, borderRadius: 99, background: GOLD }} />
-                Australia's AI maths tutor · Launching {LAUNCH_DATE_DISPLAY}
-              </div>
-              <h1 className="cs-h1">
-                Confidence starts<br />
-                when <span style={{ color: '#2563EB' }}>maths</span><br />
-                makes <span style={{ color: GOLD }}>sense.</span>
-              </h1>
-              <p className="cs-hero-sub">
-                MyMathsHero is Australia's AI maths tutor for primary school children — personalised learning that helps your child{' '}
-                <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
-              </p>
-              <div className="cs-hero-cta-row">
-                <a href="#waitlist" className="cs-btn-gold">Join the Waitlist →</a>
-                <a href="#meet-hero" className="cs-btn-ghost">See how it works</a>
-              </div>
-              <div className="cs-scrollcue" aria-hidden>
-                <span>Scroll to explore</span>
-                <span className="cs-scrollcue-dot" />
-              </div>
-            </div>
-
-            {/* Right — the hero robot. Zooms up + drifts to centre through Act 2. */}
-            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-              <div style={{
-                position: 'relative',
-                opacity: entered ? 1 : 0,
-                transform: entered
-                  ? `translateX(${lerp(0, -46, robotZoom)}%) translateY(${lerp(0, 9, robotZoom)}vh) scale(${lerp(1, 1.34, robotZoom)})`
-                  : 'scale(0.9) translateY(20px)',
-                transition: entered
-                  ? 'transform 0.15s linear'
-                  : 'opacity 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s, transform 0.9s cubic-bezier(0.16,1,0.3,1) 0.1s',
-                transformOrigin: 'center center',
-                willChange: 'transform',
-              }}>
-                <img src="/assets/coming-soon-hero-removebg.png" alt="Hero, the MyMathsHero AI maths tutor"
-                  className="cs-hero-robot" draggable={false} />
-                {/* Founding-family badge — tucked under the robot, fades as it zooms */}
-                <div className="cs-hero-badge" style={{ opacity: (entered ? 1 : 0) * (isMobile ? 1 : lerp(1, 0, range(hp, 0.14, 0.32))) }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
-                    <span>👨‍👩‍👧</span> First 1,000 Families Only!
-                  </div>
-                  <div style={{ fontSize: 12.5, marginTop: 5, lineHeight: 1.45 }}>
-                    <b style={{ color: '#FFD766' }}>One month FREE</b> + Founding Family pricing for your first year.
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="cs-eyebrow">
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: GOLD }} />
+            Australia's AI maths tutor · Launching {LAUNCH_DATE_DISPLAY}
           </div>
-
-          {/* Act 2 — cinematic tagline crossfades in over the zoomed robot, filling
-              the scroll runway with motion (Apple Vision Pro style). */}
-          <div className="cs-hero-act2" style={{
-            opacity: act2In,
-            transform: `translateY(${lerp(40, 0, act2In)}px)`,
-            pointerEvents: 'none',
-          }} aria-hidden>
-            <div className="cs-act2-eyebrow">Meet Hero</div>
-            <div className="cs-act2-title">Your child's own<br /><span style={{ color: GOLD }}>AI maths tutor.</span></div>
+          <h1 className="cs-h1">
+            Confidence starts<br />
+            when <span style={{ color: '#2563EB' }}>maths</span><br />
+            makes <span style={{ color: GOLD }}>sense.</span>
+          </h1>
+          <p className="cs-hero-sub">
+            MyMathsHero is Australia's AI maths tutor for primary school children — personalised learning that helps your child{' '}
+            <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
+          </p>
+          <div className="cs-hero-cta-row">
+            <a href="#waitlist" className="cs-btn-gold">Join the Waitlist →</a>
+            <a href="#meet-hero" className="cs-btn-ghost">See how it works</a>
+          </div>
+          <div className="cs-hero2-badge">
+            <span>👨‍👩‍👧</span> First 1,000 families: <b style={{ color: GOLD }}>one month FREE</b> + founding pricing.
           </div>
         </div>
       </section>
 
-      {/* Everything below the hero rides on a solid CREAM slab pulled up a full
-          100vh so it exactly covers the sticky child's final (post-animation)
-          screen — guaranteeing no empty gap after the pinned hero. On mobile
-          there's no pin, so no pull-up. */}
-      <div style={{ position: 'relative', zIndex: 3, background: CREAM, marginTop: isMobile ? 0 : '-100vh', paddingTop: 20 }}>
+      {/* Everything below the hero sits on a solid CREAM slab. (The old -100vh
+          pull-up compensated for the previous 190vh pinned hero; the new hero is
+          normal height, so no pull-up.) */}
+      <div style={{ position: 'relative', zIndex: 3, background: CREAM, paddingTop: 20 }}>
 
       {/* ══════════════ 4 PILLARS ══════════════ */}
       {/* No Reveal wrapper here — these sit right at the hero→content seam, so they
@@ -475,7 +392,24 @@ const CSS = `
       .cs-p { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 20px; }
       .cs-tag { display: inline-block; background: rgba(37,99,235,0.1); color: #2563EB; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 99px; margin-bottom: 14px; }
 
-      /* Hero */
+      /* Full-bleed photo hero — image fills left→right, text sits on the left. */
+      .cs-hero2 { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; }
+      .cs-hero2-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 72% center; z-index: 0; }
+      /* Left-weighted scrim so the headline stays readable over the photo. */
+      .cs-hero2-scrim { position: absolute; inset: 0; z-index: 1; background:
+        linear-gradient(90deg, rgba(244,239,227,0.97) 0%, rgba(244,239,227,0.92) 26%, rgba(244,239,227,0.55) 44%, rgba(244,239,227,0.05) 62%, rgba(244,239,227,0) 78%); }
+      .cs-hero2-inner { position: relative; z-index: 2; max-width: 1180px; width: 100%; margin: 0 auto; padding: 0 32px; }
+      .cs-hero2-inner > * { max-width: 560px; }
+      .cs-hero2-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; background: ${NAVY}; color: white; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 12px; box-shadow: 0 10px 30px rgba(27,43,75,0.25); }
+      @media (max-width: 820px) {
+        .cs-hero2 { min-height: auto; }
+        .cs-hero2-bg { object-position: 68% center; }
+        .cs-hero2-scrim { background: linear-gradient(180deg, rgba(244,239,227,0.96) 0%, rgba(244,239,227,0.9) 46%, rgba(244,239,227,0.55) 72%, rgba(244,239,227,0.15) 100%); }
+        .cs-hero2-inner { padding: 120px 24px 160px; }
+        .cs-hero2-inner > * { max-width: 100%; }
+      }
+
+      /* Hero (legacy classes still used by the logo/eyebrow/h1/sub/cta) */
       .cs-aura { position: absolute; width: 900px; height: 900px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,0.10), rgba(196,154,26,0.06) 40%, transparent 68%); filter: blur(10px); }
       .cs-hero-logo { position: absolute; top: 32px; left: max(32px, calc((100vw - 1180px) / 2 + 32px)); display: flex; align-items: center; gap: 12px; z-index: 4; }
       .cs-hero-logo-word { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; line-height: 1; }
