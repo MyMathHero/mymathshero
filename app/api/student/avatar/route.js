@@ -4,17 +4,27 @@ import { AVATAR_ITEMS } from '@/lib/avatarItems'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { logCoinChange, adjustCoins } from '@/lib/coins'
 import { AVATAR_CHANGE_COST } from '@/lib/coinRules'
-import { partsFor, normaliseConfig, presetToConfig, CATEGORIES } from '@/lib/avatarParts'
+import { partsFor, applyOverrides, shopList, normaliseConfig, presetToConfig, CATEGORIES } from '@/lib/avatarParts'
 
 // Colour slots on the config are free to change (a colour isn't a purchasable
 // item) — the paid unit is the PART. Kept here so the API and editor agree.
 const COLOR_KEYS = ['skinTone', 'hairColor', 'topColor', 'hatColor', 'accentColor']
 const isHexColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
 
-// Resolve an item from the NEW layered registry first, falling back to the OLD
-// emoji catalogue so legacy cosmetics keep working during the transition.
-function resolveItem(category, itemId) {
-  const part = partsFor(category).find(p => p.id === itemId)
+// Admin price/availability overrides (shared `avatar_config` doc, written by the
+// admin app). Read per request so a price change takes effect immediately.
+async function readOverrides(db) {
+  try {
+    const doc = await db.collection('avatar_config').findOne({ _id: 'main' })
+    return (doc && doc.overrides) || {}
+  } catch { return {} }
+}
+
+// Resolve an item from the NEW layered registry first (with admin overrides
+// applied), falling back to the OLD emoji catalogue so legacy cosmetics keep
+// working during the transition.
+function resolveItem(category, itemId, overrides = {}) {
+  const part = applyOverrides(category, overrides).find(p => p.id === itemId)
   if (part) return part
   return AVATAR_ITEMS[category]?.find(i => i.id === itemId) || null
 }
@@ -49,6 +59,15 @@ export async function GET(request) {
       ? normaliseConfig(student.avatarConfig)
       : presetToConfig(student.avatar)
 
+    // Admin price/availability overrides, so the shop shows live prices and
+    // hides retired items (except one the student is already wearing).
+    const overrides = await readOverrides(db)
+    const shop = {}
+    for (const cat of CATEGORIES.filter(c => c.type === 'part').map(c => c.id)) {
+      shop[cat] = shopList(cat, overrides, config[cat])
+        .map(p => ({ id: p.id, name: p.name, cost: p.cost }))
+    }
+
     return NextResponse.json({
       avatar: student.avatarConfig || null,
       avatarConfig: config,
@@ -57,6 +76,7 @@ export async function GET(request) {
       unlockedItems: student.unlockedAvatarItems || [],
       coins: student.coins || 0,
       changeCost: AVATAR_CHANGE_COST,
+      shop,
     })
   } catch (error) {
     console.error('Avatar GET error:', error.message)
@@ -157,7 +177,8 @@ export async function POST(request) {
       return NextResponse.json({ success: true, avatarConfig: next, coinsSpent: 0 })
     }
 
-    const item = resolveItem(category, itemId)
+    const overrides = await readOverrides(db)
+    const item = resolveItem(category, itemId, overrides)
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
@@ -167,6 +188,11 @@ export async function POST(request) {
     const alreadyOwned = item.cost === 0 || owned.includes(itemKey)
 
     if (action === 'purchase') {
+      // A retired item can still RENDER (students wearing it don't break) but
+      // can't be newly bought.
+      if (item.disabled) {
+        return NextResponse.json({ error: 'This item is no longer available' }, { status: 400 })
+      }
       if (alreadyOwned) {
         return NextResponse.json({ error: 'Already owned' }, { status: 400 })
       }

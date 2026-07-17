@@ -11,8 +11,8 @@ import { studentAPI } from '../../lib/api'
 import ThemeToggle from '../../components/ThemeToggle'
 import SupportSheet from '../../components/SupportSheet'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
-import CharacterAvatar, { CharacterSVG } from '../../components/CharacterAvatar'
-import { CHARACTER_AVATARS, DEFAULT_AVATAR_ID } from '../../lib/characterAvatars'
+import CharacterAvatar from '../../components/CharacterAvatar'
+import AvatarEditor from '../../components/AvatarEditor'
 import { useVouchersEnabled } from '../../lib/featureVisibility'
 import ArcadeCard from '../../components/ArcadeCard'
 
@@ -38,33 +38,6 @@ export default function Profile() {
 
   useEffect(() => { loadProfile() }, [])
 
-  async function chooseAvatar(id: string) {
-    if (avatarSaving) return
-    if (id === student?.avatar) { setShowAvatarModal(false); return } // no change → free
-    const prev = student?.avatar
-    setStudent((s: any) => ({ ...s, avatar: id }))  // optimistic
-    setAvatarSaving(true)
-    try {
-      const sid = (await SecureStore.getItemAsync('user_id')) || ''
-      const res = await studentAPI.setCharacter(sid, id)
-      const data = res?.data
-      if (data?.success) {
-        if (typeof data.newCoins === 'number') {
-          setStudent((s: any) => ({ ...s, coins: data.newCoins }))
-        }
-        setShowAvatarModal(false)
-      } else {
-        setStudent((s: any) => ({ ...s, avatar: prev }))
-        Alert.alert('Not enough coins', data?.error || 'You need more coins to change your hero.')
-      }
-    } catch (err: any) {
-      setStudent((s: any) => ({ ...s, avatar: prev }))
-      const msg = err?.response?.data?.error || 'Could not save your hero. Please try again.'
-      Alert.alert('Oops', msg)
-    } finally {
-      setAvatarSaving(false)
-    }
-  }
 
   // Pick a personal profile photo (shown only to this student). Uses base64 so
   // no separate upload/storage step is needed for now.
@@ -407,32 +380,19 @@ export default function Profile() {
           <View style={p.avatarSheet}>
             <View style={p.avatarSheetHeader}>
               <View>
-                <Text style={p.modalTitle}>Choose Your Hero</Text>
-                <Text style={{ color: colors.accentGold, fontSize: 12, fontWeight: '700' }}>5 🪙 per change · you have {student?.coins ?? 0}</Text>
+                <Text style={p.modalTitle}>Design your Hero</Text>
+                <Text style={{ color: colors.accentGold, fontSize: 12, fontWeight: '700' }}>Mix and match — saves as you go</Text>
               </View>
               <TouchableOpacity onPress={() => setShowAvatarModal(false)} hitSlop={10}>
                 <Text style={{ color: colors.textMuted, fontSize: 20, fontWeight: '700' }}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={p.avatarGrid}>
-              {CHARACTER_AVATARS.map(char => {
-                const isSel = (student?.avatar || DEFAULT_AVATAR_ID) === char.id
-                return (
-                  <TouchableOpacity
-                    key={char.id}
-                    style={[p.avatarOption, isSel && p.avatarOptionSel]}
-                    onPress={() => chooseAvatar(char.id)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={{ width: 64, height: 64, borderRadius: 32, overflow: 'hidden', marginBottom: 6 }}>
-                      <CharacterSVG char={char} size={64} />
-                    </View>
-                    <Text style={p.avatarName} numberOfLines={1}>{char.name}</Text>
-                    {isSel && <View style={p.avatarOnBadge}><Text style={p.avatarOnText}>ON</Text></View>}
-                  </TouchableOpacity>
-                )
-              })}
-            </ScrollView>
+            {/* The layered editor replaces the old "pick 1 of 12" grid. The 12
+                presets live on inside it as one-tap starter looks. */}
+            <AvatarEditor
+              studentId={student?.id}
+              onSaved={(cfg) => setStudent((s: any) => ({ ...s, avatarConfig: cfg }))}
+            />
           </View>
         </View>
       </Modal>
