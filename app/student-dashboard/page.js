@@ -1367,7 +1367,7 @@ export default function StudentDashboard() {
       }}>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
         <img
-          src="/assets/logos/logo-icon.png"
+          src="/assets/logos/logo-icon.png?v=2"
           alt="MyMathsHero"
           style={{ width: 80, animation: 'pulse 1.5s infinite' }}
         />
@@ -1414,7 +1414,7 @@ export default function StudentDashboard() {
         boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/assets/logos/logo-icon.png"
+          <img src="/assets/logos/logo-icon.png?v=2"
             style={{ height: 36 }} alt="MyMathsHero" />
           {/* Availability status — student sets Available / Busy studying.
               Drives whether peers can challenge them (see toggleAvailability). */}

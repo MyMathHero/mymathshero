@@ -217,7 +217,7 @@ export default function TeacherDashboard() {
       }}>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
         <img
-          src="/assets/logos/logo-icon.png"
+          src="/assets/logos/logo-icon.png?v=2"
           alt="MyMathsHero"
           style={{ width: 80, animation: 'pulse 1.5s infinite' }}
         />

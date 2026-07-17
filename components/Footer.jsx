@@ -54,7 +54,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/assets/logos/logo-icon.png" alt="MyMathsHero" className="h-10 w-auto" />
+              <img src="/assets/logos/logo-icon.png?v=2" alt="MyMathsHero" className="h-10 w-auto" />
               <span className="font-bold text-lg">MyMathsHero</span>
             </div>
             <p className="text-white/60 text-sm leading-relaxed">

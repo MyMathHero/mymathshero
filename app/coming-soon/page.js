@@ -135,7 +135,7 @@ export default function ComingSoonPage() {
             transform: entered ? 'none' : 'translateY(-10px)',
             transition: 'opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1)',
           }}>
-            <img src="/assets/logos/logo-icon.png" alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />
+            <img src="/assets/logos/logo-icon.png?v=2" alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />
             <div>
               <div className="cs-hero-logo-word"><span style={{ color: NAVY }}>MyMaths</span><span style={{ color: GOLD }}>Hero</span></div>
               <div className="cs-hero-logo-tag">PERSONALISED MATHS LEARNING</div>
@@ -428,7 +428,7 @@ export default function ComingSoonPage() {
       {/* ══════════════ FOOTER ══════════════ */}
       <footer className="cs-footer">
         <div className="cs-footer-brand">
-          <img src="/assets/logos/logo-icon.png" alt="" style={{ width: 34, height: 34 }} />
+          <img src="/assets/logos/logo-icon.png?v=2" alt="" style={{ width: 34, height: 34 }} />
           <div>
             <div style={{ fontWeight: 800 }}>MyMaths<span style={{ color: GOLD }}>Hero</span></div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>AI maths tutoring that builds confidence for life.</div>

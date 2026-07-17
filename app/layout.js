@@ -31,9 +31,9 @@ export const metadata = {
   alternates: { canonical: '/' },
   manifest: '/manifest.json',
   icons: {
-    icon: '/assets/logos/logo-icon.png',
-    shortcut: '/assets/logos/logo-icon.png',
-    apple: '/assets/logos/logo-icon.png',
+    icon: '/assets/logos/logo-icon.png?v=2',
+    shortcut: '/assets/logos/logo-icon.png?v=2',
+    apple: '/assets/logos/logo-icon.png?v=2',
   },
   openGraph: {
     type: 'website',
@@ -70,7 +70,7 @@ const ORG_JSONLD = {
       name: 'MyMathsHero',
       legalName: 'My Maths Hero',
       url: SITE_URL,
-      logo: `${SITE_URL}/assets/logos/logo-full.png`,
+      logo: `${SITE_URL}/assets/logos/logo-full.png?v=2`,
       email: 'hello@mymathshero.com.au',
       description:
         'Personalised AI maths learning for Australian primary school children from Prep to Year 6.',

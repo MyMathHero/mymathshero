@@ -657,7 +657,7 @@ export default function ParentDashboard() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
         <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
-        <img src="/assets/logos/logo-icon.png" alt="MyMathsHero" style={{ width: 80, animation: 'pulse 1.5s infinite' }} />
+        <img src="/assets/logos/logo-icon.png?v=2" alt="MyMathsHero" style={{ width: 80, animation: 'pulse 1.5s infinite' }} />
         <p style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Loading your dashboard...</p>
       </div>
     )

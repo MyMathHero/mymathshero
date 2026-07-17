@@ -70,7 +70,7 @@ export default function Navbar() {
         {/* Center — logo */}
         <Link href={getDashboardLink(authState.role)} style={{ display: 'flex', alignItems: 'center' }}>
           <img
-            src="/assets/logos/logo-full.png"
+            src="/assets/logos/logo-full.png?v=2"
             alt="MyMathsHero"
             style={{ height: 64, width: 'auto', display: 'block' }}
           />
@@ -128,7 +128,7 @@ export default function Navbar() {
         {/* Center — logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
           <img
-            src="/assets/logos/logo-full.png"
+            src="/assets/logos/logo-full.png?v=2"
             alt="MyMathsHero"
             style={{ height: 72, width: 'auto', display: 'block' }}
           />
@@ -166,7 +166,7 @@ export default function Navbar() {
       <div />
       <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
         <img
-          src="/assets/logos/logo-full.png"
+          src="/assets/logos/logo-full.png?v=2"
           alt="MyMathsHero"
           style={{ height: 72, width: 'auto', display: 'block' }}
         />

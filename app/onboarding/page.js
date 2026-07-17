@@ -604,7 +604,7 @@ function PathPicker({ onSelect, flags }) {
     <Slide>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <img
-          src="/assets/logos/logo-full.png"
+          src="/assets/logos/logo-full.png?v=2"
           alt="MyMathsHero"
           style={{ height: 48, width: 'auto', margin: '0 auto 14px', display: 'block' }}
         />
