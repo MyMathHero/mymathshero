@@ -4,6 +4,7 @@ import LoadingScreen from '@/components/LoadingScreenClient'
 import ConditionalNavbar from '@/components/ConditionalNavbar'
 import { ThemeProvider, THEME_SCRIPT } from '@/lib/useTheme'
 import { GoogleAnalytics, GoogleTagManager } from '@next/third-parties/google'
+import { SOCIAL_URLS } from '@/lib/social'
 
 const SITE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://mymathshero.com.au'
 
@@ -42,13 +43,14 @@ export const metadata = {
     title: 'MyMathsHero — Personalised AI Maths Learning for Prep to Year 6',
     description:
       'Meet Hero, the friendly AI maths tutor helping Australian primary school children build confidence through personalised, curriculum-aligned maths learning.',
-    images: [{ url: '/assets/logos/logo-full.png', width: 1200, height: 630, alt: 'MyMathsHero' }],
+    images: [{ url: '/assets/og/home.png', width: 1200, height: 630, alt: 'MyMathsHero — Meet Hero, your child’s AI maths tutor' }],
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@mymathsheroau',
     title: 'MyMathsHero — Personalised AI Maths Learning',
     description: 'Meet Hero, the AI maths tutor for Australian primary school children, Prep to Year 6.',
-    images: ['/assets/logos/logo-full.png'],
+    images: ['/assets/og/home.png'],
   },
   robots: {
     index: true,
@@ -73,6 +75,8 @@ const ORG_JSONLD = {
       description:
         'Personalised AI maths learning for Australian primary school children from Prep to Year 6.',
       areaServed: 'AU',
+      // Links the brand to its verified social profiles (Google Knowledge Graph).
+      sameAs: SOCIAL_URLS,
     },
     {
       '@type': 'WebSite',

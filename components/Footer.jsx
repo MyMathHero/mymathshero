@@ -1,7 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { Facebook, Instagram, Linkedin, Mail, ArrowRight } from 'lucide-react'
+import { Facebook, Instagram, Mail, ArrowRight } from 'lucide-react'
+import { SOCIAL_LINKS } from '@/lib/social'
+
+// TikTok isn't in lucide — inline the brand glyph. Others map to lucide icons.
+function TikTok({ size = 16, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M16.5 3c.3 2.1 1.6 3.8 3.7 4.1v2.6c-1.2 0-2.4-.4-3.5-1v6.6a5.9 5.9 0 1 1-5.9-5.9c.3 0 .6 0 .9.1v2.7a3.2 3.2 0 1 0 2.3 3V3h2.5z" />
+    </svg>
+  )
+}
+const SOCIAL_ICONS = { Facebook, Instagram, TikTok }
 
 // Footer is intentionally always dark (navy) in every theme — a deliberate
 // anchor at the foot of the page. Links point to the real public pages so the
@@ -50,11 +61,21 @@ export default function Footer() {
               Personalised, Australian Curriculum aligned maths learning.<br />Prep to Year 6.
             </p>
             <div className="flex gap-3 mt-5">
-              {[Facebook, Instagram, Linkedin].map((Icon, i) => (
-                <a key={i} href="#" aria-label="Social link" className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#C49A1A] flex items-center justify-center transition-all duration-200">
-                  <Icon size={16} className="text-white" />
-                </a>
-              ))}
+              {SOCIAL_LINKS.map(({ name, url }) => {
+                const Icon = SOCIAL_ICONS[name]
+                return (
+                  <a
+                    key={name}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`MyMathsHero on ${name}`}
+                    className="w-9 h-9 rounded-lg bg-white/10 hover:bg-[#C49A1A] flex items-center justify-center transition-all duration-200"
+                  >
+                    {Icon && <Icon size={16} className="text-white" />}
+                  </a>
+                )
+              })}
             </div>
           </div>
 
