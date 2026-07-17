@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# raw icon export package (Expo builds from icon.png, not these)
+assets/AppIcons/
