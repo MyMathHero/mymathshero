@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Facebook, Instagram, Mail, ArrowRight } from 'lucide-react'
+import { Facebook, Instagram, Youtube, Mail, ArrowRight } from 'lucide-react'
 import { SOCIAL_LINKS } from '@/lib/social'
 
 // TikTok isn't in lucide — inline the brand glyph. Others map to lucide icons.
@@ -12,7 +12,7 @@ function TikTok({ size = 16, className }) {
     </svg>
   )
 }
-const SOCIAL_ICONS = { Facebook, Instagram, TikTok }
+const SOCIAL_ICONS = { Facebook, Instagram, TikTok, YouTube: Youtube }
 
 // Footer is intentionally always dark (navy) in every theme — a deliberate
 // anchor at the foot of the page. Links point to the real public pages so the
