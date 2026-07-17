@@ -2,14 +2,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import MathText from './MathText'
 import FractionVisual from './FractionVisual'
+import CharacterAvatar from './CharacterAvatar'
 import { resultSummary } from '@/lib/challenge'
+
+const HERO_PIC = '/assets/robot/heroprofilepic.png'
 
 // Hero Speed Challenge — a safe 1v1 online maths race. No chat; only the
 // opponent's first name + avatar are shown. Matches a real online peer via
 // polling, or an AI ("Hero Bot") if nobody's around. Winning pays 20 coins.
 //
 // Phases: idle → searching → racing → result.
-export default function ChallengeArena({ studentId, grade = 3, onCoins }) {
+export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvatarConfig, onCoins }) {
   const [phase, setPhase] = useState('idle')
   const [match, setMatch] = useState(null)
   const [qIndex, setQIndex] = useState(0)
@@ -155,9 +158,15 @@ export default function ChallengeArena({ studentId, grade = 3, onCoins }) {
       <div style={wrap}>
         {/* Scoreboard */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <ScorePill name="You" avatar="🦸" correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
+          <ScorePill name="You" avatarId={myAvatar} avatarConfig={myAvatarConfig} correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
           <span style={{ fontWeight: 800, color: 'var(--text-secondary)' }}>vs</span>
-          <ScorePill name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} photo={opp?.photo} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
+          <ScorePill
+            name={opp?.firstName || 'Hero'}
+            avatarId={opp?.avatar}
+            photo={opp?.photo}
+            heroPic={opp?.isBot || opp?.firstName === 'Hero Bot' || !opp?.avatar}
+            correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total}
+          />
         </div>
 
         {/* Question */}
@@ -232,7 +241,19 @@ export default function ChallengeArena({ studentId, grade = 3, onCoins }) {
   return null
 }
 
-function ScorePill({ name, avatar, photo, correct, answered, total, me }) {
+function ScorePill({ name, avatarId, avatarConfig, photo, heroPic, correct, answered, total, me }) {
+  // Avatar priority: parent-approved photo → the student's own character avatar →
+  // the Hero profile pic (for the AI "Hero Bot") → a generic character fallback.
+  let face
+  if (photo) {
+    face = <img src={photo} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+  } else if (avatarConfig || avatarId) {
+    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
+  } else if (heroPic) {
+    face = <img src={HERO_PIC} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--accent-gold)' }} />
+  } else {
+    face = <CharacterAvatar id={null} size={30} />
+  }
   return (
     <div style={{
       flex: 1, background: me ? 'var(--accent-gold-light)' : 'var(--bg-card)',
@@ -240,10 +261,7 @@ function ScorePill({ name, avatar, photo, correct, answered, total, me }) {
       borderRadius: 14, padding: '10px 12px', minWidth: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Parent-approved photo if present, else the avatar emoji. */}
-        {photo
-          ? <img src={photo} alt="" style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-          : <span style={{ fontSize: 22 }}>{avatar}</span>}
+        {face}
         <div style={{ minWidth: 0 }}>
           <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
           <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: 0 }}>✓ {correct} · {answered}/{total}</p>

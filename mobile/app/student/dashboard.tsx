@@ -596,10 +596,10 @@ export default function StudentDashboard() {
             borderWidth: 2, borderColor: dailyTaskLocked ? theme.colors.gold : '#34D399',
           }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <Text style={{ fontSize: 30 }}>🦸</Text>
+              <Image source={require('../../assets/heroprofilepic.png')} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: theme.colors.gold }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>
-                  {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete! 🎉'}
+                  {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete!'}
                 </Text>
                 <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 }}>
                   {dailyTaskLocked

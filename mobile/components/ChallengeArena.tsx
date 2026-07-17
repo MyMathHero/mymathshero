@@ -4,6 +4,9 @@ import * as SecureStore from 'expo-secure-store'
 import { useTheme, ThemeColors } from '../lib/themeContext'
 import { studentAPI } from '../lib/api'
 import { formatMath } from './MathText'
+import CharacterAvatar from './CharacterAvatar'
+
+const HERO_PIC = require('../assets/heroprofilepic.png')
 
 const strip = (s: string) => String(s ?? '').trim().replace(/^\s*[A-Da-d][).:]\s*/, '')
 
@@ -14,6 +17,8 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   const { colors } = useTheme()
   const s = useMemo(() => makeStyles(colors), [colors])
   const [studentId, setStudentId] = useState('')
+  const [myAvatar, setMyAvatar] = useState<string | null>(null)
+  const [myAvatarConfig, setMyAvatarConfig] = useState<any>(null)
   const [phase, setPhase] = useState<'idle' | 'searching' | 'racing' | 'result'>('idle')
   const [match, setMatch] = useState<any>(null)
   const [qIndex, setQIndex] = useState(0)
@@ -26,7 +31,16 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   phaseRef.current = phase
 
   useEffect(() => {
-    (async () => setStudentId((await SecureStore.getItemAsync('user_id')) || ''))()
+    (async () => {
+      const id = (await SecureStore.getItemAsync('user_id')) || ''
+      setStudentId(id)
+      // Load the student's own avatar so "You" shows it (not a generic emoji).
+      try {
+        const r = await studentAPI.progress(id)
+        setMyAvatar(r?.data?.student?.avatar ?? null)
+        setMyAvatarConfig(r?.data?.student?.avatarConfig ?? null)
+      } catch { /* fall back to default face */ }
+    })()
   }, [])
 
   // Presence heartbeat while mounted.
@@ -130,9 +144,9 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
     return (
       <View>
         <View style={s.scoreRow}>
-          <ScorePill c={colors} name="You" avatar="🦸" correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
+          <ScorePill c={colors} name="You" avatarId={myAvatar} avatarConfig={myAvatarConfig} correct={me?.correct || 0} answered={me?.answered || 0} total={match.total} me />
           <Text style={{ fontWeight: '800', color: colors.textSecondary, marginHorizontal: 6 }}>vs</Text>
-          <ScorePill c={colors} name={opp?.firstName || 'Hero'} avatar={opp?.avatar || '🤖'} photo={opp?.photo} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
+          <ScorePill c={colors} name={opp?.firstName || 'Hero'} avatarId={opp?.avatar} photo={opp?.photo} heroPic={opp?.isBot || opp?.firstName === 'Hero Bot' || !opp?.avatar} correct={opp?.correct || 0} answered={opp?.answered || 0} total={match.total} />
         </View>
         {q ? (
           <View style={s.card}>
@@ -183,7 +197,18 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   return null
 }
 
-function ScorePill({ c, name, avatar, photo, correct, answered, total, me }: any) {
+function ScorePill({ c, name, avatarId, avatarConfig, photo, heroPic, correct, answered, total, me }: any) {
+  // photo → the student's own character avatar → Hero pic (AI bot) → default face.
+  let face
+  if (photo) {
+    face = <Image source={{ uri: photo }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+  } else if (avatarConfig || avatarId) {
+    face = <CharacterAvatar id={avatarId} config={avatarConfig} size={30} />
+  } else if (heroPic) {
+    face = <Image source={HERO_PIC} style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: c.accentGold }} />
+  } else {
+    face = <CharacterAvatar id={null} size={30} />
+  }
   return (
     <View style={{
       flex: 1, backgroundColor: me ? c.accentGoldLight : c.bgCard,
@@ -191,10 +216,7 @@ function ScorePill({ c, name, avatar, photo, correct, answered, total, me }: any
       borderRadius: 14, padding: 10,
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        {/* Parent-approved photo if present, else the avatar emoji. */}
-        {photo
-          ? <Image source={{ uri: photo }} style={{ width: 24, height: 24, borderRadius: 12 }} />
-          : <Text style={{ fontSize: 20 }}>{avatar}</Text>}
+        {face}
         <View style={{ flex: 1 }}>
           <Text numberOfLines={1} style={{ color: c.textPrimary, fontWeight: '800', fontSize: 13 }}>{name}</Text>
           <Text style={{ color: c.textSecondary, fontSize: 11 }}>✓ {correct} · {answered}/{total}</Text>

@@ -1629,10 +1629,10 @@ export default function StudentDashboard() {
                 boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <span style={{ fontSize: 34 }}>🦸</span>
+                  <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ color: 'white', fontWeight: 800, fontSize: 18, margin: 0 }}>
-                      {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete! 🎉'}
+                      {dailyTaskLocked ? "Today's HERO Task" : 'HERO Task complete!'}
                     </p>
                     <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, margin: '2px 0 0' }}>
                       {dailyTaskLocked
@@ -2221,6 +2221,8 @@ export default function StudentDashboard() {
             <ChallengeArena
               studentId={authStudentId}
               grade={student?.grade ?? 3}
+              myAvatar={student?.avatar}
+              myAvatarConfig={student?.avatarConfig}
               onCoins={(c) => { if (c) setCoins(prev => prev + c) }}
             />
           )}
@@ -3018,12 +3020,13 @@ export default function StudentDashboard() {
           onClick={() => { setDailyTaskCelebration(null); closePractice() }}>
           <div className="bg-white dark:bg-[#1C1C1C] rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center pop-in"
             onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 64, marginBottom: 8 }}>🦸🎉</div>
+            <img src="/assets/robot/heroprofilepic.png" alt="Hero"
+              style={{ width: 76, height: 76, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)', margin: '0 auto 10px' }} />
             <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 6px' }}>
               HERO Task complete!
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 4px' }}>
-              You&apos;ve unlocked freestyle practice and the Arcade. 🕹️
+              You&apos;ve unlocked freestyle practice and the Arcade.
             </p>
             {dailyTaskCelebration.bonus > 0 && (
               <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 18, margin: '10px 0 0' }}>
