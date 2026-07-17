@@ -1446,7 +1446,7 @@ export default function StudentDashboard() {
                 style={{ width: 54, height: 54, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
             ) : (
               <div style={{ width: 54, height: 54, borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--accent-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.1)' }}>
-                <CharacterAvatar id={student?.avatar} size={48} />
+                <CharacterAvatar id={student?.avatar} config={student?.avatarConfig} size={48} />
               </div>
             )}
           </button>
@@ -2338,7 +2338,7 @@ export default function StudentDashboard() {
                     <img src={student.profilePhoto} alt="Your photo"
                       style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent-gold)' }} />
                   ) : (
-                    <CharacterAvatar id={student?.avatar} size={96} />
+                    <CharacterAvatar id={student?.avatar} config={student?.avatarConfig} size={96} />
                   )}
                 </div>
                 <h2 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: '0 0 4px' }}>

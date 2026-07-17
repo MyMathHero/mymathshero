@@ -1,16 +1,21 @@
 'use client'
 
 import { getCharacter, isCharacterId } from '@/lib/characterAvatars'
+import AvatarRender from '@/components/AvatarRender'
 
-// Renders an original character avatar (inline SVG) for a given character id.
-// Falls back to rendering the value as an emoji/text when it isn't a known
-// character id (legacy avatars are stored as emoji strings).
+// Renders a student's avatar. Order of preference:
+//   1. `config` → the new LAYERED avatar (built from their chosen parts)
+//   2. a known character id → the legacy preset drawing
+//   3. anything else → the raw value as an emoji (oldest avatars)
+// Keeping all three means every existing call site works untouched while
+// screens migrate to passing `config`.
 //
 // Props:
+//   config – layered avatar config (wins when present)
 //   id     – character id OR legacy emoji string
 //   size   – pixel diameter (default 64)
 //   ring   – show the gold ring badge frame (default true)
-export default function CharacterAvatar({ id, size = 64, ring = true, style }) {
+export default function CharacterAvatar({ id, config, size = 64, ring = true, style }) {
   const char = isCharacterId(id) ? getCharacter(id) : null
 
   const frame = {
@@ -24,6 +29,15 @@ export default function CharacterAvatar({ id, size = 64, ring = true, style }) {
     justifyContent: 'center',
     flexShrink: 0,
     ...style,
+  }
+
+  // New layered avatar takes precedence over the legacy preset drawing.
+  if (config) {
+    return (
+      <div style={frame}>
+        <AvatarRender config={config} size={size} rounded={false} />
+      </div>
+    )
   }
 
   if (!char) {

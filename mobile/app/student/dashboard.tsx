@@ -522,7 +522,7 @@ export default function StudentDashboard() {
               {/* Uploaded profile photo (self-view) if set, else the avatar. */}
               {student?.profilePhoto
                 ? <Image source={{ uri: student.profilePhoto }} style={{ width: 60, height: 60, borderRadius: 30 }} />
-                : <CharacterAvatar id={student?.avatar} size={60} />}
+                : <CharacterAvatar id={student?.avatar} config={student?.avatarConfig} size={60} />}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>

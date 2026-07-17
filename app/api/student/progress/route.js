@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getRecommendations, getSkillTreeForGrade, getSkillGraph, getEffectiveCeiling } from '@/lib/recommender'
 import { checkAndAwardBadges } from '@/lib/badges'
 import { memberSince } from '@/lib/arcadeCard'
+import { normaliseConfig, presetToConfig } from '@/lib/avatarParts'
 
 // Belt-and-braces: ensure nothing non-Maths leaks to the client. The recommender
 // already filters at source, but if SKILL_GRAPH or scoreMap ever gets repolluted
@@ -160,6 +161,12 @@ export async function GET(request) {
         name: student.name,
         grade: student.grade,
         avatar: student.avatar,
+        // Layered avatar config — the new system. Always a complete config:
+        // students who've never opened the editor get one derived from their
+        // legacy preset character, so their look carries over.
+        avatarConfig: student.avatarConfig
+          ? normaliseConfig(student.avatarConfig)
+          : presetToConfig(student.avatar),
         // Personal profile photo — self-view ONLY. Never expose this on any
         // endpoint that lists OTHER students (leaderboard, challenge).
         profilePhoto: student.profilePhoto || null,

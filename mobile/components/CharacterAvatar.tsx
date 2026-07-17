@@ -3,17 +3,24 @@ import Svg, {
   Defs, LinearGradient, Stop, Rect, Path, Circle, Line, Ellipse,
 } from 'react-native-svg'
 import { getCharacter, isCharacterId, type Character } from '../lib/characterAvatars'
+import AvatarRender from './AvatarRender'
 
 interface Props {
   id?: string | null
+  /** Layered avatar config. When present it WINS — this is the new system. */
+  config?: any
   size?: number
   ring?: boolean
   style?: StyleProp<ViewStyle>
 }
 
-// Renders an original character avatar (inline SVG) for a given character id.
-// Falls back to rendering the value as an emoji when it isn't a known id.
-export default function CharacterAvatar({ id, size = 64, ring = true, style }: Props) {
+// Renders a student's avatar. Order of preference:
+//   1. `config` → the new LAYERED avatar (built from their chosen parts)
+//   2. a known character id → the legacy preset drawing
+//   3. anything else → the raw value as an emoji
+// Keeping all three means every existing call site works untouched while
+// screens migrate to passing `config`.
+export default function CharacterAvatar({ id, config, size = 64, ring = true, style }: Props) {
   const char = isCharacterId(id) ? getCharacter(id) : null
 
   const frame: ViewStyle = {
@@ -25,6 +32,15 @@ export default function CharacterAvatar({ id, size = 64, ring = true, style }: P
     borderColor: '#C49A1A',
     alignItems: 'center',
     justifyContent: 'center',
+  }
+
+  // New layered avatar takes precedence over the legacy preset drawing.
+  if (config) {
+    return (
+      <View style={[frame, style]}>
+        <AvatarRender config={config} size={size} rounded={false} />
+      </View>
+    )
   }
 
   if (!char) {

@@ -208,7 +208,7 @@ export default function Profile() {
                 style={{ width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: colors.accentGold }}
               />
             ) : (
-              <CharacterAvatar id={student?.avatar} size={96} />
+              <CharacterAvatar id={student?.avatar} config={student?.avatarConfig} size={96} />
             )}
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 14 }}>
