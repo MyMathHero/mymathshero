@@ -1992,7 +1992,7 @@ export default function StudentDashboard() {
                   border: '2px solid #C49A1A', marginBottom: 12, cursor: 'pointer',
                 }} onClick={openHeroPick}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 32 }}>🤖</span>
+                    <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', flexShrink: 0 }} />
                     <div>
                       <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: 0 }}>Hero&apos;s Pick</p>
                       <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>Hero thinks you should practise this today</p>
@@ -2507,7 +2507,7 @@ export default function StudentDashboard() {
       {difficultyPrompt && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-7 text-center pop-in">
-            <div className="text-4xl mb-2">🤖</div>
+            <img src="/assets/robot/heroprofilepic.png" alt="Hero" className="mx-auto mb-2" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)' }} />
             <h3 className="text-xl font-extrabold text-navy mb-1">Quick check!</h3>
             <p className="text-sm text-gray-500 mb-5">How are these questions feeling? Pick one to keep going.</p>
             <div className="flex flex-col gap-3">
@@ -2551,7 +2551,7 @@ export default function StudentDashboard() {
               {/* Empty state */}
               {practiceModal.empty ? (
                 <div style={{ textAlign: 'center', padding: '24px 8px' }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+                  <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', margin: '0 auto 16px', display: 'block' }} />
                   <h3 style={{ color: 'var(--text-primary)', fontWeight: 800,
                     fontSize: 20, marginBottom: 8 }}>
                     Hero is preparing questions!
@@ -3156,7 +3156,7 @@ export default function StudentDashboard() {
           }}>
             {examModal.phase === 'loading' && (
               <div style={{ textAlign: 'center', padding: 40 }}>
-                <div style={{ fontSize: 48 }}>🤖</div>
+                <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', margin: '0 auto 12px', display: 'block' }} />
                 <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                   Preparing your exam...
                 </p>
@@ -3453,7 +3453,7 @@ export default function StudentDashboard() {
             textAlign: 'center',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
-            <p style={{ fontSize: 48, marginBottom: 8 }}>🤖</p>
+            <img src="/assets/robot/heroprofilepic.png" alt="Hero" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent-gold)', margin: '0 auto 8px', display: 'block' }} />
             <h2 style={{ fontSize: 22, fontWeight: 800,
               color: 'var(--text-primary)', marginBottom: 8 }}>
               How is Hero helping you?

@@ -667,7 +667,7 @@ export default function StudentDashboard() {
             {/* Hero's Pick */}
             <TouchableOpacity onPress={openHeroPick} activeOpacity={0.85}>
               <LinearGradient colors={colors.challengeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.challenge}>
-                <Text style={s.challengeEmoji}>🤖</Text>
+                <Image source={require('../../assets/heroprofilepic.png')} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: theme.colors.gold, marginBottom: 6 }} />
                 <Text style={s.challengeTitle}>Hero&apos;s Pick</Text>
                 <Text style={s.challengeSub} numberOfLines={1}>{recommendations[0]?.name || 'AI selected'}</Text>
                 <View style={s.pointsPill}>
