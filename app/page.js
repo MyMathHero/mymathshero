@@ -107,74 +107,66 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#F0F4F8] dark:bg-[#080808]">
 
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-[#F0F4F8] dark:bg-[#080808]">
-        {/* Subtle maths equations background decoration */}
-        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-6xl font-bold" style={{ top: '12%', left: '6%' }}>2x+3=7</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ top: '20%', right: '8%' }}>a²+b²=c²</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-8xl font-bold" style={{ top: '55%', left: '4%' }}>π</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-8xl font-bold" style={{ bottom: '15%', right: '12%' }}>∑</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-5xl font-bold" style={{ top: '70%', left: '40%' }}>½ + ¼</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-6xl font-bold" style={{ top: '40%', left: '55%' }}>√25 = 5</span>
-          <span className="absolute text-[#1B2B4B] dark:text-[#C49A1A] opacity-5 dark:opacity-[0.16] text-7xl font-bold" style={{ bottom: '25%', left: '25%' }}>12 × 8</span>
-        </div>
+      <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-[#F0F4F8] dark:bg-[#080808]">
+        {/* Full-bleed scene photo — fills the hero left→right; text sits in the
+            photo's empty left space, in front of it. */}
+        <img
+          src="/assets/comingsoonnew.JPG"
+          alt="Hero, the MyMathsHero AI maths tutor, helping two children with maths at home"
+          className="absolute inset-0 w-full h-full object-cover object-[72%_center] z-0"
+          draggable={false}
+        />
+        {/* Left-weighted scrim so the headline stays readable over the photo.
+            Light in light mode, dark in dark mode. */}
+        <div className="absolute inset-0 z-[1] pointer-events-none
+          bg-[linear-gradient(90deg,rgba(240,244,248,0.97)_0%,rgba(240,244,248,0.92)_26%,rgba(240,244,248,0.55)_44%,rgba(240,244,248,0.05)_62%,rgba(240,244,248,0)_78%)]
+          dark:bg-[linear-gradient(90deg,rgba(8,8,8,0.97)_0%,rgba(8,8,8,0.9)_28%,rgba(8,8,8,0.55)_46%,rgba(8,8,8,0.05)_64%,rgba(8,8,8,0)_80%)]" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 w-full">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm mb-6 shadow-sm"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
-                <Sparkles size={16} className="text-[#C49A1A]" />
-                Personalised AI Maths Learning — Prep to Year 6
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: 'var(--text-primary)' }}>
-                Meet Hero —{' '}
-                <span className="text-[#C49A1A]">Your Child&apos;s AI Maths Tutor</span>
-              </h1>
-
-              <p className="text-lg sm:text-xl mb-8 leading-relaxed max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
-                Personalised maths support that adapts to your child, builds confidence, and helps them learn step by step.
-              </p>
-
-              {/* Trust badges */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                {trustBadges.map((badge, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium shadow-sm"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
-                  >
-                    <CheckCircle2 size={14} className="text-[#C49A1A]" />
-                    {badge.label}
-                  </span>
-                ))}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                <a
-                  href="#waitlist"
-                  className="inline-flex items-center justify-center gap-2 bg-[#1B2B4B] text-white border-2 border-[#C49A1A] hover:bg-[#0f1d3a] px-8 py-4 rounded-xl text-base font-semibold transition-all duration-200 shadow-lg hover:translate-y-[-2px]"
-                >
-                  Ask Hero ✦
-                  <ArrowRight size={18} />
-                </a>
-                <a
-                  href="#waitlist"
-                  className="inline-flex items-center justify-center gap-2 text-[#C49A1A] hover:text-[#1B2B4B] px-8 py-4 rounded-xl text-base font-semibold transition-all duration-200"
-                >
-                  Join the waitlist
-                </a>
-              </div>
+        <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm mb-6 shadow-sm"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+              <Sparkles size={16} className="text-[#C49A1A]" />
+              Personalised AI Maths Learning — Prep to Year 6
             </div>
 
-            {/* Hero still image (coming soon) — transparent PNG, fills the right side. */}
-            <div className="hidden lg:flex justify-center items-center">
-              <img
-                src="/assets/coming-soon-hero-removebg.png"
-                alt="Meet Hero — your child's AI maths tutor"
-                className="w-full h-auto max-h-[780px] object-contain lg:scale-[1.2] lg:origin-center"
-              />
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6" style={{ color: 'var(--text-primary)' }}>
+              Meet Hero —{' '}
+              <span className="text-[#C49A1A]">Your Child&apos;s AI Maths Tutor</span>
+            </h1>
+
+            <p className="text-lg sm:text-xl mb-8 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Personalised maths support that adapts to your child, builds confidence, and helps them learn step by step.
+            </p>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-2 mb-8">
+              {trustBadges.map((badge, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium shadow-sm"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                >
+                  <CheckCircle2 size={14} className="text-[#C49A1A]" />
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-2">
+              <a
+                href="#waitlist"
+                className="inline-flex items-center justify-center gap-2 bg-[#1B2B4B] text-white border-2 border-[#C49A1A] hover:bg-[#0f1d3a] px-8 py-4 rounded-xl text-base font-semibold transition-all duration-200 shadow-lg hover:translate-y-[-2px]"
+              >
+                Ask Hero ✦
+                <ArrowRight size={18} />
+              </a>
+              <a
+                href="#waitlist"
+                className="inline-flex items-center justify-center gap-2 text-[#C49A1A] hover:text-[#1B2B4B] px-8 py-4 rounded-xl text-base font-semibold transition-all duration-200"
+              >
+                Join the waitlist
+              </a>
             </div>
           </div>
         </div>
