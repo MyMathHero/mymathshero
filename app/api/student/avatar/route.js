@@ -4,6 +4,20 @@ import { AVATAR_ITEMS } from '@/lib/avatarItems'
 import { isCharacterId } from '@/lib/characterAvatars'
 import { logCoinChange, adjustCoins } from '@/lib/coins'
 import { AVATAR_CHANGE_COST } from '@/lib/coinRules'
+import { partsFor, normaliseConfig, presetToConfig, CATEGORIES } from '@/lib/avatarParts'
+
+// Colour slots on the config are free to change (a colour isn't a purchasable
+// item) — the paid unit is the PART. Kept here so the API and editor agree.
+const COLOR_KEYS = ['skinTone', 'hairColor', 'topColor', 'hatColor', 'accentColor']
+const isHexColor = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
+
+// Resolve an item from the NEW layered registry first, falling back to the OLD
+// emoji catalogue so legacy cosmetics keep working during the transition.
+function resolveItem(category, itemId) {
+  const part = partsFor(category).find(p => p.id === itemId)
+  if (part) return part
+  return AVATAR_ITEMS[category]?.find(i => i.id === itemId) || null
+}
 
 let client
 async function connectDB() {
@@ -28,8 +42,16 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 })
     }
 
+    // Always hand back a complete, valid layer config. A student who has never
+    // opened the editor gets one derived from their legacy preset character
+    // (so they keep their look and just gain the editor).
+    const config = student.avatarConfig
+      ? normaliseConfig(student.avatarConfig)
+      : presetToConfig(student.avatar)
+
     return NextResponse.json({
       avatar: student.avatarConfig || null,
+      avatarConfig: config,
       character: student.avatar || null,
       profilePhoto: student.profilePhoto || null,
       unlockedItems: student.unlockedAvatarItems || [],
@@ -106,8 +128,36 @@ export async function POST(request) {
       return NextResponse.json({ success: true, profilePhoto: photo || null })
     }
 
-    const categoryItems = AVATAR_ITEMS[category]
-    const item = categoryItems?.find(i => i.id === itemId)
+    // Colour change (skin tone, hair colour, ...) — free, no unlock needed.
+    if (action === 'setColor') {
+      if (!COLOR_KEYS.includes(category) || !isHexColor(itemId)) {
+        return NextResponse.json({ error: 'Invalid colour' }, { status: 400 })
+      }
+      const next = normaliseConfig({ ...(student.avatarConfig || {}), [category]: itemId })
+      await db.collection('children').updateOne({ id: studentId }, { $set: { avatarConfig: next } })
+      return NextResponse.json({ success: true, avatarConfig: next, coinsSpent: 0 })
+    }
+
+    // Apply a whole preset "starter look" in one tap. Free — the parts it uses
+    // are the free defaults; anything paid still has to be unlocked normally.
+    if (action === 'applyPreset') {
+      const preset = presetToConfig(itemId)
+      const owned = student.unlockedAvatarItems || []
+      // Strip any part of the preset the student hasn't unlocked, so a preset
+      // can't hand out paid items for free.
+      const safe = { ...preset }
+      for (const cat of CATEGORIES.filter(c => c.type === 'part').map(c => c.id)) {
+        const part = partsFor(cat).find(p => p.id === safe[cat])
+        if (part && part.cost > 0 && !owned.includes(`${cat}_${part.id}`)) {
+          delete safe[cat] // normaliseConfig will drop it back to the default
+        }
+      }
+      const next = normaliseConfig(safe)
+      await db.collection('children').updateOne({ id: studentId }, { $set: { avatarConfig: next } })
+      return NextResponse.json({ success: true, avatarConfig: next, coinsSpent: 0 })
+    }
+
+    const item = resolveItem(category, itemId)
     if (!item) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
@@ -172,7 +222,9 @@ export async function POST(request) {
         newCoins = after.coins
       }
 
-      const newConfig = { ...(student.avatarConfig || {}), [category]: itemId }
+      // normaliseConfig keeps the stored config complete + valid (a retired item
+      // falls back to that category's default rather than breaking the avatar).
+      const newConfig = normaliseConfig({ ...(student.avatarConfig || {}), [category]: itemId })
       await db.collection('children').updateOne(
         { id: studentId },
         { $set: { avatarConfig: newConfig } }
