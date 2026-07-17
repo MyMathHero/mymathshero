@@ -9,6 +9,16 @@ import { useScrollProgress, range, lerp } from './useScrollScene'
 import Reveal from './Reveal'
 import DashboardMock from './DashboardMock'
 import { FAQS, PILLARS, STEPS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
+import { SOCIAL_LINKS } from '@/lib/social'
+
+// Inline brand glyphs — this page is deliberately self-contained (no icon
+// library) to keep its bundle tiny. Keyed by the names in lib/social.js.
+const SOCIAL_PATHS = {
+  Facebook: 'M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7A10 10 0 0 0 22 12z',
+  Instagram: 'M12 2.2c3.2 0 3.6 0 4.9.1 1.2.1 1.8.3 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.7.1 4.9s0 3.6-.1 4.9c-.1 1.2-.3 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.7.1-4.9.1s-3.6 0-4.9-.1c-1.2-.1-1.8-.3-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.9c.1-1.2.3-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2zm0 1.8c-3.1 0-3.5 0-4.7.1-1.1.1-1.7.2-2.1.4-.5.2-.9.4-1.3.8-.4.4-.6.8-.8 1.3-.2.4-.3 1-.4 2.1-.1 1.2-.1 1.6-.1 4.7s0 3.5.1 4.7c.1 1.1.2 1.7.4 2.1.2.5.4.9.8 1.3.4.4.8.6 1.3.8.4.2 1 .3 2.1.4 1.2.1 1.6.1 4.7.1s3.5 0 4.7-.1c1.1-.1 1.7-.2 2.1-.4.5-.2.9-.4 1.3-.8.4-.4.6-.8.8-1.3.2-.4.3-1 .4-2.1.1-1.2.1-1.6.1-4.7s0-3.5-.1-4.7c-.1-1.1-.2-1.7-.4-2.1-.2-.5-.4-.9-.8-1.3-.4-.4-.8-.6-1.3-.8-.4-.2-1-.3-2.1-.4-1.2-.1-1.6-.1-4.7-.1zm0 3.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm6.3-8.3a1.1 1.1 0 1 1-2.3 0 1.1 1.1 0 0 1 2.3 0z',
+  TikTok: 'M16.5 3c.3 2.1 1.6 3.8 3.7 4.1v2.6c-1.2 0-2.4-.4-3.5-1v6.6a5.9 5.9 0 1 1-5.9-5.9c.3 0 .6 0 .9.1v2.7a3.2 3.2 0 1 0 2.3 3V3h2.5z',
+  YouTube: 'M23 12s0-3.2-.4-4.7c-.2-.8-.9-1.5-1.7-1.7C19.4 5.2 12 5.2 12 5.2s-7.4 0-8.9.4c-.8.2-1.5.9-1.7 1.7C1 8.8 1 12 1 12s0 3.2.4 4.7c.2.8.9 1.5 1.7 1.7 1.5.4 8.9.4 8.9.4s7.4 0 8.9-.4c.8-.2 1.5-.9 1.7-1.7.4-1.5.4-4.7.4-4.7zM9.7 15.3V8.7l5.7 3.3-5.7 3.3z',
+}
 
 const NAVY = '#1B2B4B', GOLD = '#C49A1A', CREAM = '#F4EFE3'
 
@@ -424,6 +434,23 @@ export default function ComingSoonPage() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>AI maths tutoring that builds confidence for life.</div>
           </div>
         </div>
+        <div className="cs-footer-social">
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginRight: 4 }}>Follow us</span>
+          {SOCIAL_LINKS.map(({ name, url }) => (
+            <a
+              key={name}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`MyMathsHero on ${name}`}
+              className="cs-social-btn"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d={SOCIAL_PATHS[name]} />
+              </svg>
+            </a>
+          ))}
+        </div>
         <div className="cs-footer-mid">Made with <span style={{ color: '#EF4444' }}>❤</span> in Australia 🇦🇺</div>
         <div className="cs-footer-copy">© {hydrated ? new Date().getFullYear() : 2026} MyMathsHero · mymathshero.com.au</div>
       </footer>
@@ -542,6 +569,9 @@ const CSS = `
       .cs-footer-brand { display: flex; align-items: center; gap: 12px; }
       .cs-footer-mid { font-size: 14px; color: rgba(255,255,255,0.85); }
       .cs-footer-copy { font-size: 12px; color: rgba(255,255,255,0.5); }
+      .cs-footer-social { display: flex; align-items: center; gap: 10px; }
+      .cs-social-btn { width: 36px; height: 36px; border-radius: 9px; background: rgba(255,255,255,0.10); color: white; display: flex; align-items: center; justify-content: center; transition: background 0.2s ease, transform 0.2s ease; }
+      .cs-social-btn:hover { background: ${GOLD}; color: ${NAVY}; transform: translateY(-2px); }
 
       /* Keyframes */
       @keyframes csFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
