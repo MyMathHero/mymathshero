@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo} from 'react'
 import { View, Text, ScrollView, StyleSheet,
   ActivityIndicator, TouchableOpacity, Image } from 'react-native'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useTheme, ThemeColors } from '../../lib/themeContext'
 import { ScreenBackground } from '../../lib/ui'
 import { useRouter } from 'expo-router'
@@ -57,15 +58,19 @@ export default function League() {
       {/* Header with robot */}
       <View style={styles.heroHeader}>
         <HeroRobot mood={topThree ? 'celebrating' : 'waving'} size={70} containerStyle="circle" />
-        <Text style={styles.heroHeaderTitle}>Hero Challenge ⚔️</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.heroHeaderTitle}>Hero Challenge</Text>
+          <MaterialCommunityIcons name="sword-cross" size={20} color={colors.accentGold} />
+        </View>
         <Text style={styles.heroHeaderSub}>Race other Heroes · climb the leaderboard</Text>
       </View>
 
       {/* Sub-view toggle */}
       <View style={styles.toggleRow}>
-        {([['arena', '⚔️ Challenge'], ['leaderboard', '🏆 Leaderboard']] as const).map(([id, label]) => (
+        {([['arena', 'Challenge', 'sword-cross'], ['leaderboard', 'Leaderboard', 'trophy']] as const).map(([id, label, icon]) => (
           <TouchableOpacity key={id} onPress={() => setView(id)}
             style={[styles.togglePill, view === id && styles.togglePillActive]}>
+            <MaterialCommunityIcons name={icon} size={16} color={view === id ? '#1B2B4B' : colors.textSecondary} style={{ marginRight: 6 }} />
             <Text style={[styles.toggleText, view === id && styles.toggleTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -125,7 +130,7 @@ const makeStyles = (c: ThemeColors) => StyleSheet.create({
   heroHeaderSub: { color: c.accentGold, fontSize: 13, marginTop: 4 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   toggleRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', paddingBottom: 12 },
-  togglePill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: c.bgCard, borderWidth: 1, borderColor: c.cardBorder },
+  togglePill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: c.bgCard, borderWidth: 1, borderColor: c.cardBorder },
   togglePillActive: { backgroundColor: c.accentGold, borderColor: c.accentGold },
   toggleText: { color: c.textSecondary, fontWeight: '700', fontSize: 13 },
   toggleTextActive: { color: '#1B2B4B' },

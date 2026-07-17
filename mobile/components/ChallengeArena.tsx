@@ -5,6 +5,7 @@ import { useTheme, ThemeColors } from '../lib/themeContext'
 import { studentAPI } from '../lib/api'
 import { formatMath } from './MathText'
 import CharacterAvatar from './CharacterAvatar'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 const HERO_PIC = require('../assets/heroprofilepic.png')
 
@@ -114,7 +115,7 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
   if (phase === 'idle') {
     return (
       <View style={s.card}>
-        <Text style={{ fontSize: 52, textAlign: 'center' }}>⚔️</Text>
+        <MaterialCommunityIcons name="sword-cross" size={48} color={colors.accentGold} style={{ alignSelf: 'center', marginBottom: 4 }} />
         <Text style={s.title}>Hero Speed Challenge</Text>
         <Text style={s.sub}>Race another Hero in a quick maths battle. Win to earn 20 🪙!</Text>
         <Text style={s.safe}>Safe & friendly · no chat · first name + avatar only</Text>
