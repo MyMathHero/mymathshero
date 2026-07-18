@@ -89,3 +89,14 @@ node_modules/@next/swc-linux-arm64-gnu/next-swc.linux-arm64-gnu.node
 .env.local
 .emergent
 .env.production.example
+
+# Raw 3D model exports (Rodin/etc.) — heavy source files, never commit.
+# Only the final web-optimized .glb (public/assets/3d/*.glb) should be tracked.
+public/assets/*/base.obj
+public/assets/*/base_basic_pbr.usdz
+public/assets/*/texture_*.png
+public/assets/*/shaded.png
+/public/assets/[0-9a-f]*-[0-9a-f]*/
+*.usdz
+*.fbx
+public/assets/**/*.obj

@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
+
+// Premium 3D Hero mascot — client-only (WebGL), 2D image shown until it loads.
+const Hero3D = dynamic(() => import('@/components/Hero3D'), { ssr: false })
 import MathCountdownBar from '@/components/MathCountdownBar'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 import { Analytics } from '@/lib/analytics'
@@ -183,8 +187,9 @@ export default function ComingSoonPage() {
             </ul>
           </Reveal>
           <Reveal from="left" delay={0.1} style={{ display: 'flex', justifyContent: 'center' }}>
-            <img src="/assets/robot/hero-robot.png" alt="Hero, the MyMathsHero AI maths tutor"
-              className="cs-meet-hero-img" draggable={false} />
+            <div className="cs-meet-hero-3d">
+              <Hero3D height={440} />
+            </div>
           </Reveal>
         </div>
       </section>
@@ -396,7 +401,7 @@ export default function ComingSoonPage() {
             </a>
           ))}
         </div>
-        <div className="cs-footer-mid">Made with <span style={{ color: '#EF4444' }}>❤</span> in Australia 🇦🇺</div>
+        <div className="cs-footer-mid">Australia 🇦🇺</div>
         <div className="cs-footer-copy">© {hydrated ? new Date().getFullYear() : 2026} MyMathsHero · mymathshero.com.au</div>
       </footer>
     </div>
@@ -524,6 +529,7 @@ const CSS = `
 
       /* Meet Hero image (replaces the old dashboard mock) */
       .cs-meet-hero-img { width: 100%; max-width: 380px; height: auto; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
+      .cs-meet-hero-3d { width: 100%; max-width: 440px; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
 
       /* Centered eyebrow tag for the How-it-works heading */
       .cs-center-tag { display: block; width: fit-content; margin: 0 auto 14px; }
