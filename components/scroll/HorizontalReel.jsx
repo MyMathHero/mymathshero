@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { ReelArt } from './reelIllustrations'
 
 // ── HorizontalReel ──────────────────────────────────────────────────────────
 // A compact pinned section where vertical scroll drives a horizontal reel of
@@ -68,20 +69,23 @@ export default function HorizontalReel({
           </div>
         )}
         <div ref={railRef} className="mmh-hz-rail">
-          {items.map((it, i) => (
-            <div
-              key={it.title || i}
-              className="mmh-hz-card"
-              style={{ background: it.gradient || `linear-gradient(160deg, ${it.color || '#1B2B4B'}, #0a1428)` }}
-            >
-              {/* Show a big number only when `n` is explicitly given (steps);
-                  pass n:null to hide it (non-sequential pillars). */}
-              {it.n != null && <span className="mmh-hz-big">{it.n}</span>}
-              {it.emoji && <span className={`mmh-hz-emoji${it.n == null ? ' solo' : ''}`}>{it.emoji}</span>}
-              <h3>{it.title}</h3>
-              <p>{it.desc}</p>
-            </div>
-          ))}
+          {items.map((it, i) => {
+            const accent = it.color || '#1B2B4B'
+            return (
+              <div key={it.title || i} className="mmh-hz-card">
+                {/* Coloured accent strip down the left edge. */}
+                <span className="mmh-hz-accent" style={{ background: accent }} />
+                {/* Illustration (SVG) — falls back to the emoji if no art name. */}
+                <div className="mmh-hz-art">
+                  {it.art ? <ReelArt name={it.art} accent={accent} />
+                    : it.emoji ? <span className="mmh-hz-emoji">{it.emoji}</span> : null}
+                </div>
+                {it.n != null && <span className="mmh-hz-num" style={{ color: accent }}>{String(it.n).padStart(2, '0')}</span>}
+                <h3 style={{ '--accent': accent }}>{it.title}</h3>
+                <p>{it.desc}</p>
+              </div>
+            )
+          })}
         </div>
         <div className="mmh-hz-prog"><i ref={progRef} /></div>
       </div>
@@ -92,18 +96,23 @@ export default function HorizontalReel({
         .mmh-hz-head { color: #fff; padding: 0 8vw 26px; }
         .mmh-hz-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #C49A1A; }
         .mmh-hz-heading { font-size: clamp(26px, 4vw, 46px); font-weight: 900; letter-spacing: -0.03em; margin-top: 10px; max-width: 16ch; line-height: 1.05; }
-        .mmh-hz-rail { display: flex; gap: 22px; padding: 0 8vw; will-change: transform; }
+        .mmh-hz-rail { display: flex; gap: 20px; padding: 0 8vw; will-change: transform; }
+        /* Soft light card on the navy section — smaller + more premium. */
         .mmh-hz-card {
-          flex: 0 0 clamp(240px, 28vw, 360px); height: 46vh; border-radius: 22px; padding: 26px;
-          color: #fff; display: flex; flex-direction: column; justify-content: flex-end;
-          position: relative; overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
+          flex: 0 0 clamp(224px, 23vw, 300px); height: 34vh; min-height: 260px;
+          border-radius: 20px; padding: 26px 24px;
+          background: #FBFAF6; color: #1B2B4B; display: flex; flex-direction: column;
+          position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+          border: 1px solid rgba(255, 255, 255, 0.6);
         }
-        .mmh-hz-big { position: absolute; top: 16px; left: 22px; font-size: 52px; font-weight: 900; opacity: 0.24; line-height: 1; }
-        .mmh-hz-emoji { position: absolute; top: 20px; right: 24px; font-size: 30px; }
-        /* When there's no number badge, the emoji becomes the card's lead icon. */
-        .mmh-hz-emoji.solo { top: 22px; left: 24px; right: auto; font-size: 44px; }
-        .mmh-hz-card h3 { font-size: clamp(20px, 2.2vw, 26px); font-weight: 900; letter-spacing: -0.02em; margin-bottom: 6px; }
-        .mmh-hz-card p { font-size: 14px; line-height: 1.5; color: rgba(255, 255, 255, 0.86); }
+        .mmh-hz-accent { position: absolute; top: 0; left: 0; width: 5px; height: 100%; }
+        .mmh-hz-art { width: clamp(60px, 5.4vw, 74px); height: clamp(60px, 5.4vw, 74px); margin-bottom: auto; }
+        .mmh-hz-emoji { font-size: 46px; line-height: 1; }
+        .mmh-hz-num { position: absolute; top: 22px; right: 24px; font-size: 22px; font-weight: 900;
+          font-variant-numeric: tabular-nums; opacity: 0.5; }
+        .mmh-hz-card h3 { font-size: clamp(18px, 1.9vw, 23px); font-weight: 900; letter-spacing: -0.02em;
+          margin: 16px 0 6px; line-height: 1.15; }
+        .mmh-hz-card p { font-size: 13.5px; line-height: 1.5; color: #5b6b86; }
         .mmh-hz-prog { margin: 22px 8vw 0; height: 3px; background: rgba(255, 255, 255, 0.18); border-radius: 99px; overflow: hidden; }
         .mmh-hz-prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #C49A1A, #fff); }
 
@@ -112,7 +121,8 @@ export default function HorizontalReel({
           .mmh-hz-pin { position: static; height: auto; overflow: visible; }
           .mmh-hz-head { padding: 0 24px 24px; }
           .mmh-hz-rail { flex-direction: column; padding: 0 24px; transform: none !important; }
-          .mmh-hz-card { flex: none; height: auto; min-height: 170px; }
+          .mmh-hz-card { flex: none; height: auto; min-height: 0; }
+          .mmh-hz-art { margin-bottom: 14px; }
           .mmh-hz-prog { display: none; }
         }
       `}</style>

@@ -226,9 +226,9 @@ export default function ComingSoonPage() {
           phones / reduced-motion. Data from PILLARS (this replaces the old static
           4-pillar row up top). No heading — the moving cards carry the section. */}
       <HorizontalReel
-        items={PILLARS.map((p) => ({
+        items={PILLARS.map((p, i) => ({
           n: null,
-          emoji: p.emoji,
+          art: ['target', 'book', 'chat', 'star'][i],
           title: p.title,
           desc: p.desc,
           color: p.fg,
