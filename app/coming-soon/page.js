@@ -7,7 +7,6 @@ import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 import { Analytics } from '@/lib/analytics'
 import { useScrollProgress, range, lerp } from './useScrollScene'
 import Reveal from './Reveal'
-import DashboardMock from './DashboardMock'
 import { FAQS, PILLARS, STEPS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
 import { SOCIAL_LINKS } from '@/lib/social'
 
@@ -135,7 +134,7 @@ export default function ComingSoonPage() {
             makes <span style={{ color: GOLD }}>sense.</span>
           </h1>
           <p className="cs-hero-sub">
-            MyMathsHero is Australia's AI maths tutor for primary school children — personalised learning that helps your child{' '}
+            MyMathsHero is Australia's AI maths tutor for primary school children Prep to Year 6 — personalised learning that helps your child{' '}
             <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
           </p>
           <div className="cs-hero-cta-row">
@@ -184,7 +183,8 @@ export default function ComingSoonPage() {
             </ul>
           </Reveal>
           <Reveal from="left" delay={0.1} style={{ display: 'flex', justifyContent: 'center' }}>
-            <DashboardMock />
+            <img src="/assets/robot/hero-robot.png" alt="Hero, the MyMathsHero AI maths tutor"
+              className="cs-meet-hero-img" draggable={false} />
           </Reveal>
         </div>
       </section>
@@ -192,8 +192,9 @@ export default function ComingSoonPage() {
       {/* ══════════════ SCENE 3 — HOW IT WORKS ══════════════ */}
       <section className="cs-section cs-band">
         <div className="cs-wrap">
-          <Reveal><h2 className="cs-h2 cs-center">How MyMaths<span style={{ color: GOLD }}>Hero</span> works</h2></Reveal>
-          <Reveal delay={0.05}><p className="cs-p cs-center" style={{ maxWidth: 620, margin: '0 auto 44px' }}>Three simple steps, built around your child.</p></Reveal>
+          <Reveal><div className="cs-tag cs-center-tag">How it works</div></Reveal>
+          <Reveal delay={0.03}><h2 className="cs-h2 cs-center cs-how-h2">How MyMaths<span style={{ color: GOLD }}>Hero</span> works</h2></Reveal>
+          <Reveal delay={0.06}><p className="cs-p cs-center" style={{ maxWidth: 640, margin: '0 auto 48px', fontWeight: 600, fontSize: 19 }}>Three simple steps, built around your child.</p></Reveal>
           <div className="cs-steps">
             {STEPS.map((s, i) => (
               <Reveal key={s.title} delay={i * 0.14} from="up">
@@ -258,13 +259,16 @@ export default function ComingSoonPage() {
           <div className="cs-offer">
             {/* Left — the offer */}
             <Reveal from="right">
-              <div className="cs-gift" aria-hidden>🎁</div>
+              <div className="cs-offer-head">
+                <div className="cs-gift-badge" aria-hidden>🎁</div>
+                <img src="/assets/robot/Heropeekingfromsidewall.png" alt="" className="cs-offer-peek" aria-hidden draggable={false} />
+              </div>
               <h2 className="cs-h2" style={{ color: '#2563EB' }}>Become a Founding Family</h2>
               <p className="cs-p">Join the first 1,000 Australian families and receive:</p>
               <ul className="cs-check-list">
                 {OFFER_POINTS.map((o, i) => <li key={i}><span className="cs-check">✓</span>{o}</li>)}
               </ul>
-              <div className="cs-save-badge">Save $5/month for your first year!</div>
+              <div className="cs-save-badge">🎉 $60 off for the year!</div>
             </Reveal>
 
             {/* Right — the working form (preserved contract) */}
@@ -337,6 +341,27 @@ export default function ComingSoonPage() {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ══════════════ FINAL CTA — ready to help your child? ══════════════ */}
+      <section className="cs-section">
+        <div className="cs-wrap">
+          <Reveal>
+            <div className="cs-final-cta">
+              <img src="/assets/robot/Heropeekingfromdown.png" alt="" className="cs-final-peek" aria-hidden draggable={false} />
+              <h2 className="cs-h2 cs-center" style={{ color: 'white' }}>Ready to help your child enjoy maths?</h2>
+              <p className="cs-p cs-center" style={{ color: 'rgba(255,255,255,0.85)', maxWidth: 560, margin: '0 auto 22px' }}>
+                Join Australia's first 1,000 Founding Families and receive:
+              </p>
+              <div className="cs-final-perks">
+                <div className="cs-final-perk"><span>🎁</span> One month FREE</div>
+                <div className="cs-final-perk"><span>💰</span> Exclusive first-year pricing</div>
+                <div className="cs-final-perk"><span>🚀</span> Early access</div>
+              </div>
+              <a href="#waitlist" className="cs-btn-gold" style={{ marginTop: 26 }}>Join the Waitlist →</a>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -477,7 +502,26 @@ const CSS = `
       /* Offer + form */
       .cs-offer { background: linear-gradient(135deg, #EFF4FF, #FFF8E8); border: 1px solid #E7ECF3; border-radius: 28px; padding: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
       .cs-gift { font-size: 52px; margin-bottom: 8px; }
-      .cs-save-badge { display: inline-block; margin-top: 18px; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; font-weight: 900; font-size: 14px; padding: 12px 22px; border-radius: 99px; box-shadow: 0 10px 24px rgba(245,158,11,0.35); }
+      .cs-save-badge { display: inline-block; margin-top: 18px; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; font-weight: 900; font-size: 15px; padding: 12px 22px; border-radius: 99px; box-shadow: 0 10px 24px rgba(245,158,11,0.35); }
+
+      /* Meet Hero image (replaces the old dashboard mock) */
+      .cs-meet-hero-img { width: 100%; max-width: 380px; height: auto; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
+
+      /* Centered eyebrow tag for the How-it-works heading */
+      .cs-center-tag { display: block; width: fit-content; margin: 0 auto 14px; }
+      .cs-how-h2 { font-size: clamp(32px, 4.2vw, 52px); }
+
+      /* Offer header — a nicer gift badge + a peeking Hero */
+      .cs-offer-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+      .cs-gift-badge { width: 66px; height: 66px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 34px; background: linear-gradient(135deg, ${GOLD}, #FFD700); box-shadow: 0 12px 28px rgba(245,158,11,0.4); }
+      .cs-offer-peek { height: 78px; width: auto; filter: drop-shadow(0 10px 20px rgba(27,43,75,0.2)); }
+
+      /* Final CTA block */
+      .cs-final-cta { position: relative; background: linear-gradient(135deg, ${NAVY}, #2D4A7A); border-radius: 28px; padding: 90px 40px 44px; text-align: center; box-shadow: 0 24px 60px rgba(27,43,75,0.28); overflow: visible; }
+      .cs-final-peek { position: absolute; top: -70px; left: 50%; transform: translateX(-50%); height: 150px; width: auto; filter: drop-shadow(0 16px 30px rgba(0,0,0,0.35)); }
+      .cs-final-perks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+      .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
+      .cs-final-perk span { font-size: 18px; }
       .cs-form-card { background: white; border-radius: 22px; padding: 30px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
       .cs-form-title { font-size: 22px; font-weight: 900; color: ${NAVY}; margin: 0 0 4px; }
       .cs-form-sub { font-size: 14px; color: #64748B; margin: 0 0 18px; }
