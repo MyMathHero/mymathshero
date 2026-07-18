@@ -257,11 +257,14 @@ export default function ComingSoonPage() {
       <section id="waitlist" className="cs-section">
         <div className="cs-wrap">
           <div className="cs-offer">
+            {/* Hero peeks over the top of the form card — decorative, floats gently. */}
+            <img src="/assets/robot/Heropeekingfromdown.png" alt="" className="cs-offer-hero" aria-hidden draggable={false} />
+
             {/* Left — the offer */}
             <Reveal from="right">
-              <div className="cs-offer-head">
-                <div className="cs-gift-badge" aria-hidden>🎁</div>
-                <img src="/assets/robot/Heropeekingfromsidewall.png" alt="" className="cs-offer-peek" aria-hidden draggable={false} />
+              <div className="cs-gift-wrap" aria-hidden>
+                <div className="cs-gift-glow" />
+                <div className="cs-gift-big">🎁</div>
               </div>
               <h2 className="cs-h2" style={{ color: '#2563EB' }}>Become a Founding Family</h2>
               <p className="cs-p">Join the first 1,000 Australian families and receive:</p>
@@ -500,9 +503,24 @@ const CSS = `
       .cs-avatar { width: 40px; height: 40px; border-radius: 99px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; }
 
       /* Offer + form */
-      .cs-offer { background: linear-gradient(135deg, #EFF4FF, #FFF8E8); border: 1px solid #E7ECF3; border-radius: 28px; padding: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      .cs-offer { position: relative; overflow: visible; background: linear-gradient(135deg, #EFF4FF, #FFF8E8); border: 1px solid #E7ECF3; border-radius: 28px; padding: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
       .cs-gift { font-size: 52px; margin-bottom: 8px; }
       .cs-save-badge { display: inline-block; margin-top: 18px; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; font-weight: 900; font-size: 15px; padding: 12px 22px; border-radius: 99px; box-shadow: 0 10px 24px rgba(245,158,11,0.35); }
+
+      /* Big animated gift — gentle idle float + tilt, soft glow behind it. */
+      .cs-gift-wrap { position: relative; width: 120px; height: 120px; margin-bottom: 18px; }
+      .cs-gift-glow { position: absolute; inset: -14px; border-radius: 50%; background: radial-gradient(circle, rgba(245,158,11,0.45), transparent 68%); filter: blur(6px); animation: csGlow 3.4s ease-in-out infinite; }
+      .cs-gift-big { position: relative; width: 120px; height: 120px; border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 64px; background: linear-gradient(135deg, ${GOLD}, #FFD700); box-shadow: 0 18px 40px rgba(245,158,11,0.45); animation: csGiftFloat 4s ease-in-out infinite; transform-origin: center bottom; }
+      @keyframes csGiftFloat { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
+      @keyframes csGlow { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.95; transform: scale(1.08); } }
+
+      /* Hero peeking over the top-right of the offer card, near the form. Floats. */
+      .cs-offer-hero { position: absolute; top: -78px; right: 46px; height: 168px; width: auto; z-index: 4; filter: drop-shadow(0 18px 30px rgba(27,43,75,0.28)); animation: csPeekFloat 4.6s ease-in-out infinite; pointer-events: none; }
+      @keyframes csPeekFloat { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .cs-gift-big, .cs-gift-glow, .cs-offer-hero { animation: none; }
+      }
 
       /* Meet Hero image (replaces the old dashboard mock) */
       .cs-meet-hero-img { width: 100%; max-width: 380px; height: auto; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
@@ -510,11 +528,6 @@ const CSS = `
       /* Centered eyebrow tag for the How-it-works heading */
       .cs-center-tag { display: block; width: fit-content; margin: 0 auto 14px; }
       .cs-how-h2 { font-size: clamp(32px, 4.2vw, 52px); }
-
-      /* Offer header — a nicer gift badge + a peeking Hero */
-      .cs-offer-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-      .cs-gift-badge { width: 66px; height: 66px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 34px; background: linear-gradient(135deg, ${GOLD}, #FFD700); box-shadow: 0 12px 28px rgba(245,158,11,0.4); }
-      .cs-offer-peek { height: 78px; width: auto; filter: drop-shadow(0 10px 20px rgba(27,43,75,0.2)); }
 
       /* Final CTA block */
       .cs-final-cta { position: relative; background: linear-gradient(135deg, ${NAVY}, #2D4A7A); border-radius: 28px; padding: 90px 40px 44px; text-align: center; box-shadow: 0 24px 60px rgba(27,43,75,0.28); overflow: visible; }
@@ -580,6 +593,9 @@ const CSS = `
         .cs-family-items { grid-template-columns: 1fr 1fr; }
         .cs-testimonials { grid-template-columns: 1fr; }
         .cs-offer { grid-template-columns: 1fr; padding: 30px; }
+        /* On mobile the peeking Hero moves up top-right, smaller, over the corner. */
+        .cs-offer-hero { top: -54px; right: 10px; height: 108px; }
+        .cs-meet-hero-img { max-width: 260px; }
         .cs-dash { grid-template-columns: 1fr !important; }
         .cs-section { padding: 64px 0; }
       }
