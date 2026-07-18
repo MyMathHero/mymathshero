@@ -94,7 +94,27 @@ export default function ComingSoonPage() {
     const t = setTimeout(() => setEntered(true), 60)
     const check = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 900)
     check(); window.addEventListener('resize', check)
-    return () => { clearTimeout(t); window.removeEventListener('resize', check) }
+
+    // Subtle hero-image parallax: the photo drifts up ~half scroll speed, giving
+    // depth as you scroll off the hero. Pure CSS var + rAF, no library. Disabled
+    // for reduced-motion and on phones (where the hero isn't full-bleed).
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        if (reduce || window.innerWidth <= 820) { document.documentElement.style.setProperty('--cs-hero-par', '0px'); return }
+        const y = Math.min(window.scrollY, window.innerHeight)
+        document.documentElement.style.setProperty('--cs-hero-par', `${(y * -0.12).toFixed(1)}px`)
+      })
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      clearTimeout(t); window.removeEventListener('resize', check)
+      window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf)
+    }
   }, [])
 
 
@@ -114,11 +134,12 @@ export default function ComingSoonPage() {
           className="cs-hero2-bg" draggable={false} />
         <div className="cs-hero2-scrim" aria-hidden />
 
-        <div className="cs-hero2-inner" style={{
+        <div className="cs-hero2-inner">
+         <div className="cs-hero2-card" style={{
           opacity: entered ? 1 : 0,
           transform: entered ? 'none' : 'translateY(24px)',
           transition: 'opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)',
-        }}>
+         }}>
           {/* Brand logo + wordmark */}
           <div className="cs-hero-logo" style={{ position: 'static', marginBottom: 22 }}>
             <img src="/assets/logos/logo-icon.png?v=2" alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />
@@ -148,6 +169,7 @@ export default function ComingSoonPage() {
           <div className="cs-hero2-badge">
             <span>👨‍👩‍👧</span> First 1,000 families: <b style={{ color: GOLD }}>one month FREE</b> + founding pricing.
           </div>
+         </div>
         </div>
       </section>
 
@@ -425,21 +447,35 @@ const CSS = `
       .cs-p { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 20px; }
       .cs-tag { display: inline-block; background: rgba(37,99,235,0.1); color: #2563EB; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 99px; margin-bottom: 14px; }
 
-      /* Full-bleed photo hero — image fills left→right, text sits on the left. */
+      /* Full-bleed photo hero — image fills left→right; a frosted glass card of
+         copy is PINNED to the left, so on ultrawide the content hugs the edge
+         instead of floating in a centred column. */
       .cs-hero2 { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; }
-      .cs-hero2-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 72% center; z-index: 0; }
-      /* Left-weighted scrim so the headline stays readable over the photo. */
+      .cs-hero2-bg { position: absolute; inset: 0; width: 100%; height: 108%; object-fit: cover; object-position: 74% center; z-index: 0;
+        will-change: transform; transform: translateY(var(--cs-hero-par, 0px)); }
+      /* Left-weighted scrim: heavy near the card, clears well before the photo's
+         right side so the robot + kids stay bright at any width. */
       .cs-hero2-scrim { position: absolute; inset: 0; z-index: 1; background:
-        linear-gradient(90deg, rgba(244,239,227,0.97) 0%, rgba(244,239,227,0.92) 26%, rgba(244,239,227,0.55) 44%, rgba(244,239,227,0.05) 62%, rgba(244,239,227,0) 78%); }
-      .cs-hero2-inner { position: relative; z-index: 2; max-width: 1180px; width: 100%; margin: 0 auto; padding: 0 32px; }
-      .cs-hero2-inner > * { max-width: 560px; }
+        linear-gradient(90deg, rgba(244,239,227,0.98) 0%, rgba(244,239,227,0.9) 30%, rgba(244,239,227,0.4) 48%, rgba(244,239,227,0) 64%); }
+      /* Pin the content LEFT with page-consistent gutters (not auto-centred). */
+      .cs-hero2-inner { position: relative; z-index: 2; width: 100%;
+        padding-inline: clamp(24px, 5vw, 96px); display: flex; justify-content: flex-start; }
+      .cs-hero2-card { width: 100%; max-width: 540px;
+        background: rgba(255,255,255,0.55);
+        -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15);
+        border: 1px solid rgba(255,255,255,0.7); border-radius: 28px;
+        padding: 34px 36px 30px; box-shadow: 0 30px 80px rgba(27,43,75,0.16); }
+      .cs-hero2-card > * { max-width: 100%; }
       .cs-hero2-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; background: ${NAVY}; color: white; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 12px; box-shadow: 0 10px 30px rgba(27,43,75,0.25); }
       @media (max-width: 820px) {
         .cs-hero2 { min-height: auto; }
-        .cs-hero2-bg { object-position: 68% center; }
+        .cs-hero2-bg { height: 100%; object-position: 68% center; transform: none; }
         .cs-hero2-scrim { background: linear-gradient(180deg, rgba(244,239,227,0.96) 0%, rgba(244,239,227,0.9) 46%, rgba(244,239,227,0.55) 72%, rgba(244,239,227,0.15) 100%); }
-        .cs-hero2-inner { padding: 120px 24px 160px; }
-        .cs-hero2-inner > * { max-width: 100%; }
+        .cs-hero2-inner { padding: 108px 20px 150px; justify-content: center; }
+        .cs-hero2-card { max-width: 520px; background: rgba(255,255,255,0.42); padding: 26px 24px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cs-hero2-bg { transform: none !important; }
       }
 
       /* Hero (legacy classes still used by the logo/eyebrow/h1/sub/cta) */
