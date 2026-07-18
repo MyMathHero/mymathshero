@@ -69,6 +69,24 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
   }
   useEffect(() => () => stopPoll(), [])
 
+  // Resume on mount: if the student already has an ACTIVE match (e.g. they just
+  // accepted a global invite and landed here), drop straight into the race.
+  useEffect(() => {
+    if (!studentId) return
+    let done = false
+    ;(async () => {
+      const data = await post({ action: 'resume' })
+      if (done) return
+      if (data?.match && data.match.status === 'active') {
+        setMatch(data.match)
+        startPolling(data.match.matchId)
+        setPhase('racing'); qStartRef.current = Date.now()
+      }
+    })()
+    return () => { done = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId])
+
   // Poll match status while searching/racing so we see the opponent join and
   // their live progress. When a match becomes active, drop into the race.
   const startPolling = useCallback((matchId) => {

@@ -14,6 +14,7 @@ import FloatingTabBar from '../../components/FloatingTabBar'
 import ReviewSurvey from '../../components/ReviewSurvey'
 import { isJuniorGrade } from '../../lib/juniorMode'
 import CharacterAvatar from '../../components/CharacterAvatar'
+import ChallengeInviteListener from '../../components/ChallengeInviteListener'
 import { scheduleStreakReminder } from '../../lib/notifications'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { theme } from '../../lib/theme'
@@ -455,6 +456,9 @@ export default function StudentDashboard() {
   return (
     <ScreenBackground>
     <SafeAreaView style={[s.container, { backgroundColor: 'transparent' }]} edges={['top']}>
+      {/* App-wide challenge presence + incoming-request popup (invitable from the
+          dashboard, not only the Challenge screen). */}
+      <ChallengeInviteListener />
       {/* AI Hero nudge banner — appears at top, auto-dismisses after 6s */}
       {heroNudge && (
         <TouchableOpacity

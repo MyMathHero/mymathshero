@@ -259,6 +259,16 @@ export async function POST(request) {
       })
     }
 
+    // ── RESUME: read-only — return an active match if I'm in one, else null.
+    //    (Used on arena mount so accepting a global invite lands in the race,
+    //    without accidentally starting a new search.) ─────────────────────────
+    if (action === 'resume') {
+      const active = await db.collection('challenge_matches').findOne({
+        status: 'active', 'players.studentId': studentId,
+      })
+      return NextResponse.json({ match: active ? publicMatch(active, studentId) : null })
+    }
+
     // ── INBOX: does THIS student have an incoming pending invite? (poll ~2s) ──
     if (action === 'inbox') {
       const invite = await db.collection('challenge_matches').findOne({

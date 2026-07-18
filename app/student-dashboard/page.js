@@ -24,6 +24,7 @@ import CharacterAvatar from '@/components/CharacterAvatar'
 import SupportTickets from '@/components/SupportTickets'
 import MonthlyExam from '@/components/MonthlyExam'
 import ChallengeArena from '@/components/ChallengeArena'
+import ChallengeInviteListener from '@/components/ChallengeInviteListener'
 import { Calculator, BookOpen, FlaskConical, Flame, Star, Zap, Trophy, Target, Award, X, CheckCircle2, XCircle, Lightbulb, ArrowRight, Rocket, Coins, ShoppingBag, Crown, Gift, Clock, Play, ChevronDown, Medal, Users, School, MapPin, Sparkles, LifeBuoy, Swords } from 'lucide-react'
 
 const STUDENT_ID = 'student_test_001'
@@ -1391,6 +1392,16 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50" style={{ background: 'var(--bg-primary)' }}>
+      {/* App-wide challenge presence + incoming-request popup. Disabled while ON
+          the Challenge tab — the arena runs its own inbox there (no double popup).
+          Accepting jumps to the Challenge tab, which resumes the active match. */}
+      {authStudentId && authStudentId !== STUDENT_ID && (
+        <ChallengeInviteListener
+          studentId={authStudentId}
+          enabled={activeTab !== 'league'}
+          onAccepted={() => { setActiveTab('league'); setChallengeView('arena') }}
+        />
+      )}
       <style jsx global>{`
         @keyframes confetti-burst { 0% { transform: translate(-50%,-50%) scale(0) rotate(0deg); opacity: 1; } 100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1) rotate(var(--rot)); opacity: 0; } }
         @keyframes celebrate-bounce { 0%,100% { transform: scale(1); } 30% { transform: scale(1.3); } 60% { transform: scale(0.95); } }
