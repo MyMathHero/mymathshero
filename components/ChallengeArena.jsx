@@ -11,6 +11,18 @@ const HERO_PIC = '/assets/robot/heroprofilepic.png'
 // never want to render a raw emoji as an avatar, so detect + skip those.
 const isEmoji = (v) => typeof v === 'string' && !/^[a-z0-9_]+$/i.test(v.trim())
 
+const gradeLabel = (g) => (g == null ? '' : g === 0 ? 'Prep' : `Grade ${g}`)
+
+// A person's face for invite cards: parent-approved photo → their character
+// avatar → a default face. (Never renders a raw emoji.)
+function OpponentFace({ from, size = 44 }) {
+  if (from?.photo) return <img src={from.photo} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />
+  if (from?.avatarConfig || (from?.avatar && !isEmoji(from.avatar))) {
+    return <CharacterAvatar id={from.avatar} config={from.avatarConfig} size={size} />
+  }
+  return <CharacterAvatar id={null} size={size} />
+}
+
 // Hero Speed Challenge — a safe 1v1 online maths race. No chat; only the
 // opponent's first name + avatar are shown. Matches a real online peer via
 // polling, or an AI ("Hero Bot") if nobody's around. Winning pays 20 coins.
@@ -22,10 +34,14 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
   const [qIndex, setQIndex] = useState(0)
   const [locked, setLocked] = useState(false) // brief lock between answers
   const [error, setError] = useState('')
+  const [invited, setInvited] = useState(null)   // who I'm currently inviting (searching)
+  const [incoming, setIncoming] = useState(null) // an invite someone sent ME
   const pollRef = useRef(null)
   const presenceRef = useRef(null)
+  const inboxRef = useRef(null)
   const qStartRef = useRef(Date.now())
   const matchIdRef = useRef(null)
+  const searchRef = useRef(null)  // { start, tried[] } for the running search
 
   const post = useCallback(async (body) => {
     const res = await fetch('/api/student/challenge', {
@@ -48,7 +64,9 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
     return () => clearInterval(presenceRef.current)
   }, [studentId, phase])
 
-  const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
+  const stopPoll = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); clearTimeout(pollRef.current); pollRef.current = null }
+  }
   useEffect(() => () => stopPoll(), [])
 
   // Poll match status while searching/racing so we see the opponent join and
@@ -66,21 +84,75 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
     }, 2000)
   }, [post, phase])
 
-  async function findMatch() {
-    setError(''); setPhase('searching')
-    const data = await post({ action: 'find' })
-    if (data?.error) { setError(data.error); setPhase('idle'); return }
+  // Poll INBOX (~2s) whenever we're not racing, so someone can send US a
+  // challenge request and we can Accept/Decline — even sitting on the idle screen.
+  useEffect(() => {
+    if (phase === 'racing' || phase === 'result') { setIncoming(null); return }
+    const tick = async () => {
+      const d = await post({ action: 'inbox' })
+      setIncoming(d?.invite || null)
+    }
+    tick()
+    inboxRef.current = setInterval(tick, 2500)
+    return () => clearInterval(inboxRef.current)
+  }, [phase, post])
+
+  // Drive the search: call `find` repeatedly. The server sends an invite to one
+  // available player, waits for them, then moves to the next; after ~20s of
+  // trying real players it returns a Hero Bot match.
+  const runSearch = useCallback(async () => {
+    const s = searchRef.current
+    if (!s) return
+    const data = await post({ action: 'find', searchStart: s.start, tried: s.tried })
+    if (data?.error) { setError(data.error); setPhase('idle'); searchRef.current = null; return }
     if (data?.match) {
+      // Matched! (a human accepted, or the bot fallback fired)
+      searchRef.current = null
+      setInvited(null)
       setMatch(data.match)
       startPolling(data.match.matchId)
       if (data.match.status === 'active') { setPhase('racing'); qStartRef.current = Date.now() }
+      return
     }
+    if (data?.searching) {
+      setInvited(data.invited || null)
+      if (Array.isArray(data.tried)) s.tried = data.tried
+      // Poll again shortly to check for accept / move to next candidate.
+      pollRef.current = setTimeout(runSearch, 1500)
+    }
+  }, [post, startPolling])
+
+  async function findMatch() {
+    setError(''); setPhase('searching'); setMatch(null); setInvited(null)
+    searchRef.current = { start: Date.now(), tried: [] }
+    runSearch()
   }
 
   async function cancelSearch() {
     stopPoll()
-    if (matchIdRef.current) await post({ action: 'cancel', matchId: matchIdRef.current })
-    setMatch(null); setPhase('idle')
+    searchRef.current = null
+    await post({ action: 'cancel' })
+    setMatch(null); setInvited(null); setPhase('idle')
+  }
+
+  // Accept / decline an incoming challenge request.
+  async function acceptInvite() {
+    const inv = incoming
+    if (!inv) return
+    setIncoming(null)
+    const data = await post({ action: 'accept', inviteId: inv.inviteId })
+    if (data?.match) {
+      setMatch(data.match)
+      startPolling(data.match.matchId)
+      setPhase('racing'); qStartRef.current = Date.now()
+    } else {
+      setError(data?.error || 'That challenge is no longer available.')
+    }
+  }
+  async function declineInvite() {
+    const inv = incoming
+    setIncoming(null)
+    if (inv) await post({ action: 'decline', inviteId: inv.inviteId })
   }
 
   async function answer(option) {
@@ -109,9 +181,30 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
   // ── Render ────────────────────────────────────────────────────────────────
   const wrap = { maxWidth: 560, margin: '0 auto', padding: '8px 4px' }
 
+  // Incoming-challenge popup — shown on ANY non-racing phase (idle/searching) so
+  // a student can accept a request without sitting on a special screen.
+  const inviteModal = incoming?.from ? (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', padding: 20 }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 20, padding: 26, maxWidth: 320, width: '100%', textAlign: 'center', border: '2px solid var(--accent-gold)' }}>
+        <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', margin: '0 0 12px' }}>Challenge request</p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+          <OpponentFace from={incoming.from} size={64} />
+        </div>
+        <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 19, margin: '0 0 2px' }}>{incoming.from.firstName}</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 4px' }}>{gradeLabel(incoming.from.grade)}</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 18px' }}>invited you to a Hero Speed Challenge!</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={declineInvite} style={{ flex: 1, padding: 12, borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer' }}>Decline</button>
+          <button onClick={acceptInvite} style={{ flex: 1, padding: 12, borderRadius: 12, border: 'none', background: 'var(--accent-gold)', color: '#1B2B4B', fontWeight: 800, cursor: 'pointer' }}>Accept →</button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   if (phase === 'idle') {
     return (
       <div style={wrap}>
+        {inviteModal}
         <div style={{
           background: 'linear-gradient(135deg, #1B2B4B, #2D4A7A)', borderRadius: 20, padding: 28,
           border: '2px solid var(--accent-gold)', textAlign: 'center',
@@ -138,14 +231,36 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
   }
 
   if (phase === 'searching') {
+    const inv = invited?.from
     return (
       <div style={wrap}>
+        {inviteModal /* someone may invite ME while I'm searching */}
         <div style={{ textAlign: 'center', padding: 40 }}>
           <div style={{ fontSize: 52, marginBottom: 16, animation: 'htPulse 1s infinite' }}>🔎</div>
-          <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20, margin: '0 0 6px' }}>Finding a Hero to race…</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 20px' }}>
-            Matching you with someone online. If no one&apos;s around, Hero Bot 🤖 will jump in!
-          </p>
+          {inv ? (
+            <>
+              <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20, margin: '0 0 12px' }}>
+                Challenge sent to {inv.firstName}!
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 14 }}>
+                <OpponentFace from={inv} size={44} />
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 15, margin: 0 }}>{inv.firstName}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0 }}>{gradeLabel(inv.grade)}</p>
+                </div>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 20px' }}>
+                Waiting for them to accept… we&apos;ll try someone else if they&apos;re busy.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 20, margin: '0 0 6px' }}>Looking for a Hero to race…</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: '0 0 20px' }}>
+                Sending challenge requests to available Heroes. If no one accepts, Hero Bot jumps in!
+              </p>
+            </>
+          )}
           <button onClick={cancelSearch} style={{
             padding: '10px 24px', borderRadius: 12, border: '1px solid var(--border-color)',
             background: 'var(--bg-card)', color: 'var(--text-secondary)', fontWeight: 700, cursor: 'pointer',

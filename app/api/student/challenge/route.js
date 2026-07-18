@@ -19,9 +19,53 @@ async function connectDB() {
 }
 
 const ONLINE_WINDOW_MS = 60 * 1000
-const QUEUE_AI_FALLBACK_MS = 12 * 1000 // wait this long for a human, then play the AI
+const INVITE_TTL_MS = 10 * 1000        // a single invite waits this long for accept/decline
+const SEARCH_MAX_MS = 20 * 1000        // try real players this long, then fall back to the bot
 
 function oid(id) { try { return new ObjectId(id) } catch { return null } }
+
+// Find the best online, challenge-available, same-grade candidate to invite —
+// excluding self, anyone already invited this search, and anyone busy in a match.
+async function findCandidate(db, me, excludeIds = []) {
+  const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS)
+  const online = await db.collection('children').find({
+    id: { $nin: [me.id, ...excludeIds] },
+    lastSeenAt: { $gte: cutoff },
+    challengeAvailable: true,
+    'challengeSettings.enabled': { $ne: false },
+  }).toArray()
+
+  const candidates = online.filter(s => gradesMatch(me.grade, s.grade))
+  for (const c of candidates) {
+    // Skip anyone already busy in an active/pending match.
+    const busy = await db.collection('challenge_matches').findOne({
+      status: { $in: ['pending', 'active'] },
+      $or: [{ 'players.studentId': c.id }, { inviteeId: c.id }, { inviterId: c.id }],
+    })
+    if (!busy) return c
+  }
+  return null
+}
+
+// Public shape of an invite for BOTH sides (inviter sees invitee, invitee sees
+// inviter). Photo only when that person's parent approved it (safety).
+function invitePublic(inviteMatch, viewerId) {
+  const otherId = viewerId === inviteMatch.inviterId ? inviteMatch.inviteeId : inviteMatch.inviterId
+  const other = (inviteMatch.people || {})[otherId] || {}
+  return {
+    inviteId: inviteMatch._id.toString(),
+    role: viewerId === inviteMatch.inviterId ? 'inviter' : 'invitee',
+    from: {
+      studentId: otherId,
+      firstName: other.firstName || 'Hero',
+      grade: other.grade ?? null,
+      avatar: other.avatar || null,
+      avatarConfig: other.avatarConfig || null,
+      photo: other.photo || null,
+    },
+    status: inviteMatch.status,
+  }
+}
 
 // Sample a shared question set for a match at a grade. Keeps correctAnswer for
 // server-side grading; the client-facing shape strips it.
@@ -50,6 +94,24 @@ async function sampleQuestions(db, grade, count) {
   }))
 }
 
+// Create an active AI (Hero Bot) match for a student — used when nobody's
+// available or the search window elapsed.
+async function startBotMatch(db, student, count) {
+  const grade = student.grade ?? 3
+  const questions = await sampleQuestions(db, grade, count)
+  const aiRun = simulateAiRun(grade, count)
+  const perQ = aiRun.map(() => aiThinkMs(grade))
+  const aiTotalMs = perQ.reduce((a, b) => a + b, 0)
+  const res = await db.collection('challenge_matches').insertOne({
+    status: 'active', mode: 'ai', startedAt: new Date(),
+    players: [playerEntry(student)],
+    ai: { run: aiRun, perQ, timeMs: aiTotalMs, correct: 0, answered: 0, finished: false },
+    questions, total: count, createdAt: new Date(),
+  })
+  const match = await db.collection('challenge_matches').findOne({ _id: res.insertedId })
+  return NextResponse.json({ match: publicMatch(match, student.id) })
+}
+
 // The player entry shape stored on a match. `photo` is included ONLY when the
 // parent approved it (challengeSettings.photoPublic) — otherwise it's null and
 // the opponent only ever sees the avatar + first name.
@@ -59,9 +121,23 @@ function playerEntry(student) {
     studentId: student.id,
     firstName: displayFirstName(student.name),
     avatar: student.avatar || '🦊',
+    avatarConfig: student.avatarConfig || null,
     photo: photoApproved ? (student.profilePhoto || null) : null,
     grade: student.grade ?? 3,
     correct: 0, answered: 0, timeMs: 0, finished: false,
+  }
+}
+
+// A person snapshot for an invite card — name, grade, avatar (+ photo only if
+// the parent approved it). Never leaks a full name or a private photo.
+function personSnapshot(student) {
+  const photoApproved = student.challengeSettings?.photoPublic === true
+  return {
+    firstName: displayFirstName(student.name),
+    grade: student.grade ?? 3,
+    avatar: student.avatar || '🦊',
+    avatarConfig: student.avatarConfig || null,
+    photo: photoApproved ? (student.profilePhoto || null) : null,
   }
 }
 
@@ -113,49 +189,124 @@ export async function POST(request) {
       }, { status: 403 })
     }
 
-    // ── FIND: queue-based matchmaking with AI fallback ───────────────────────
+    // ── FIND: invite-based matchmaking — send a request to an available player,
+    //    they Accept/Decline; retry the next player; fall back to the bot after a
+    //    genuine search. `find` picks a candidate + creates ONE pending invite. ─
     if (action === 'find') {
-      // Already in an active match? Return it.
-      const existing = await db.collection('challenge_matches').findOne({
-        status: { $in: ['queued', 'active'] }, 'players.studentId': studentId,
+      // Already in an active match? Return it (resume).
+      const active = await db.collection('challenge_matches').findOne({
+        status: 'active', 'players.studentId': studentId,
       })
-      if (existing) return NextResponse.json({ match: publicMatch(existing, studentId) })
+      if (active) return NextResponse.json({ match: publicMatch(active, studentId) })
 
-      const count = challengeQuestionCount(student.grade)
-
-      // Try to join an OPEN queued match from a compatible, still-online player.
-      const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS)
-      const open = await db.collection('challenge_matches').find({
-        status: 'queued', mode: 'human',
-        'players.0.studentId': { $ne: studentId },
-      }).sort({ createdAt: 1 }).toArray()
-
-      for (const m of open) {
-        const host = m.players[0]
-        const hostDoc = await db.collection('children').findOne({ id: host.studentId })
-        const hostOnline = hostDoc?.lastSeenAt && hostDoc.lastSeenAt >= cutoff
-        if (hostOnline && gradesMatch(student.grade, host.grade)) {
-          // Join: become player 2 and flip to active.
-          const joined = await db.collection('challenge_matches').findOneAndUpdate(
-            { _id: m._id, status: 'queued' },
-            { $set: { status: 'active', startedAt: new Date() }, $push: { players: playerEntry(student) } },
-            { returnDocument: 'after' }
-          )
-          const doc = joined?.value || joined
-          if (doc) return NextResponse.json({ match: publicMatch(doc, studentId) })
-        }
+      // Was my invite ACCEPTED while I was polling? Return the resulting match.
+      const acceptedInvite = await db.collection('challenge_matches').findOne({
+        inviterId: studentId, status: 'accepted',
+      })
+      if (acceptedInvite?.matchId) {
+        const m = await db.collection('challenge_matches').findOne({ _id: acceptedInvite.matchId })
+        if (m) return NextResponse.json({ match: publicMatch(m, studentId) })
       }
 
-      // No one to join → create a queued match hosting this player.
+      const count = challengeQuestionCount(student.grade)
+      const searchStart = body.searchStart ? Number(body.searchStart) : Date.now()
+
+      // Do I already have a live pending invite out? Keep waiting on it (unless
+      // it's expired — then move on to the next candidate).
+      const myPending = await db.collection('challenge_matches').findOne({
+        inviterId: studentId, status: 'pending',
+      })
+      if (myPending) {
+        const age = Date.now() - new Date(myPending.createdAt).getTime()
+        if (age < INVITE_TTL_MS) {
+          // Still waiting for this person to answer.
+          return NextResponse.json({ searching: true, invited: invitePublic(myPending, studentId), searchStart })
+        }
+        // Expired without an answer — retire it and try the next person below.
+        await db.collection('challenge_matches').updateOne(
+          { _id: myPending._id, status: 'pending' }, { $set: { status: 'expired' } }
+        )
+      }
+
+      // Genuine search window elapsed → play the Hero Bot (create an AI match).
+      if (Date.now() - searchStart >= SEARCH_MAX_MS) {
+        return await startBotMatch(db, student, count)
+      }
+
+      // Pick the next available candidate (skip anyone I've already invited this
+      // search) and send them an invite.
+      const already = Array.isArray(body.tried) ? body.tried : []
+      const candidate = await findCandidate(db, student, already)
+      if (!candidate) {
+        // No one available at all → straight to the Hero Bot.
+        return await startBotMatch(db, student, count)
+      }
+      const invitee = await db.collection('children').findOne({ id: candidate.id })
       const questions = await sampleQuestions(db, student.grade, count)
       const res = await db.collection('challenge_matches').insertOne({
-        status: 'queued', mode: 'human',
-        players: [playerEntry(student)],
+        status: 'pending', mode: 'human',
+        inviterId: studentId, inviteeId: candidate.id,
+        people: { [studentId]: personSnapshot(student), [candidate.id]: personSnapshot(invitee) },
         questions, total: count,
         createdAt: new Date(),
       })
       const created = await db.collection('challenge_matches').findOne({ _id: res.insertedId })
-      return NextResponse.json({ match: publicMatch(created, studentId) })
+      return NextResponse.json({
+        searching: true,
+        invited: invitePublic(created, studentId),
+        tried: [...already, candidate.id],
+        searchStart,
+      })
+    }
+
+    // ── INBOX: does THIS student have an incoming pending invite? (poll ~2s) ──
+    if (action === 'inbox') {
+      const invite = await db.collection('challenge_matches').findOne({
+        inviteeId: studentId, status: 'pending',
+      })
+      if (!invite) return NextResponse.json({ invite: null })
+      // Expired ones don't count.
+      if (Date.now() - new Date(invite.createdAt).getTime() >= INVITE_TTL_MS) {
+        return NextResponse.json({ invite: null })
+      }
+      return NextResponse.json({ invite: invitePublic(invite, studentId) })
+    }
+
+    // ── ACCEPT: turn a pending invite into an active human match ──────────────
+    if (action === 'accept') {
+      const id = oid(body.inviteId)
+      if (!id) return NextResponse.json({ error: 'inviteId required' }, { status: 400 })
+      const invite = await db.collection('challenge_matches').findOne({ _id: id, inviteeId: studentId, status: 'pending' })
+      if (!invite) return NextResponse.json({ error: 'Invite no longer available', gone: true }, { status: 409 })
+
+      const inviter = await db.collection('children').findOne({ id: invite.inviterId })
+      if (!inviter) return NextResponse.json({ error: 'Opponent left', gone: true }, { status: 409 })
+
+      // Create the real match (inviter is player 0, accepter is player 1).
+      const matchRes = await db.collection('challenge_matches').insertOne({
+        status: 'active', mode: 'human', startedAt: new Date(),
+        players: [playerEntry(inviter), playerEntry(student)],
+        questions: invite.questions, total: invite.total,
+        createdAt: new Date(),
+      })
+      // Mark the invite accepted + link it, so the inviter's poll finds the match.
+      await db.collection('challenge_matches').updateOne(
+        { _id: id, status: 'pending' },
+        { $set: { status: 'accepted', matchId: matchRes.insertedId } }
+      )
+      const match = await db.collection('challenge_matches').findOne({ _id: matchRes.insertedId })
+      return NextResponse.json({ match: publicMatch(match, studentId) })
+    }
+
+    // ── DECLINE: reject an invite; the inviter's poll moves to the next player ─
+    if (action === 'decline') {
+      const id = oid(body.inviteId)
+      if (id) {
+        await db.collection('challenge_matches').updateOne(
+          { _id: id, inviteeId: studentId, status: 'pending' }, { $set: { status: 'declined' } }
+        )
+      }
+      return NextResponse.json({ success: true })
     }
 
     // ── STATUS: poll a match; auto-convert a stale queue to an AI match ───────
@@ -164,29 +315,6 @@ export async function POST(request) {
       if (!id) return NextResponse.json({ error: 'matchId required' }, { status: 400 })
       let match = await db.collection('challenge_matches').findOne({ _id: id })
       if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 })
-
-      // Waited too long in queue → start an AI opponent so the student always plays.
-      if (match.status === 'queued' && match.players[0].studentId === studentId) {
-        const waited = Date.now() - new Date(match.createdAt).getTime()
-        if (waited >= QUEUE_AI_FALLBACK_MS) {
-          const grade = match.players[0].grade
-          const aiRun = simulateAiRun(grade, match.total)
-          // Give the bot a REAL total time (sum of per-question think times) so
-          // the race is genuinely competitive: to win you must be more accurate
-          // OR (on a tie) actually faster than the bot — not just finish.
-          const perQ = aiRun.map(() => aiThinkMs(grade))
-          const aiTotalMs = perQ.reduce((a, b) => a + b, 0)
-          const upd = await db.collection('challenge_matches').findOneAndUpdate(
-            { _id: id, status: 'queued' },
-            { $set: {
-              status: 'active', mode: 'ai', startedAt: new Date(),
-              ai: { run: aiRun, perQ, timeMs: aiTotalMs, correct: 0, answered: 0, finished: false },
-            } },
-            { returnDocument: 'after' }
-          )
-          match = upd?.value || upd
-        }
-      }
 
       // In an AI match, advance the bot to (roughly) mirror the player's pace.
       if (match?.status === 'active' && match.mode === 'ai' && match.ai && !match.ai.finished) {
@@ -295,11 +423,14 @@ export async function POST(request) {
       return NextResponse.json({ match: publicMatch(match, studentId) })
     }
 
-    // ── CANCEL: leave a queue you're hosting ─────────────────────────────────
+    // ── CANCEL: stop searching — retire any pending invite I sent ─────────────
     if (action === 'cancel') {
+      await db.collection('challenge_matches').updateMany(
+        { inviterId: studentId, status: 'pending' }, { $set: { status: 'cancelled' } }
+      )
       const id = oid(body.matchId)
       if (id) {
-        await db.collection('challenge_matches').deleteOne({ _id: id, status: 'queued', 'players.0.studentId': studentId })
+        await db.collection('challenge_matches').deleteOne({ _id: id, status: 'pending', inviterId: studentId })
       }
       return NextResponse.json({ success: true })
     }
