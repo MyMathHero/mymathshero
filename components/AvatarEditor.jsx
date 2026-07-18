@@ -266,26 +266,28 @@ const S = {
   presetCard: { flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 8, cursor: 'pointer' },
   presetName: { fontSize: 10.5, fontWeight: 700, color: 'var(--text-secondary)', maxWidth: 62, textAlign: 'center' },
 
-  body: { display: 'grid', gridTemplateColumns: 'minmax(96px, 120px) 1fr minmax(200px, 300px)', gap: 14, alignItems: 'start' },
+  // Roomier 3-column store: a comfortable category rail, a real item-grid area
+  // in the middle, and a big prominent preview (now tall, for the full body).
+  body: { display: 'grid', gridTemplateColumns: 'minmax(140px, 160px) minmax(0, 1fr) minmax(240px, 320px)', gap: 22, alignItems: 'start' },
 
-  cats: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 460, overflowY: 'auto' },
-  catBtn: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '10px 10px', cursor: 'pointer', textAlign: 'left' },
+  cats: { display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 560, overflowY: 'auto', paddingRight: 4 },
+  catBtn: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '13px 14px', cursor: 'pointer', textAlign: 'left' },
   catBtnOn: { borderColor: 'var(--accent-gold)', borderWidth: 2, background: 'rgba(196,154,26,0.10)' },
-  catLabel: { fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)' },
+  catLabel: { fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' },
 
-  grid: { minWidth: 0 },
-  swatchRow: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  swatch: { width: 34, height: 34, borderRadius: '50%', border: 'none', cursor: 'pointer' },
-  items: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 10, maxHeight: 420, overflowY: 'auto' },
-  item: { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'var(--bg-card)', borderStyle: 'solid', borderRadius: 12, padding: 8, cursor: 'pointer' },
-  itemName: { fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' },
-  price: { fontSize: 11, fontWeight: 800, color: 'var(--accent-gold)' },
-  free: { fontSize: 10.5, fontWeight: 700, color: 'var(--text-secondary)' },
-  equipped: { fontSize: 10.5, fontWeight: 800, color: '#16A34A' },
-  lock: { position: 'absolute', top: 6, right: 6, fontSize: 12 },
+  grid: { minWidth: 0, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 18, padding: 20, minHeight: 420 },
+  swatchRow: { display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 18, paddingBottom: 16, borderBottom: '1px solid var(--border-color)' },
+  swatch: { width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer' },
+  items: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: 14, maxHeight: 480, overflowY: 'auto' },
+  item: { position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'var(--bg-primary)', borderStyle: 'solid', borderRadius: 14, padding: '10px 8px', cursor: 'pointer' },
+  itemName: { fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' },
+  price: { fontSize: 11.5, fontWeight: 800, color: 'var(--accent-gold)' },
+  free: { fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' },
+  equipped: { fontSize: 11, fontWeight: 800, color: '#16A34A' },
+  lock: { position: 'absolute', top: 7, right: 7, fontSize: 12 },
 
-  preview: { position: 'sticky', top: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 16 },
-  hint: { fontSize: 11.5, color: 'var(--text-secondary)', textAlign: 'center' },
+  preview: { position: 'sticky', top: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 20, padding: '24px 16px' },
+  hint: { fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' },
 
   toast: { position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', color: 'white', fontWeight: 700, fontSize: 13, padding: '10px 18px', borderRadius: 999, zIndex: 300 },
 }

@@ -38,8 +38,8 @@ export default function AvatarRender({ config, size = 96, rounded = true, classN
   return (
     <svg
       width={size}
-      height={size}
-      viewBox="0 0 100 100"
+      height={size * 1.6}
+      viewBox="0 0 100 160"
       className={className}
       style={style}
       role="img"
@@ -52,12 +52,12 @@ export default function AvatarRender({ config, size = 96, rounded = true, classN
         </linearGradient>
         {rounded && (
           <clipPath id={cid}>
-            <rect x="0" y="0" width="100" height="100" rx="16" />
+            <rect x="0" y="0" width="100" height="160" rx="16" />
           </clipPath>
         )}
       </defs>
       <g clipPath={rounded ? `url(#${cid})` : undefined}>
-        <rect width="100" height="100" fill={`url(#${gid})`} />
+        <rect width="100" height="160" fill={`url(#${gid})`} />
         {shapes.map((s, i) => <Shape key={i} s={s} />)}
       </g>
     </svg>

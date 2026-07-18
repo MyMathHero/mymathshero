@@ -1,6 +1,5 @@
 // Layered avatar parts — MOBILE COPY of web lib/avatarParts.js.
-// Keep in sync with the web version. Pure data + functions, no deps, so
-// web (<svg>) and mobile (react-native-svg) draw an identical avatar.
+// Keep in sync with the web version. Pure data + functions, no deps.
 /* eslint-disable */
 // Layered avatar system — the single source of truth for every drawable part.
 //
@@ -231,53 +230,109 @@ export const MOUTH = [
   },
 ]
 
-// ── TOPS (shoulders/torso from y74) ─────────────────────────────────────────
+// ── TOPS (torso garment: shoulders y74 → waist y108, with short sleeves) ─────
+// Base torso path used by most tops: shoulders down to the waist.
+const TORSO = 'M22 108 Q20 80 50 76 Q80 80 78 108 Z'
+// Short sleeves over the arm tops.
+const SLEEVE_L = 'M18 82 Q13 84 15 96 L25 96 Q26 82 30 80 Z'
+const SLEEVE_R = 'M82 82 Q87 84 85 96 L75 96 Q74 82 70 80 Z'
+
 export const TOPS = [
   {
     id: 'tee', name: 'T-Shirt', cost: 0, default: true,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: c.top },
+      { type: 'path', d: SLEEVE_L, fill: c.top }, { type: 'path', d: SLEEVE_R, fill: c.top },
+      { type: 'path', d: TORSO, fill: c.top },
     ],
   },
   {
     id: 'hoodie', name: 'Hoodie', cost: 60,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: c.top },
-      // hood behind the neck
-      { type: 'path', d: 'M34 76 Q50 66 66 76 Q50 84 34 76 Z', fill: c.top, opacity: 0.75 },
-      { type: 'line', x1: 50, y1: 78, x2: 50, y2: 92, stroke: '#FFFFFF', strokeWidth: 1.6, opacity: 0.7 },
+      { type: 'path', d: SLEEVE_L, fill: c.top }, { type: 'path', d: SLEEVE_R, fill: c.top },
+      { type: 'path', d: TORSO, fill: c.top },
+      { type: 'path', d: 'M36 78 Q50 68 64 78 Q50 86 36 78 Z', fill: c.top, opacity: 0.75 }, // hood
+      { type: 'line', x1: 50, y1: 82, x2: 50, y2: 104, stroke: '#FFFFFF', strokeWidth: 1.6, opacity: 0.7 },
     ],
   },
   {
     id: 'polo', name: 'Polo', cost: 40,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: c.top },
-      { type: 'path', d: 'M44 74 L50 82 L56 74 Z', fill: '#FFFFFF', opacity: 0.9 },
+      { type: 'path', d: SLEEVE_L, fill: c.top }, { type: 'path', d: SLEEVE_R, fill: c.top },
+      { type: 'path', d: TORSO, fill: c.top },
+      { type: 'path', d: 'M44 76 L50 84 L56 76 Z', fill: '#FFFFFF', opacity: 0.9 },
     ],
   },
   {
     id: 'uniform', name: 'School Uniform', cost: 0,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: '#F8FAFC' },
-      { type: 'path', d: 'M44 74 L50 84 L56 74 Z', fill: c.top },
-      { type: 'rect', x: 46, y: 84, width: 8, height: 16, fill: c.top, opacity: 0.9 },
+      { type: 'path', d: SLEEVE_L, fill: '#F8FAFC' }, { type: 'path', d: SLEEVE_R, fill: '#F8FAFC' },
+      { type: 'path', d: TORSO, fill: '#F8FAFC' },
+      { type: 'path', d: 'M44 76 L50 86 L56 76 Z', fill: c.top },
+      { type: 'rect', x: 46, y: 86, width: 8, height: 22, fill: c.top, opacity: 0.9 },
     ],
   },
   {
     id: 'hero', name: 'Hero Suit', cost: 100,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: c.top },
-      { type: 'circle', cx: 50, cy: 90, r: 7, fill: c.accent, opacity: 0.95 },
+      { type: 'path', d: SLEEVE_L, fill: c.top }, { type: 'path', d: SLEEVE_R, fill: c.top },
+      { type: 'path', d: TORSO, fill: c.top },
+      { type: 'circle', cx: 50, cy: 94, r: 8, fill: c.accent, opacity: 0.95 },
     ],
   },
   {
     id: 'jersey', name: 'Sports Jersey', cost: 80,
     shapes: (c: any) => [
-      { type: 'path', d: 'M16 100 Q16 74 50 74 Q84 74 84 100 Z', fill: c.top },
-      { type: 'rect', x: 30, y: 74, width: 6, height: 26, fill: '#FFFFFF', opacity: 0.85 },
-      { type: 'rect', x: 64, y: 74, width: 6, height: 26, fill: '#FFFFFF', opacity: 0.85 },
+      { type: 'path', d: SLEEVE_L, fill: c.top }, { type: 'path', d: SLEEVE_R, fill: c.top },
+      { type: 'path', d: TORSO, fill: c.top },
+      { type: 'rect', x: 34, y: 78, width: 6, height: 30, fill: '#FFFFFF', opacity: 0.85 },
+      { type: 'rect', x: 60, y: 78, width: 6, height: 30, fill: '#FFFFFF', opacity: 0.85 },
     ],
   },
+]
+
+// ── PANTS (waist y108 → ankle y144) ──────────────────────────────────────────
+const LEGS = 'M35 110 L48 110 L47 145 L37 145 Z M52 110 L65 110 L63 145 L53 145 Z'
+export const PANTS = [
+  { id: 'jeans', name: 'Jeans', cost: 0, default: true,
+    shapes: (c: any) => [{ type: 'path', d: LEGS, fill: c.pants }] },
+  { id: 'shorts', name: 'Shorts', cost: 0,
+    shapes: (c: any) => [{ type: 'path', d: 'M35 110 L48 110 L47 128 L37 128 Z M52 110 L65 110 L63 128 L53 128 Z', fill: c.pants }] },
+  { id: 'track', name: 'Track Pants', cost: 40,
+    shapes: (c: any) => [
+      { type: 'path', d: LEGS, fill: c.pants },
+      { type: 'line', x1: 37, y1: 112, x2: 39, y2: 144, stroke: '#FFFFFF', strokeWidth: 1.4, opacity: 0.8 },
+      { type: 'line', x1: 63, y1: 112, x2: 61, y2: 144, stroke: '#FFFFFF', strokeWidth: 1.4, opacity: 0.8 },
+    ] },
+  { id: 'skirt', name: 'Skirt', cost: 40,
+    shapes: (c: any) => [{ type: 'path', d: 'M32 110 L68 110 L74 132 L26 132 Z', fill: c.pants }] },
+  { id: 'uniformpants', name: 'Uniform Pants', cost: 0,
+    shapes: (c: any) => [{ type: 'path', d: LEGS, fill: '#334155' }] },
+]
+
+// ── SHOES (ankle y144 → y156) ────────────────────────────────────────────────
+export const SHOES = [
+  { id: 'sneakers', name: 'Sneakers', cost: 0, default: true,
+    shapes: (c: any) => [
+      { type: 'path', d: 'M33 144 Q33 156 44 156 L48 156 L48 144 Z', fill: c.shoe },
+      { type: 'path', d: 'M52 144 L52 156 L56 156 Q67 156 67 144 Z', fill: c.shoe },
+      { type: 'rect', x: 33, y: 153, width: 15, height: 3, rx: 1, fill: '#FFFFFF', opacity: 0.9 },
+      { type: 'rect', x: 52, y: 153, width: 15, height: 3, rx: 1, fill: '#FFFFFF', opacity: 0.9 },
+    ] },
+  { id: 'school', name: 'School Shoes', cost: 0,
+    shapes: () => [
+      { type: 'path', d: 'M33 144 Q33 156 45 156 L48 156 L48 144 Z', fill: '#1F2937' },
+      { type: 'path', d: 'M52 144 L52 156 L55 156 Q67 156 67 144 Z', fill: '#1F2937' },
+    ] },
+  { id: 'boots', name: 'Boots', cost: 50,
+    shapes: (c: any) => [
+      { type: 'path', d: 'M34 138 L48 138 L48 156 L38 156 Q34 156 34 150 Z', fill: c.shoe },
+      { type: 'path', d: 'M52 138 L66 138 L66 150 Q66 156 62 156 L52 156 Z', fill: c.shoe },
+    ] },
+  { id: 'sandals', name: 'Sandals', cost: 40,
+    shapes: (c: any) => [
+      { type: 'path', d: 'M35 150 L48 150 L48 156 L37 156 Q35 156 35 153 Z', fill: c.shoe },
+      { type: 'path', d: 'M52 150 L65 150 L63 156 L52 156 Z', fill: c.shoe },
+    ] },
 ]
 
 // ── HATS ────────────────────────────────────────────────────────────────────
@@ -415,6 +470,8 @@ export const CATEGORIES = [
   { id: 'brows',      label: 'Eyebrows',   emoji: '🤨', type: 'part',  options: BROWS },
   { id: 'mouth',      label: 'Mouth',      emoji: '👄', type: 'part',  options: MOUTH },
   { id: 'top',        label: 'Tops',       emoji: '👕', type: 'part',  options: TOPS, colorKey: 'topColor', colors: CLOTHING_COLORS },
+  { id: 'pants',      label: 'Pants',      emoji: '👖', type: 'part',  options: PANTS, colorKey: 'pantsColor', colors: CLOTHING_COLORS },
+  { id: 'shoes',      label: 'Shoes',      emoji: '👟', type: 'part',  options: SHOES, colorKey: 'shoeColor', colors: CLOTHING_COLORS },
   { id: 'hat',        label: 'Hats',       emoji: '🧢', type: 'part',  options: HATS, colorKey: 'hatColor', colors: CLOTHING_COLORS },
   { id: 'glasses',    label: 'Glasses',    emoji: '🕶️', type: 'part',  options: GLASSES },
   { id: 'accessory',  label: 'Accessories', emoji: '⭐', type: 'part', options: ACCESSORIES, colorKey: 'accentColor', colors: CLOTHING_COLORS },
@@ -423,10 +480,44 @@ export const CATEGORIES = [
 
 const REGISTRY: Record<string, any[]> = {
   hair: HAIR, eyes: EYES, brows: BROWS, mouth: MOUTH, top: TOPS,
-  hat: HATS, glasses: GLASSES, accessory: ACCESSORIES, background: BACKGROUNDS,
+  pants: PANTS, shoes: SHOES, hat: HATS, glasses: GLASSES, accessory: ACCESSORIES, background: BACKGROUNDS,
 }
 
 export function partsFor(category: string) { return REGISTRY[category] || [] }
+
+// Every pickable part, flattened — used by the admin catalogue + overrides.
+export function allParts() {
+  const out = []
+  for (const [category, list] of Object.entries(REGISTRY)) {
+    for (const p of list) out.push({ category, id: p.id, name: p.name, cost: p.cost ?? 0, default: !!p.default })
+  }
+  return out
+}
+
+// ── ADMIN OVERRIDES ─────────────────────────────────────────────────────────
+// The artwork is code-drawn, but PRICE and AVAILABILITY are data. Admin writes
+// overrides to the shared `avatar_config` doc; this applies them on top of the
+// registry so pricing/retiring needs no deploy.
+//   overrides: { "hat_crown": { cost: 300, enabled: false }, ... }
+export function applyOverrides(category: string, overrides: any = {}) {
+  return partsFor(category).map(p => {
+    const o = overrides[`${category}_${p.id}`]
+    if (!o) return p
+    return {
+      ...p,
+      cost: typeof o.cost === 'number' && o.cost >= 0 ? o.cost : p.cost,
+      // A disabled item stays renderable (so students already wearing it don't
+      // break) but is hidden from the shop.
+      disabled: o.enabled === false,
+    }
+  })
+}
+
+// Shop list for a category: overrides applied, disabled items hidden unless the
+// student is already wearing one.
+export function shopList(category: string, overrides: any = {}, wearingId: any = null) {
+  return applyOverrides(category, overrides).filter(p => !p.disabled || p.id === wearingId)
+}
 
 export function findPart(category: string, id: any) {
   const list = REGISTRY[category]
@@ -441,11 +532,15 @@ export const DEFAULT_CONFIG: Record<string, string> = {
   topColor: '#1E3A8A',
   hatColor: '#DC2626',
   accentColor: '#C49A1A',
+  pantsColor: '#334155',
+  shoeColor: '#1F2937',
   hair: 'short',
   eyes: 'dot',
   brows: 'normal',
   mouth: 'smile',
   top: 'tee',
+  pants: 'jeans',
+  shoes: 'sneakers',
   hat: 'none',
   glasses: 'none',
   accessory: 'none',
@@ -461,7 +556,7 @@ export function normaliseConfig(raw: any): any {
     cfg[cat] = part ? part.id : DEFAULT_CONFIG[cat]
   }
   const isColor = (v: any) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)
-  for (const k of ['skinTone', 'hairColor', 'topColor', 'hatColor', 'accentColor']) {
+  for (const k of ['skinTone', 'hairColor', 'topColor', 'hatColor', 'accentColor', 'pantsColor', 'shoeColor']) {
     if (!isColor(cfg[k])) cfg[k] = DEFAULT_CONFIG[k]
   }
   return cfg
@@ -471,12 +566,17 @@ export function normaliseConfig(raw: any): any {
 export function colorsFrom(cfg: any) {
   return {
     skin: cfg.skinTone, hair: cfg.hairColor, top: cfg.topColor,
-    hat: cfg.hatColor, accent: cfg.accentColor,
+    hat: cfg.hatColor, accent: cfg.accentColor, pants: cfg.pantsColor, shoe: cfg.shoeColor,
   }
 }
 
 // Build the full ordered shape list for a config — the renderers just draw this.
 // Returns { background: {grad}, shapes: [...] }.
+//
+// FULL BODY (viewBox 100x160): head (top) → torso → LEGS → SHOES, so the whole
+// character is visible. Draw order (bottom→top of the z-stack):
+//   background → cape → legs+shoes → arms(behind) → torso base → TOP → PANTS →
+//   neck+head → brows/eyes/mouth → hair → glasses → hat → accessory(front)
 export function buildAvatar(rawConfig: any): any {
   const cfg = normaliseConfig(rawConfig)
   const c = colorsFrom(cfg)
@@ -485,14 +585,31 @@ export function buildAvatar(rawConfig: any): any {
 
   const push = (part: any) => { if (part?.shapes) shapes.push(...part.shapes(c)) }
 
-  // accessory drawn BEHIND the body (capes) then again in front (medals) —
-  // parts opt in by id; simplest split: cape goes behind.
+  // accessory (cape) behind everything.
   const acc = findPart('accessory', cfg.accessory)
   if (acc?.id === 'cape') push(acc)
 
+  // ── Structural body (drawn from skin/clothing colours) ──
+  // Arms hang beside the torso (skin), behind the top.
+  shapes.push({ type: 'path', d: 'M18 82 Q14 84 15 100 L22 100 Q22 86 24 84 Z', fill: c.skin })
+  shapes.push({ type: 'path', d: 'M82 82 Q86 84 85 100 L78 100 Q78 86 76 84 Z', fill: c.skin })
+
+  // Legs (skin) + pants + shoes, drawn before the top so the top overlaps the
+  // waist. PANTS is its own pickable layer; SHOES too.
+  push(findPart('shoes', cfg.shoes))         // feet first (behind legs bottom)
+  // upper legs (skin) from the hip down
+  shapes.push({ type: 'rect', x: 36, y: 112, width: 12, height: 34, rx: 4, fill: c.skin })
+  shapes.push({ type: 'rect', x: 52, y: 112, width: 12, height: 34, rx: 4, fill: c.skin })
+  push(findPart('pants', cfg.pants))         // pants over the legs
+
+  // Torso base (skin) so a short top doesn't reveal a gap.
+  shapes.push({ type: 'path', d: 'M28 108 Q28 78 50 78 Q72 78 72 108 Z', fill: c.skin })
+
+  // The chosen TOP (torso garment).
   push(findPart('top', cfg.top))
-  // neck + head are structural
-  shapes.push({ type: 'rect', x: 44, y: 62, width: 12, height: 12, rx: 4, fill: c.skin })
+
+  // Neck + head.
+  shapes.push({ type: 'rect', x: 44, y: 62, width: 12, height: 14, rx: 4, fill: c.skin })
   shapes.push({ type: 'circle', cx: 50, cy: 46, r: 22, fill: c.skin })
 
   push(findPart('brows', cfg.brows))

@@ -51,17 +51,18 @@ describe('buildAvatar', () => {
     const { shapes } = buildAvatar({ top: 'tee', topColor: '#DC2626' })
     expect(shapes.some(s => s.fill === '#DC2626')).toBe(true)
   })
-  it('draws a cape BEHIND the body, other accessories in front', () => {
+  it('draws a cape BEHIND the head, other accessories in front', () => {
+    // Head circle (cx50 cy46 r22) is a stable landmark across the body layers.
+    const headIdx = (av) => av.shapes.findIndex(s => s.type === 'circle' && s.cx === 50 && s.cy === 46 && s.r === 22)
+
     const cape = buildAvatar({ accessory: 'cape', top: 'tee' })
-    const bodyIdx = cape.shapes.findIndex(s => s.d && s.d.startsWith('M16 100'))
     const capeIdx = cape.shapes.findIndex(s => s.d && s.d.startsWith('M22 100'))
     expect(capeIdx).toBeGreaterThanOrEqual(0)
-    expect(capeIdx).toBeLessThan(bodyIdx) // behind
+    expect(capeIdx).toBeLessThan(headIdx(cape)) // cape drawn first (behind)
 
     const medal = buildAvatar({ accessory: 'medal', top: 'tee' })
-    const mBody = medal.shapes.findIndex(s => s.d && s.d.startsWith('M16 100'))
     const mAcc = medal.shapes.findIndex(s => s.type === 'circle' && s.fill === '#FBBF24')
-    expect(mAcc).toBeGreaterThan(mBody) // in front
+    expect(mAcc).toBeGreaterThan(headIdx(medal)) // medal drawn last (in front)
   })
   it('hair "none" draws no hair shapes', () => {
     const bald = buildAvatar({ hair: 'none', hat: 'none', glasses: 'none', accessory: 'none' })

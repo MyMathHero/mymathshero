@@ -39,7 +39,7 @@ export default function AvatarRender({
   const cid = `${uid}-clip`
 
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
+    <Svg width={size} height={size*1.6} viewBox="0 0 100 160">
       <Defs>
         <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0%" stopColor={background?.grad?.[0] || '#60A5FA'} />
@@ -47,12 +47,12 @@ export default function AvatarRender({
         </LinearGradient>
         {rounded && (
           <ClipPath id={cid}>
-            <Rect x="0" y="0" width="100" height="100" rx="16" />
+            <Rect x="0" y="0" width="100" height="160" rx="16" />
           </ClipPath>
         )}
       </Defs>
       <G clipPath={rounded ? `url(#${cid})` : undefined}>
-        <Rect width="100" height="100" fill={`url(#${gid})`} />
+        <Rect width="100" height="160" fill={`url(#${gid})`} />
         {shapes.map((s: Shape, i: number) => <ShapeNode key={i} s={s} />)}
       </G>
     </Svg>
