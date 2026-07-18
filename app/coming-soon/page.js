@@ -13,7 +13,6 @@ import { useScrollProgress, range, lerp } from './useScrollScene'
 import Reveal from './Reveal'
 import ScrubReveal from '@/components/scroll/ScrubReveal'
 import WordSwap from '@/components/scroll/WordSwap'
-import HorizontalReel from '@/components/scroll/HorizontalReel'
 import { FAQS, PILLARS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
 import { SOCIAL_LINKS } from '@/lib/social'
 
@@ -181,7 +180,20 @@ export default function ComingSoonPage() {
           normal height, so no pull-up.) */}
       <div style={{ position: 'relative', zIndex: 3, background: CREAM, paddingTop: 20 }}>
 
-      {/* The old 4-pillar card row now lives in the horizontal reel below. */}
+      {/* ══════════════ 4 PILLARS ══════════════ */}
+      {/* No Reveal wrapper here — these sit right at the hero→content seam, so they
+          must always be painted (a reveal that hasn't fired would read as a gap). */}
+      <section className="cs-wrap" style={{ position: 'relative', paddingTop: 24 }}>
+        <div className="cs-pillars">
+          {PILLARS.map((p) => (
+            <div key={p.title} className="cs-pillar">
+              <div className="cs-pillar-icon" style={{ background: p.bg, color: p.fg }}>{p.emoji}</div>
+              <div className="cs-pillar-title">{p.title}</div>
+              <div className="cs-pillar-desc">{p.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ══════════════ WORD-SWAP MOMENT ══════════════ */}
       {/* One compact pinned beat between the hero and Meet Hero — the key word
@@ -220,20 +232,6 @@ export default function ComingSoonPage() {
           </Reveal>
         </div>
       </section>
-
-      {/* ══════════════ WHY HERO (horizontal reel) ══════════════ */}
-      {/* Vertical scroll drives the pillar cards sideways; collapses to a stack on
-          phones / reduced-motion. Data from PILLARS (this replaces the old static
-          4-pillar row up top). No heading — the moving cards carry the section. */}
-      <HorizontalReel
-        items={PILLARS.map((p, i) => ({
-          n: null,
-          art: ['target', 'book', 'chat', 'star'][i],
-          title: p.title,
-          desc: p.desc,
-          color: p.fg,
-        }))}
-      />
 
       {/* ══════════════ DESIGNED FOR AUSTRALIAN FAMILIES ══════════════ */}
       <section className="cs-section">
