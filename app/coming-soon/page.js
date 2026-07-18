@@ -14,7 +14,7 @@ import Reveal from './Reveal'
 import ScrubReveal from '@/components/scroll/ScrubReveal'
 import WordSwap from '@/components/scroll/WordSwap'
 import HorizontalReel from '@/components/scroll/HorizontalReel'
-import { FAQS, PILLARS, STEPS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
+import { FAQS, PILLARS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
 import { SOCIAL_LINKS } from '@/lib/social'
 
 // Inline brand glyphs — this page is deliberately self-contained (no icon
@@ -181,20 +181,7 @@ export default function ComingSoonPage() {
           normal height, so no pull-up.) */}
       <div style={{ position: 'relative', zIndex: 3, background: CREAM, paddingTop: 20 }}>
 
-      {/* ══════════════ 4 PILLARS ══════════════ */}
-      {/* No Reveal wrapper here — these sit right at the hero→content seam, so they
-          must always be painted (a reveal that hasn't fired would read as a gap). */}
-      <section className="cs-wrap" style={{ position: 'relative', paddingTop: 24 }}>
-        <div className="cs-pillars">
-          {PILLARS.map((p) => (
-            <div key={p.title} className="cs-pillar">
-              <div className="cs-pillar-icon" style={{ background: p.bg, color: p.fg }}>{p.emoji}</div>
-              <div className="cs-pillar-title">{p.title}</div>
-              <div className="cs-pillar-desc">{p.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* The old 4-pillar card row now lives in the horizontal reel below. */}
 
       {/* ══════════════ WORD-SWAP MOMENT ══════════════ */}
       {/* One compact pinned beat between the hero and Meet Hero — the key word
@@ -234,18 +221,17 @@ export default function ComingSoonPage() {
         </div>
       </section>
 
-      {/* ══════════════ SCENE 3 — HOW IT WORKS (horizontal reel) ══════════════ */}
-      {/* Vertical scroll drives the step cards sideways; collapses to a stack on
-          phones / reduced-motion. Data still from STEPS. */}
+      {/* ══════════════ WHY HERO (horizontal reel) ══════════════ */}
+      {/* Vertical scroll drives the pillar cards sideways; collapses to a stack on
+          phones / reduced-motion. Data from PILLARS (this replaces the old static
+          4-pillar row up top). No heading — the moving cards carry the section. */}
       <HorizontalReel
-        eyebrow="How it works"
-        heading={<>Three simple steps,<br />built around your child.</>}
-        items={STEPS.map((s, i) => ({
-          n: i + 1,
-          emoji: s.emoji,
-          title: s.title,
-          desc: s.desc,
-          color: s.color,
+        items={PILLARS.map((p) => ({
+          n: null,
+          emoji: p.emoji,
+          title: p.title,
+          desc: p.desc,
+          color: p.fg,
         }))}
       />
 

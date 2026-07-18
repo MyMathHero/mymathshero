@@ -61,10 +61,12 @@ export default function HorizontalReel({
   return (
     <div ref={trackRef} className={`mmh-hz ${className}`} style={{ height: `${trackVh}vh`, position: 'relative' }}>
       <div className="mmh-hz-pin">
-        <div className="mmh-hz-head">
-          {eyebrow && <div className="mmh-hz-eyebrow">{eyebrow}</div>}
-          {heading && <h2 className="mmh-hz-heading">{heading}</h2>}
-        </div>
+        {(eyebrow || heading) && (
+          <div className="mmh-hz-head">
+            {eyebrow && <div className="mmh-hz-eyebrow">{eyebrow}</div>}
+            {heading && <h2 className="mmh-hz-heading">{heading}</h2>}
+          </div>
+        )}
         <div ref={railRef} className="mmh-hz-rail">
           {items.map((it, i) => (
             <div
@@ -72,8 +74,10 @@ export default function HorizontalReel({
               className="mmh-hz-card"
               style={{ background: it.gradient || `linear-gradient(160deg, ${it.color || '#1B2B4B'}, #0a1428)` }}
             >
-              {(it.n ?? i + 1) != null && <span className="mmh-hz-big">{it.n ?? i + 1}</span>}
-              {it.emoji && <span className="mmh-hz-emoji">{it.emoji}</span>}
+              {/* Show a big number only when `n` is explicitly given (steps);
+                  pass n:null to hide it (non-sequential pillars). */}
+              {it.n != null && <span className="mmh-hz-big">{it.n}</span>}
+              {it.emoji && <span className={`mmh-hz-emoji${it.n == null ? ' solo' : ''}`}>{it.emoji}</span>}
               <h3>{it.title}</h3>
               <p>{it.desc}</p>
             </div>
@@ -96,6 +100,8 @@ export default function HorizontalReel({
         }
         .mmh-hz-big { position: absolute; top: 16px; left: 22px; font-size: 52px; font-weight: 900; opacity: 0.24; line-height: 1; }
         .mmh-hz-emoji { position: absolute; top: 20px; right: 24px; font-size: 30px; }
+        /* When there's no number badge, the emoji becomes the card's lead icon. */
+        .mmh-hz-emoji.solo { top: 22px; left: 24px; right: auto; font-size: 44px; }
         .mmh-hz-card h3 { font-size: clamp(20px, 2.2vw, 26px); font-weight: 900; letter-spacing: -0.02em; margin-bottom: 6px; }
         .mmh-hz-card p { font-size: 14px; line-height: 1.5; color: rgba(255, 255, 255, 0.86); }
         .mmh-hz-prog { margin: 22px 8vw 0; height: 3px; background: rgba(255, 255, 255, 0.18); border-radius: 99px; overflow: hidden; }
