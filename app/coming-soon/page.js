@@ -279,8 +279,13 @@ export default function ComingSoonPage() {
       <section id="waitlist" className="cs-section">
         <div className="cs-wrap">
           <div className="cs-offer">
-            {/* Hero peeks over the top of the form card — decorative, floats gently. */}
-            <img src="/assets/robot/Heropeekingfromdown.png" alt="" className="cs-offer-hero" aria-hidden draggable={false} />
+            {/* Hero peeks in near the form. Uses a transparent WebM when present
+                (real cutout, no box); falls back to the PNG until it's added. */}
+            <HeroPeek
+              webm="/assets/robot/Heropeekingfromsidewallani.webm"
+              png="/assets/robot/Heropeekingfromdown.png"
+              className="cs-offer-hero"
+            />
 
             {/* Left — the offer */}
             <Reveal from="right">
@@ -374,7 +379,13 @@ export default function ComingSoonPage() {
         <div className="cs-wrap">
           <Reveal>
             <div className="cs-final-cta">
-              <img src="/assets/robot/Heropeekingfromdown.png" alt="" className="cs-final-peek" aria-hidden draggable={false} />
+              {/* Hero peeks up over the navy card. Transparent WebM when present,
+                  else the PNG. */}
+              <HeroPeek
+                webm="/assets/robot/Heropeekingfromdownwallani.webm"
+                png="/assets/robot/Heropeekingfromdown.png"
+                className="cs-final-peek"
+              />
               <h2 className="cs-h2 cs-center" style={{ color: 'white' }}>Ready to help your child enjoy maths?</h2>
               <p className="cs-p cs-center" style={{ color: 'rgba(255,255,255,0.85)', maxWidth: 560, margin: '0 auto 22px' }}>
                 Join Australia's first 1,000 Founding Families and receive:
@@ -421,6 +432,33 @@ export default function ComingSoonPage() {
         <div className="cs-footer-mid">Australia 🇦🇺</div>
         <div className="cs-footer-copy">© {hydrated ? new Date().getFullYear() : 2026} MyMathsHero · mymathshero.com.au</div>
       </footer>
+    </div>
+  )
+}
+
+// ── HeroPeek ─────────────────────────────────────────────────────────────────
+// A decorative peeking Hero. Prefers a TRANSPARENT WebM (real cutout — no box,
+// no background keying needed); if that file is missing or can't play, it falls
+// back to the still PNG so the page always looks right. Drop the .webm in and it
+// upgrades itself automatically. (Solid-background MP4s can't be cleanly keyed
+// on a light page — transparency is the only clean route, hence WebM w/ alpha.)
+function HeroPeek({ webm, png, className }) {
+  const [useVideo, setUseVideo] = useState(true)
+  return (
+    <div className={className} aria-hidden>
+      {useVideo ? (
+        <video
+          src={webm}
+          autoPlay
+          loop
+          muted
+          playsInline
+          onError={() => setUseVideo(false)}
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+        />
+      ) : (
+        <img src={png} alt="" draggable={false} style={{ width: '100%', height: 'auto', display: 'block' }} />
+      )}
     </div>
   )
 }
@@ -551,8 +589,10 @@ const CSS = `
       @keyframes csGiftFloat { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
       @keyframes csGlow { 0%,100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.95; transform: scale(1.08); } }
 
-      /* Hero peeking over the top-right of the offer card, near the form. Floats. */
-      .cs-offer-hero { position: absolute; top: -78px; right: 46px; height: 168px; width: auto; z-index: 4; filter: drop-shadow(0 18px 30px rgba(27,43,75,0.28)); animation: csPeekFloat 4.6s ease-in-out infinite; pointer-events: none; }
+      /* Hero peeking video near the top-right of the offer card. The clip is
+         portrait (960×1280); we size by width and let it float. */
+      .cs-offer-hero { position: absolute; top: -128px; right: 20px; width: 150px; z-index: 4; animation: csPeekFloat 4.6s ease-in-out infinite; pointer-events: none; }
+      .cs-offer-hero video { width: 100%; height: auto; display: block; }
       @keyframes csPeekFloat { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
 
       @media (prefers-reduced-motion: reduce) {
@@ -569,7 +609,8 @@ const CSS = `
 
       /* Final CTA block */
       .cs-final-cta { position: relative; background: linear-gradient(135deg, ${NAVY}, #2D4A7A); border-radius: 28px; padding: 90px 40px 44px; text-align: center; box-shadow: 0 24px 60px rgba(27,43,75,0.28); overflow: visible; }
-      .cs-final-peek { position: absolute; top: -70px; left: 50%; transform: translateX(-50%); height: 150px; width: auto; filter: drop-shadow(0 16px 30px rgba(0,0,0,0.35)); }
+      .cs-final-peek { position: absolute; top: -132px; left: 50%; transform: translateX(-50%); width: 160px; z-index: 4; pointer-events: none; }
+      .cs-final-peek video { width: 100%; height: auto; display: block; }
       .cs-final-perks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
@@ -632,7 +673,7 @@ const CSS = `
         .cs-testimonials { grid-template-columns: 1fr; }
         .cs-offer { grid-template-columns: 1fr; padding: 30px; }
         /* On mobile the peeking Hero moves up top-right, smaller, over the corner. */
-        .cs-offer-hero { top: -54px; right: 10px; height: 108px; }
+        .cs-offer-hero { top: -96px; right: 6px; width: 108px; }
         .cs-meet-hero-img { max-width: 260px; }
         .cs-dash { grid-template-columns: 1fr !important; }
         .cs-section { padding: 64px 0; }
