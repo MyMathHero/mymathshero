@@ -11,6 +11,9 @@ import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 import { Analytics } from '@/lib/analytics'
 import { useScrollProgress, range, lerp } from './useScrollScene'
 import Reveal from './Reveal'
+import ScrubReveal from '@/components/scroll/ScrubReveal'
+import WordSwap from '@/components/scroll/WordSwap'
+import HorizontalReel from '@/components/scroll/HorizontalReel'
 import { FAQS, PILLARS, STEPS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
 import { SOCIAL_LINKS } from '@/lib/social'
 
@@ -193,12 +196,27 @@ export default function ComingSoonPage() {
         </div>
       </section>
 
+      {/* ══════════════ WORD-SWAP MOMENT ══════════════ */}
+      {/* One compact pinned beat between the hero and Meet Hero — the key word
+          cycles as you scroll, then releases fast. Collapses to a static line on
+          phones / reduced-motion. */}
+      <WordSwap
+        eyebrow="Why families choose Hero"
+        headingClassName="cs-ws-heading"
+        prefix={<>Hero helps every child<br /></>}
+        words={[
+          { text: 'understand.', color: '#2563EB' },
+          { text: 'improve.', color: GOLD },
+          { text: 'thrive.', color: '#16A34A' },
+        ]}
+      />
+
       {/* ══════════════ SCENE 2 — MEET HERO + DASHBOARD ══════════════ */}
       <section id="meet-hero" className="cs-section">
         <div className="cs-wrap cs-meet">
           <Reveal from="right" style={{ minWidth: 0 }}>
             <span className="cs-tag">Meet Hero</span>
-            <h2 className="cs-h2">Your child's <span style={{ color: '#2563EB' }}>AI maths partner</span></h2>
+            <ScrubReveal as="h2" className="cs-h2">Your child's <span style={{ color: '#2563EB' }}>AI maths partner</span></ScrubReveal>
             <p className="cs-p">
               Hero gets to know your child, creates personalised maths tasks and provides step-by-step guidance whenever they need help — building understanding, not memorisation.
             </p>
@@ -216,27 +234,20 @@ export default function ComingSoonPage() {
         </div>
       </section>
 
-      {/* ══════════════ SCENE 3 — HOW IT WORKS ══════════════ */}
-      <section className="cs-section cs-band">
-        <div className="cs-wrap">
-          <Reveal><div className="cs-tag cs-center-tag">How it works</div></Reveal>
-          <Reveal delay={0.03}><h2 className="cs-h2 cs-center cs-how-h2">How MyMaths<span style={{ color: GOLD }}>Hero</span> works</h2></Reveal>
-          <Reveal delay={0.06}><p className="cs-p cs-center" style={{ maxWidth: 640, margin: '0 auto 48px', fontWeight: 600, fontSize: 19 }}>Three simple steps, built around your child.</p></Reveal>
-          <div className="cs-steps">
-            {STEPS.map((s, i) => (
-              <Reveal key={s.title} delay={i * 0.14} from="up">
-                <div className="cs-step">
-                  <div className="cs-step-num" style={{ background: s.color }}>{i + 1}</div>
-                  <div className="cs-step-icon">{s.emoji}</div>
-                  <div className="cs-step-title">{s.title}</div>
-                  <div className="cs-step-desc">{s.desc}</div>
-                </div>
-                {i < STEPS.length - 1 && <div className="cs-step-arrow" aria-hidden>→</div>}
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ══════════════ SCENE 3 — HOW IT WORKS (horizontal reel) ══════════════ */}
+      {/* Vertical scroll drives the step cards sideways; collapses to a stack on
+          phones / reduced-motion. Data still from STEPS. */}
+      <HorizontalReel
+        eyebrow="How it works"
+        heading={<>Three simple steps,<br />built around your child.</>}
+        items={STEPS.map((s, i) => ({
+          n: i + 1,
+          emoji: s.emoji,
+          title: s.title,
+          desc: s.desc,
+          color: s.color,
+        }))}
+      />
 
       {/* ══════════════ DESIGNED FOR AUSTRALIAN FAMILIES ══════════════ */}
       <section className="cs-section">
@@ -293,7 +304,7 @@ export default function ComingSoonPage() {
                 <div className="cs-gift-glow" />
                 <div className="cs-gift-big">🎁</div>
               </div>
-              <h2 className="cs-h2" style={{ color: '#2563EB' }}>Become a Founding Family</h2>
+              <ScrubReveal as="h2" className="cs-h2" style={{ color: '#2563EB' }}>Become a Founding Family</ScrubReveal>
               <p className="cs-p">Join the first 1,000 Australian families and receive:</p>
               <ul className="cs-check-list">
                 {OFFER_POINTS.map((o, i) => <li key={i}><span className="cs-check">✓</span>{o}</li>)}
@@ -444,6 +455,7 @@ const CSS = `
       .cs-center { text-align: center; }
       .cs-h1 { font-size: clamp(40px, 6vw, 76px); font-weight: 900; line-height: 1.02; letter-spacing: -2px; margin: 14px 0 20px; color: ${NAVY}; }
       .cs-h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 900; letter-spacing: -1px; margin: 0 0 16px; color: ${NAVY}; }
+      .cs-ws-heading { font-size: clamp(30px, 5.4vw, 66px); font-weight: 900; letter-spacing: -0.03em; line-height: 1.08; color: ${NAVY}; }
       .cs-p { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 20px; }
       .cs-tag { display: inline-block; background: rgba(37,99,235,0.1); color: #2563EB; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 99px; margin-bottom: 14px; }
 
