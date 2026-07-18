@@ -9,27 +9,19 @@ describe('deriveVisual (Prep–3 only)', () => {
 
   it('draws an addition group for small + word problems', () => {
     const v = deriveVisual('Sam has 3 apples and gets 2 more. How many apples?', 1)
-    // "how many" + single-number path OR add path — either is a real visual.
+    // A word problem (not a clean "A + B" sum) → derive a group picture.
     expect(v).toBeTruthy()
     expect(['add', 'count']).toContain(v.type)
   })
 
-  it('draws an add visual for an explicit small addition', () => {
-    const v = deriveVisual('What is 3 + 4?', 2)
-    expect(v.type).toBe('add')
-    expect(v.a).toBe(3); expect(v.b).toBe(4)
-  })
-
-  it('draws a takeaway visual for small subtraction', () => {
-    const v = deriveVisual('What is 8 - 3?', 2)
-    expect(v.type).toBe('takeaway')
-    expect(v.a).toBe(8); expect(v.b).toBe(3)
-  })
-
-  it('shows an equation for bigger arithmetic (still grade 3)', () => {
-    const v = deriveVisual('What is 12 × 3?', 3)
-    expect(v.type).toBe('equation')
-    expect(v.op).toBe('×')
+  it('DEFERS a clean column sum to ColumnMath (no double visual)', () => {
+    // "What is 3 + 4?" is drawn by the stacked ColumnMath worksheet in the UI,
+    // so deriveVisual must NOT also produce a visual — else two show at once
+    // (the "532 - 318 = ?" + column-worksheet bug).
+    expect(deriveVisual('What is 3 + 4?', 2)).toBeNull()
+    expect(deriveVisual('What is 8 - 3?', 2)).toBeNull()
+    expect(deriveVisual('What is 532 - 318?', 3)).toBeNull()
+    expect(deriveVisual('What is 12 × 3?', 3)).toBeNull()
   })
 
   it('shows a shape when the question is about a named shape', () => {
@@ -62,18 +54,18 @@ describe('deriveVisual (Prep–3 only)', () => {
     expect(v?.type).not.toBe('equation')
   })
 
-  it('still draws an equation for an explicit ÷ division', () => {
-    const v = deriveVisual('What is 12 ÷ 3?', 3)
-    expect(v.type).toBe('equation')
-    expect(v.op).toBe('÷'); expect(v.a).toBe(12); expect(v.b).toBe(3)
+  it('defers a clean ÷ sum to ColumnMath (grade 2+)', () => {
+    // ColumnMath draws × and ÷ for grade ≥2, so deriveVisual should defer.
+    expect(deriveVisual('What is 12 ÷ 3?', 3)).toBeNull()
   })
 })
 
 describe('withDerivedVisual', () => {
   it('attaches a visual in place for grade ≤3, leaves existing ones alone', () => {
-    const doc = { question: 'What is 3 + 4?', grade: 2 }
+    // A shape question (not column arithmetic) → derive attaches a visual.
+    const doc = { question: 'How many sides does a triangle have?', grade: 2 }
     withDerivedVisual(doc, 2)
-    expect(doc.visual?.type).toBe('add')
+    expect(doc.visual?.type).toBe('shape')
 
     const has = { question: 'x', grade: 2, visual: { type: 'shape', shape: 'circle' } }
     withDerivedVisual(has, 2)
