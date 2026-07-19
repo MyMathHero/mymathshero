@@ -298,7 +298,9 @@ export default function ChallengeArena({ grade = 3, onCoins }: { grade?: number;
           {won ? 'You win! 🎉' : match.winner === 'tie' ? "It's a tie!" : 'Great effort!'}
         </Text>
         <Text style={[s.sub, won && { color: 'rgba(255,255,255,0.85)' }]}>
-          You solved {me?.correct || 0} question{(me?.correct || 0) === 1 ? '' : 's'} with {pct}% accuracy.
+          {match.endedBy === 'forfeit'
+            ? 'Your opponent left the challenge.'
+            : `You solved ${me?.correct || 0} question${(me?.correct || 0) === 1 ? '' : 's'} with ${pct}% accuracy.`}
         </Text>
         {match.rewardCoins > 0 && <Text style={{ color: colors.accentGold, fontWeight: '800', fontSize: 18, marginTop: 8 }}>+{match.rewardCoins} 🪙</Text>}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>

@@ -21,11 +21,17 @@ async function connectDB() {
 const ONLINE_WINDOW_MS = 60 * 1000
 const INVITE_TTL_MS = 10 * 1000        // a single invite waits this long for accept/decline
 const SEARCH_MAX_MS = 20 * 1000        // try real players this long, then fall back to the bot
+const DECLINE_COOLDOWN_MS = 20 * 1000  // after a decline, don't re-invite that pair for this long (then they can match again)
+const MATCH_GRACE_MS = 15 * 1000       // if an opponent stops sending heartbeats mid-match, they forfeit after this
 
 function oid(id) { try { return new ObjectId(id) } catch { return null } }
 
 // Find the best online, challenge-available, same-grade candidate to invite —
-// excluding self, anyone already invited this search, and anyone busy in a match.
+// excluding self, anyone busy in a match, and anyone who declined MY invite in
+// the last DECLINE_COOLDOWN_MS. A decline is only a short cooldown (not a
+// permanent block), so the same person can be re-offered on a later poll / new
+// search. `excludeIds` (the client's in-flight "tried" list) avoids re-inviting
+// someone we're still waiting on within the same poll tick.
 async function findCandidate(db, me, excludeIds = []) {
   const cutoff = new Date(Date.now() - ONLINE_WINDOW_MS)
   const online = await db.collection('children').find({
@@ -35,9 +41,16 @@ async function findCandidate(db, me, excludeIds = []) {
     'challengeSettings.enabled': { $ne: false },
   }).toArray()
 
-  const candidates = online.filter(s => gradesMatch(me.grade, s.grade))
+  // Who has declined my invite recently? Skip them until the cooldown lapses.
+  const declineCutoff = new Date(Date.now() - DECLINE_COOLDOWN_MS)
+  const recentDeclines = await db.collection('challenge_matches').find({
+    inviterId: me.id, status: 'declined', declinedAt: { $gte: declineCutoff },
+  }).toArray()
+  const cooling = new Set(recentDeclines.map(d => d.inviteeId))
+
+  const candidates = online.filter(s => gradesMatch(me.grade, s.grade) && !cooling.has(s.id))
   for (const c of candidates) {
-    // Skip anyone already busy in an active/pending match.
+    // Skip anyone already busy in an active/pending match (either side).
     const busy = await db.collection('challenge_matches').findOne({
       status: { $in: ['pending', 'active'] },
       $or: [{ 'players.studentId': c.id }, { inviteeId: c.id }, { inviterId: c.id }],
@@ -125,6 +138,7 @@ function playerEntry(student) {
     photo: photoApproved ? (student.profilePhoto || null) : null,
     grade: student.grade ?? 3,
     correct: 0, answered: 0, timeMs: 0, finished: false,
+    lastActive: new Date(), // heartbeat for mid-match presence (forfeit grace)
   }
 }
 
@@ -158,8 +172,40 @@ function publicMatch(match, meId) {
       correct: opp.correct, answered: opp.answered, finished: opp.finished,
     } : (match.mode === 'ai' ? { firstName: 'Hero Bot', avatar: '🤖', photo: null, correct: match.ai?.correct || 0, answered: match.ai?.answered || 0, finished: match.ai?.finished || false } : null),
     winner: match.winner || null,
+    endedBy: match.endedBy || null,   // 'forfeit' when the opponent left mid-match
     rewardCoins: match.rewardFor === meId ? (match.rewardCoins || 0) : 0,
   }
+}
+
+// If a HUMAN match is active and one player has gone quiet past the grace window
+// while the other is still here, the present player wins by forfeit. Pays the
+// win reward once (atomically). Returns the (possibly updated) match doc.
+async function applyForfeitIfStale(db, match, viewerId) {
+  if (!match || match.status !== 'active' || match.mode !== 'human') return match
+  const now = Date.now()
+  const stale = (p) => now - new Date(p.lastActive || match.startedAt || match.createdAt).getTime() > MATCH_GRACE_MS
+  const me = match.players.find(p => p.studentId === viewerId)
+  const opp = match.players.find(p => p.studentId !== viewerId)
+  if (!me || !opp) return match
+
+  // Only forfeit the opponent if I'm present (not stale) and they've gone quiet.
+  // If I'm the stale one, don't hand ME the win — the other side's poll does that.
+  if (stale(opp) && !stale(me)) {
+    const closed = await db.collection('challenge_matches').findOneAndUpdate(
+      { _id: match._id, status: 'active' },
+      { $set: {
+        status: 'complete', completedAt: new Date(), endedBy: 'forfeit',
+        winner: viewerId, rewardCoins: challengeReward('player'), rewardFor: viewerId,
+      } },
+      { returnDocument: 'after' }
+    )
+    const doc = closed?.value || closed
+    if (doc && doc.winner === viewerId && doc.rewardCoins > 0) {
+      await adjustCoins(db, viewerId, { coins: doc.rewardCoins, reason: 'challenge-win', meta: { matchId: match._id.toString(), forfeit: true } })
+    }
+    return doc || match
+  }
+  return match
 }
 
 export async function POST(request) {
@@ -308,23 +354,38 @@ export async function POST(request) {
       return NextResponse.json({ match: publicMatch(match, studentId) })
     }
 
-    // ── DECLINE: reject an invite; the inviter's poll moves to the next player ─
+    // ── DECLINE: reject an invite; the inviter's poll moves to the next player.
+    //    Stamp declinedAt so the pair goes on a short cooldown (not a permanent
+    //    block) — after DECLINE_COOLDOWN_MS they can be matched again. ─────────
     if (action === 'decline') {
       const id = oid(body.inviteId)
       if (id) {
         await db.collection('challenge_matches').updateOne(
-          { _id: id, inviteeId: studentId, status: 'pending' }, { $set: { status: 'declined' } }
+          { _id: id, inviteeId: studentId, status: 'pending' },
+          { $set: { status: 'declined', declinedAt: new Date() } }
         )
       }
       return NextResponse.json({ success: true })
     }
 
-    // ── STATUS: poll a match; auto-convert a stale queue to an AI match ───────
+    // ── STATUS: poll a match. Doubles as my mid-match heartbeat, and forfeits an
+    //    opponent who's gone quiet past the 15s grace window. ──────────────────
     if (action === 'status') {
       const id = oid(body.matchId)
       if (!id) return NextResponse.json({ error: 'matchId required' }, { status: 400 })
+
+      // Heartbeat: mark me active in this match (so the OTHER side knows I'm here).
+      await db.collection('challenge_matches').updateOne(
+        { _id: id, 'players.studentId': studentId, status: 'active' },
+        { $set: { 'players.$.lastActive': new Date() } }
+      )
+
       let match = await db.collection('challenge_matches').findOne({ _id: id })
       if (!match) return NextResponse.json({ error: 'Match not found' }, { status: 404 })
+
+      // If the opponent has gone quiet past the grace window, I win by forfeit.
+      match = await applyForfeitIfStale(db, match, studentId)
+      if (match.status === 'complete') return NextResponse.json({ match: publicMatch(match, studentId) })
 
       // In an AI match, advance the bot to (roughly) mirror the player's pace.
       if (match?.status === 'active' && match.mode === 'ai' && match.ai && !match.ai.finished) {

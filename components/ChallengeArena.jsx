@@ -349,10 +349,13 @@ export default function ChallengeArena({ studentId, grade = 3, myAvatar, myAvata
         }}>
           <div style={{ fontSize: 60, marginBottom: 8 }}>{won ? '🏆' : match.winner === 'tie' ? '🤝' : '💪'}</div>
           <h2 style={{ color: 'white', fontWeight: 800, fontSize: 24, margin: '0 0 6px' }}>
-            {won ? 'You win! 🎉' : match.winner === 'tie' ? "It's a tie!" : 'Great effort!'}
+            {match.endedBy === 'forfeit' && won ? 'You win! 🎉'
+              : won ? 'You win! 🎉' : match.winner === 'tie' ? "It's a tie!" : 'Great effort!'}
           </h2>
           <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 15, margin: '0 0 4px' }}>
-            {resultSummary(me?.correct || 0, match.total)}
+            {match.endedBy === 'forfeit'
+              ? 'Your opponent left the challenge.'
+              : resultSummary(me?.correct || 0, match.total)}
           </p>
           {match.rewardCoins > 0 && (
             <p style={{ color: 'var(--accent-gold)', fontWeight: 800, fontSize: 18, margin: '10px 0 0' }}>
