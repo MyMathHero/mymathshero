@@ -175,6 +175,53 @@ export default function ComingSoonPage() {
         </div>
       </section>
 
+      {/* ══════════════ MOBILE HERO (≤820px only) ══════════════ */}
+      {/* Different structure for phones: a navy top band (logo + launch pill + CTA),
+          then the FULL image as its own block (uncropped), a floating pill over
+          its base, and all the text stacked below on white. Desktop hero above is
+          hidden at this width. */}
+      <section className="cs-mhero" aria-hidden={false}>
+        <div className="cs-mhero-top">
+          <div className="cs-mhero-brand">
+            <img src="/assets/logos/logo-icon.png?v=2" alt="" className="cs-mhero-logoimg" />
+            <div>
+              <div className="cs-mhero-word"><span style={{ color: '#fff' }}>MyMaths</span><span style={{ color: GOLD }}>Hero</span></div>
+              <div className="cs-mhero-tag">PERSONALISED MATHS LEARNING</div>
+            </div>
+          </div>
+          <div className="cs-mhero-launch">
+            <span>🚀</span> LAUNCHING <b style={{ color: GOLD }}>{LAUNCH_DATE_DISPLAY}</b>
+          </div>
+          <a href="#waitlist" className="cs-btn-gold cs-mhero-cta">Join the Waitlist →</a>
+        </div>
+
+        <div className="cs-mhero-imgwrap">
+          <img src="/assets/comingsoonnew.JPG" alt="Hero, the MyMathsHero AI maths tutor, helping two children with maths at home"
+            className="cs-mhero-img" draggable={false} />
+          <div className="cs-mhero-eyebrow">
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: GOLD, flexShrink: 0 }} />
+            <span>Australia's AI maths tutor<br />Launching <b style={{ color: '#2563EB' }}>{LAUNCH_DATE_DISPLAY}</b></span>
+          </div>
+        </div>
+
+        <div className="cs-mhero-body">
+          <h1 className="cs-mhero-h1">
+            Confidence starts when <span style={{ color: '#2563EB' }}>maths</span> makes <span style={{ color: GOLD }}>sense.</span>
+          </h1>
+          <p className="cs-mhero-sub">
+            MyMathsHero is Australia's AI maths tutor for primary school children Prep to Year 6 — personalised learning that helps your child{' '}
+            <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
+          </p>
+          <div className="cs-mhero-chips">
+            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: '#2563EB' }}>👤</span><div><b>Personalised</b><span>for every child</span></div></div>
+            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: '#16A34A' }}>📈</span><div><b>Builds confidence</b><span>step by step</span></div></div>
+            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: GOLD }}>⭐</span><div><b>Aligned with</b><span>AUS curriculum</span></div></div>
+          </div>
+          <a href="#waitlist" className="cs-btn-gold cs-mhero-cta2">Join the Waitlist →</a>
+          <a href="#meet-hero" className="cs-mhero-see">See how it works ⌄</a>
+        </div>
+      </section>
+
       {/* Everything below the hero sits on a solid CREAM slab. (The old -100vh
           pull-up compensated for the previous 190vh pinned hero; the new hero is
           normal height, so no pull-up.) */}
@@ -509,15 +556,51 @@ const CSS = `
         padding: 34px 36px 30px; box-shadow: 0 30px 80px rgba(27,43,75,0.16); }
       .cs-hero2-card > * { max-width: 100%; }
       .cs-hero2-badge { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; background: ${NAVY}; color: white; font-size: 13.5px; font-weight: 700; padding: 10px 16px; border-radius: 12px; box-shadow: 0 10px 30px rgba(27,43,75,0.25); }
-      @media (max-width: 820px) {
-        .cs-hero2 { min-height: auto; }
-        .cs-hero2-bg { height: 100%; object-position: 68% center; transform: none; }
-        .cs-hero2-scrim { background: linear-gradient(180deg, rgba(244,239,227,0.96) 0%, rgba(244,239,227,0.9) 46%, rgba(244,239,227,0.55) 72%, rgba(244,239,227,0.15) 100%); }
-        .cs-hero2-inner { padding: 108px 20px 150px; justify-content: center; }
-        .cs-hero2-card { max-width: 520px; background: rgba(255,255,255,0.42); padding: 26px 24px; }
-      }
       @media (prefers-reduced-motion: reduce) {
         .cs-hero2-bg { transform: none !important; }
+      }
+
+      /* ── Mobile hero (≤820px) — a different structure to the desktop hero:
+         navy top band, then the FULL image as a block, floating pill, text below.
+         Hidden on desktop; the desktop hero is hidden at ≤820px. ── */
+      .cs-mhero { display: none; }
+      @media (max-width: 820px) {
+        .cs-hero2 { display: none; }               /* hide the desktop full-bleed hero */
+        .cs-countbar { display: none !important; }  /* override inline display:flex; the mobile navy band replaces the top strip */
+        .cs-mhero { display: block; background: #fff; }
+
+        .cs-mhero-top { background: ${NAVY}; padding: 20px 20px 26px; }
+        .cs-mhero-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+        .cs-mhero-logoimg { width: 46px; height: 46px; object-fit: contain; flex-shrink: 0; }
+        .cs-mhero-word { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; line-height: 1; }
+        .cs-mhero-tag { font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.55); letter-spacing: 2px; margin-top: 4px; }
+        .cs-mhero-launch { display: flex; align-items: center; justify-content: center; gap: 8px;
+          border: 1px solid rgba(255,255,255,0.18); border-radius: 99px; padding: 12px 18px; margin: 0 auto 18px;
+          width: fit-content; max-width: 100%; color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 700;
+          letter-spacing: 1.5px; }
+        .cs-mhero-cta { display: block; text-align: center; width: 100%; }
+
+        .cs-mhero-imgwrap { position: relative; }
+        .cs-mhero-img { display: block; width: 100%; height: auto; }
+        .cs-mhero-eyebrow { position: absolute; left: 20px; right: 20px; bottom: -26px; z-index: 2;
+          display: inline-flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #E7ECF3;
+          box-shadow: 0 10px 30px rgba(27,43,75,0.14); border-radius: 18px; padding: 14px 20px;
+          color: ${NAVY}; font-size: 15px; font-weight: 700; line-height: 1.35; width: fit-content; max-width: calc(100% - 40px); }
+
+        .cs-mhero-body { padding: 46px 22px 30px; }
+        .cs-mhero-h1 { font-size: clamp(38px, 12vw, 54px); font-weight: 900; line-height: 1.04; letter-spacing: -1.5px; color: ${NAVY}; margin: 0 0 18px; }
+        .cs-mhero-sub { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 22px; }
+        .cs-mhero-chips { display: flex; gap: 8px; background: #fff; border: 1px solid #E7ECF3; border-radius: 18px;
+          padding: 16px 12px; box-shadow: 0 12px 30px rgba(27,43,75,0.06); margin-bottom: 24px; }
+        .cs-mchip { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+          border-right: 1px solid #EEF2F7; padding: 0 6px; }
+        .cs-mchip:last-child { border-right: none; }
+        .cs-mchip-ic { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+        .cs-mchip div { display: flex; flex-direction: column; line-height: 1.25; }
+        .cs-mchip b { font-size: 12.5px; color: ${NAVY}; font-weight: 800; }
+        .cs-mchip span { font-size: 11.5px; color: #64748B; }
+        .cs-mhero-cta2 { display: block; text-align: center; width: 100%; margin-bottom: 16px; }
+        .cs-mhero-see { display: block; text-align: center; color: ${NAVY}; font-weight: 700; font-size: 15px; text-decoration: none; }
       }
 
       /* Hero (legacy classes still used by the logo/eyebrow/h1/sub/cta) */

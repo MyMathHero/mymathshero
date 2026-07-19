@@ -7,7 +7,7 @@ import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 // glowing "Launching September 2026" badge, and the waitlist CTA.
 export default function MathCountdownBar() {
   return (
-    <div style={S.bar}>
+    <div style={S.bar} className="cs-countbar">
       {/* subtle drifting sparkles behind the badge */}
       <style>{`
         @keyframes csGlow { 0%,100% { box-shadow: 0 0 0 rgba(196,154,26,0.0), inset 0 0 0 rgba(255,255,255,0); }
