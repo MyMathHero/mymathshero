@@ -212,11 +212,6 @@ export default function ComingSoonPage() {
             MyMathsHero is Australia's AI maths tutor for primary school children Prep to Year 6 — personalised learning that helps your child{' '}
             <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
           </p>
-          <div className="cs-mhero-chips">
-            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: '#2563EB' }}>👤</span><div><b>Personalised</b><span>for every child</span></div></div>
-            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: '#16A34A' }}>📈</span><div><b>Builds confidence</b><span>step by step</span></div></div>
-            <div className="cs-mchip"><span className="cs-mchip-ic" style={{ background: GOLD }}>⭐</span><div><b>Aligned with</b><span>AUS curriculum</span></div></div>
-          </div>
           <a href="#waitlist" className="cs-btn-gold cs-mhero-cta2">Join the Waitlist →</a>
           <a href="#meet-hero" className="cs-mhero-see">See how it works ⌄</a>
         </div>
@@ -589,16 +584,7 @@ const CSS = `
 
         .cs-mhero-body { padding: 46px 22px 30px; }
         .cs-mhero-h1 { font-size: clamp(38px, 12vw, 54px); font-weight: 900; line-height: 1.04; letter-spacing: -1.5px; color: ${NAVY}; margin: 0 0 18px; }
-        .cs-mhero-sub { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 22px; }
-        .cs-mhero-chips { display: flex; gap: 8px; background: #fff; border: 1px solid #E7ECF3; border-radius: 18px;
-          padding: 16px 12px; box-shadow: 0 12px 30px rgba(27,43,75,0.06); margin-bottom: 24px; }
-        .cs-mchip { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
-          border-right: 1px solid #EEF2F7; padding: 0 6px; }
-        .cs-mchip:last-child { border-right: none; }
-        .cs-mchip-ic { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
-        .cs-mchip div { display: flex; flex-direction: column; line-height: 1.25; }
-        .cs-mchip b { font-size: 12.5px; color: ${NAVY}; font-weight: 800; }
-        .cs-mchip span { font-size: 11.5px; color: #64748B; }
+        .cs-mhero-sub { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 26px; }
         .cs-mhero-cta2 { display: block; text-align: center; width: 100%; margin-bottom: 16px; }
         .cs-mhero-see { display: block; text-align: center; color: ${NAVY}; font-weight: 700; font-size: 15px; text-decoration: none; }
       }
