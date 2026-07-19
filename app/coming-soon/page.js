@@ -181,9 +181,14 @@ export default function ComingSoonPage() {
       <div style={{ position: 'relative', zIndex: 3, background: CREAM, paddingTop: 20 }}>
 
       {/* ══════════════ MEET-HERO MARKETING VIDEO ══════════════ */}
-      {/* Plays only when scrolled into view (pauses when it leaves). */}
+      {/* Big animated title above a video that plays only when scrolled into view. */}
       <section className="cs-section cs-video-section">
         <div className="cs-wrap">
+          <Reveal from="up">
+            <h2 className="cs-video-title">
+              Meet <span className="cs-video-title-hero">Hero</span>
+            </h2>
+          </Reveal>
           <ScrollVideo src="/assets/robot/meetherovideo.MP4" poster="/assets/robot/hero-robot.png" />
         </div>
       </section>
@@ -192,7 +197,6 @@ export default function ComingSoonPage() {
       <section id="meet-hero" className="cs-section">
         <div className="cs-wrap cs-meet">
           <Reveal from="right" style={{ minWidth: 0 }}>
-            <span className="cs-tag cs-tag-lg">Meet Hero</span>
             <ScrubReveal as="h2" className="cs-h2">Your child's <span style={{ color: '#2563EB' }}>AI maths partner</span></ScrubReveal>
             <p className="cs-p">
               Hero gets to know your child, creates personalised maths tasks and provides step-by-step guidance whenever they need help — building understanding, not memorisation.
@@ -469,6 +473,19 @@ const CSS = `
       .cs-h2 { font-size: clamp(28px, 3.6vw, 44px); font-weight: 900; letter-spacing: -1px; margin: 0 0 16px; color: ${NAVY}; }
       /* Bigger "Meet Hero" eyebrow tag. */
       .cs-tag-lg { font-size: 15px; padding: 8px 20px; letter-spacing: 1.5px; margin-bottom: 18px; }
+
+      /* Big "Meet Hero" title above the marketing video. Gradient "Hero" with a
+         soft sheen sweep; the whole title gently rises in via its Reveal wrapper. */
+      .cs-video-title { text-align: center; font-size: clamp(40px, 6vw, 76px); font-weight: 900;
+        letter-spacing: -2px; line-height: 1.02; color: ${NAVY}; margin: 0 auto 34px; }
+      .cs-video-title-hero { position: relative;
+        background: linear-gradient(100deg, #2563EB 0%, ${GOLD} 55%, #2563EB 100%);
+        background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+        animation: csHeroSheen 5s ease-in-out infinite; }
+      @keyframes csHeroSheen { 0%,100% { background-position: 0% 0; } 50% { background-position: 100% 0; } }
+      @media (prefers-reduced-motion: reduce) {
+        .cs-video-title-hero { animation: none; background-position: 0 0; }
+      }
       .cs-p { font-size: 17px; line-height: 1.6; color: #475569; margin: 0 0 20px; }
       .cs-tag { display: inline-block; background: rgba(37,99,235,0.1); color: #2563EB; font-weight: 800; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; padding: 6px 14px; border-radius: 99px; margin-bottom: 14px; }
 
