@@ -66,7 +66,7 @@ function waitlistConfirmationHtml(entry) {
     </div>
     <div style="background:#1B2B4B;border-radius:0 0 16px 16px;padding:24px 40px;text-align:center;">
       <p style="color:rgba(255,255,255,0.5);font-size:12px;line-height:1.6;margin:0;">
-        © ${new Date().getFullYear()} MyMathsHero · Melbourne, Australia
+        © ${new Date().getFullYear()} MyMathsHero · Australia
       </p>
       <p style="margin:8px 0 0;">
         <a href="https://mymathshero.com.au" style="color:#C49A1A;text-decoration:none;font-size:12px;">mymathshero.com.au</a>

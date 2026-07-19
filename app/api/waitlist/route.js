@@ -169,8 +169,7 @@ function confirmationHtml(position) {
           You're on the list! 🎉
         </h2>
         <p style="color:#64748B;line-height:1.7;font-size:15px;margin:0 0 16px;">
-          Thanks for joining the MyMathsHero waitlist.
-          You're <strong style="color:#1B2B4B;">#${position}</strong> on the list!
+          Thanks for joining the MyMathsHero waitlist — you're in! 🎉
         </p>
         <p style="color:#64748B;line-height:1.7;font-size:15px;margin:0 0 20px;">
           We'll email you the moment we launch with an exclusive founding-family discount.

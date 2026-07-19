@@ -61,11 +61,11 @@ export default function ComingSoonPage() {
       })
       const data = await res.json().catch(() => ({}))
       Analytics.waitlistJoined(childGrade || null)
-      // Off to the dedicated thank-you page. Pass the waitlist position + first
-      // name so it can personalise + show their spot. (submitted flag kept so the
-      // button shows "Reserving…" until the route change completes.)
+      // Off to the dedicated thank-you page. We intentionally DO NOT pass the
+      // waitlist number (better for marketing to keep it a mystery) — only the
+      // first name + whether they made the founding-family window.
       const params = new URLSearchParams()
-      if (data?.position) params.set('pos', String(data.position))
+      if (data?.foundingFamily || (data?.position && Number(data.position) <= 1000)) params.set('founding', '1')
       if (firstName.trim()) params.set('name', firstName.trim())
       setSubmitted(true)
       router.push(`/thankyou${params.toString() ? `?${params}` : ''}`)

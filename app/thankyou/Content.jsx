@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
@@ -54,9 +54,10 @@ function Confetti() {
 
 function ThankYouInner() {
   const params = useSearchParams()
-  const pos = params.get('pos')
   const name = (params.get('name') || '').trim()
-  const founding = useMemo(() => pos && Number(pos) <= 1000, [pos])
+  // We no longer expose the queue number — the form just tells us whether they
+  // made the founding-family window.
+  const founding = params.get('founding') === '1'
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -70,13 +71,11 @@ function ThankYouInner() {
     if (typeof window !== 'undefined' && window.__waitlistConfirmedFired) return
     if (typeof window !== 'undefined') window.__waitlistConfirmedFired = true
 
-    const position = pos ? Number(pos) : undefined
     const foundingFamily = !!founding
-    Analytics.waitlistConfirmed({ position, foundingFamily })
+    Analytics.waitlistConfirmed({ foundingFamily })
     if (typeof window !== 'undefined' && Array.isArray(window.dataLayer)) {
       window.dataLayer.push({
         event: 'waitlist_confirmed',
-        waitlist_position: position,
         founding_family: foundingFamily ? 'yes' : 'no',
       })
     }
@@ -130,19 +129,15 @@ function ThankYouInner() {
           You've joined the MyMathsHero founding-family waitlist. We'll email you with early-access details ahead of our <b style={{ color: NAVY }}>{LAUNCH_DATE_DISPLAY}</b> launch.
         </p>
 
-        {/* Waitlist position card */}
-        {pos && (
-          <div className="ty-rise" style={{ animationDelay: '0.38s', display: 'inline-flex', alignItems: 'center', gap: 14, background: '#F7F9FC', border: '1px solid #E7ECF3', borderRadius: 18, padding: '16px 24px', marginBottom: 26 }}>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Your spot</div>
-              <div style={{ fontSize: 30, fontWeight: 900, color: NAVY, lineHeight: 1 }}>#{pos}</div>
+        {/* Founding-family perk card (the actual queue number is intentionally
+            NOT shown — better for marketing to keep it a mystery). */}
+        {founding && (
+          <div className="ty-rise" style={{ animationDelay: '0.38s', display: 'inline-flex', alignItems: 'center', gap: 12, background: '#F7F9FC', border: '1px solid #E7ECF3', borderRadius: 18, padding: '16px 24px', marginBottom: 26, textAlign: 'left', maxWidth: 340 }}>
+            <span style={{ fontSize: 26, flexShrink: 0 }}>🎁</span>
+            <div>
+              <div style={{ fontWeight: 800, color: GOLD, fontSize: 15 }}>You're a Founding Family</div>
+              <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.4, marginTop: 2 }}>1 month free + $19.99/mo for your first year</div>
             </div>
-            {founding && (
-              <div style={{ paddingLeft: 16, borderLeft: '1px solid #E2E8F0', textAlign: 'left', maxWidth: 220 }}>
-                <div style={{ fontWeight: 800, color: GOLD, fontSize: 14 }}>🎁 Founding Family</div>
-                <div style={{ fontSize: 12.5, color: '#64748B', lineHeight: 1.4, marginTop: 2 }}>1 month free + $19.99/mo for your first year</div>
-              </div>
-            )}
           </div>
         )}
 
