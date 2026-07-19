@@ -24,7 +24,10 @@ export default function robots() {
         '/avatar-customisation',
         '/arcade',
         '/junior',
-        '/coming-soon',
+        // NOTE: /coming-soon is intentionally NOT disallowed — during the
+        // waitlist phase it's the public landing page (ads point at it), so it
+        // must be crawlable/indexable. /thankyou stays blocked (a post-signup
+        // confirmation page has no search value).
         '/thankyou',
       ],
     },
