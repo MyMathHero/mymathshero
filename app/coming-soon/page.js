@@ -13,7 +13,7 @@ import { useScrollProgress, range, lerp } from './useScrollScene'
 import Reveal from './Reveal'
 import ScrubReveal from '@/components/scroll/ScrubReveal'
 import ScrollVideo from '@/components/scroll/ScrollVideo'
-import { FAQS, PILLARS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
+import { FAQS, FAMILY_TRUST, TESTIMONIALS, OFFER_POINTS, FLOAT_SYMBOLS } from './comingSoonData'
 import { SOCIAL_LINKS } from '@/lib/social'
 
 // Inline brand glyphs — this page is deliberately self-contained (no icon
@@ -180,31 +180,10 @@ export default function ComingSoonPage() {
           normal height, so no pull-up.) */}
       <div style={{ position: 'relative', zIndex: 3, background: CREAM, paddingTop: 20 }}>
 
-      {/* ══════════════ 4 PILLARS ══════════════ */}
-      {/* No Reveal wrapper here — these sit right at the hero→content seam, so they
-          must always be painted (a reveal that hasn't fired would read as a gap). */}
-      <section className="cs-wrap" style={{ position: 'relative', paddingTop: 24 }}>
-        <div className="cs-pillars">
-          {PILLARS.map((p) => (
-            <div key={p.title} className="cs-pillar">
-              <div className="cs-pillar-icon" style={{ background: p.bg, color: p.fg }}>{p.emoji}</div>
-              <div className="cs-pillar-title">{p.title}</div>
-              <div className="cs-pillar-desc">{p.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ══════════════ MEET-HERO MARKETING VIDEO ══════════════ */}
       {/* Plays only when scrolled into view (pauses when it leaves). */}
       <section className="cs-section cs-video-section">
         <div className="cs-wrap">
-          <Reveal><div className="cs-tag cs-center-tag">Why families choose Hero</div></Reveal>
-          <Reveal delay={0.04}>
-            <h2 className="cs-h2 cs-center cs-how-h2" style={{ margin: '0 auto 32px', maxWidth: 780 }}>
-              See how Hero helps every child <span style={{ color: '#16A34A' }}>thrive</span>
-            </h2>
-          </Reveal>
           <ScrollVideo src="/assets/robot/meetherovideo.MP4" poster="/assets/robot/hero-robot.png" />
         </div>
       </section>
@@ -218,9 +197,21 @@ export default function ComingSoonPage() {
             <p className="cs-p">
               Hero gets to know your child, creates personalised maths tasks and provides step-by-step guidance whenever they need help — building understanding, not memorisation.
             </p>
-            <ul className="cs-check-list">
-              {['Personalised daily learning tasks', 'Step-by-step hints when stuck', 'Adaptive difficulty that grows with your child', 'Progress reports parents can understand'].map((t, i) => (
-                <li key={i}><span className="cs-check">✓</span>{t}</li>
+            {/* The four things we sell — highlighted so they pop. */}
+            <ul className="cs-sell-list">
+              {[
+                { t: 'Personalised daily learning tasks', d: 'Built around exactly what your child needs next.', c: '#2563EB' },
+                { t: 'Step-by-step hints when stuck', d: 'Hero guides, never just gives the answer.', c: '#16A34A' },
+                { t: 'Adaptive difficulty that grows with your child', d: 'Never too easy, never too hard.', c: GOLD },
+                { t: 'Progress reports parents can understand', d: 'See exactly how your child is improving.', c: '#7C3AED' },
+              ].map((item, i) => (
+                <li key={i} className="cs-sell-item" style={{ '--sell-accent': item.c }}>
+                  <span className="cs-sell-check">✓</span>
+                  <div>
+                    <div className="cs-sell-title">{item.t}</div>
+                    <div className="cs-sell-desc">{item.d}</div>
+                  </div>
+                </li>
               ))}
             </ul>
           </Reveal>
@@ -551,6 +542,20 @@ const CSS = `
       .cs-check-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
       .cs-check-list li { display: flex; align-items: flex-start; gap: 12px; color: ${NAVY}; font-weight: 600; font-size: 15.5px; }
       .cs-check { flex-shrink: 0; width: 22px; height: 22px; border-radius: 99px; background: #ECFDF5; color: #16A34A; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
+
+      /* Meet Hero — the four selling points, highlighted so they POP. Each is a
+         card with a coloured accent bar + tinted check; lifts on hover. */
+      .cs-sell-list { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 12px; }
+      .cs-sell-item { position: relative; display: flex; align-items: flex-start; gap: 14px;
+        background: #fff; border: 1px solid #E7ECF3; border-left: 4px solid var(--sell-accent);
+        border-radius: 14px; padding: 14px 18px; box-shadow: 0 8px 22px rgba(27,43,75,0.07);
+        transition: transform .2s ease, box-shadow .2s ease; }
+      .cs-sell-item:hover { transform: translateX(4px); box-shadow: 0 14px 34px rgba(27,43,75,0.13); }
+      .cs-sell-check { flex-shrink: 0; width: 26px; height: 26px; border-radius: 99px;
+        background: color-mix(in srgb, var(--sell-accent) 15%, white); color: var(--sell-accent);
+        display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; margin-top: 1px; }
+      .cs-sell-title { font-weight: 800; font-size: 16px; color: ${NAVY}; line-height: 1.25; }
+      .cs-sell-desc { font-size: 13.5px; color: #64748B; line-height: 1.45; margin-top: 3px; }
 
       /* Steps */
       .cs-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; position: relative; }
