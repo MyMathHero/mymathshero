@@ -256,6 +256,15 @@ export async function POST(request) {
             from: 'hello',
             html: welcomeHtml({ name: parent.name, plan, foundingFamily: parent.foundingFamily }),
           }).catch(() => {})
+
+          // Founding-invite conversion: mark the waitlister as converted so the
+          // admin funnel shows invited → signed-up → CONVERTED.
+          if (parent.foundingInviteToken) {
+            db.collection('waitlist').updateOne(
+              { inviteToken: parent.foundingInviteToken, convertedAt: { $exists: false } },
+              { $set: { convertedAt: new Date() } }
+            ).catch(() => {})
+          }
         }
         if (parent?.id) {
           const firstTime = invoice.billing_reason === 'subscription_create'

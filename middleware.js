@@ -20,6 +20,9 @@ const TESTER_COOKIE = 'mmh_tester'
 const ALWAYS_ALLOWED_PAGES = [
   '/coming-soon',
   '/thankyou',   // post-waitlist confirmation — must bypass the gate
+  '/join',       // founding-family invite landing (invited waitlisters sign up here)
+  '/onboarding', // invited users need to create an account + add a child
+  '/subscribe',  // …and reach founding checkout
   '/login',
 ]
 

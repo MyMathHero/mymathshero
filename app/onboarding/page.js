@@ -227,10 +227,14 @@ function ParentFlow({ onBack }) {
     if (Object.keys(errs).length) { setFieldErrors(errs); return }
     setLoading(true); setError('')
     try {
+      // Carry a founding-family invite token through, if the user arrived via
+      // /join?invite=… — so the server can mark this waitlister as signed up.
+      let inviteToken = ''
+      try { inviteToken = sessionStorage.getItem('mmh_invite') || '' } catch { /* ignore */ }
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'parent', name, email, password }),
+        body: JSON.stringify({ role: 'parent', name, email, password, inviteToken }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Registration failed'); return }

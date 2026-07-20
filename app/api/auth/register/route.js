@@ -36,7 +36,7 @@ export async function POST(request) {
 
     // ── Parent registration ──────────────────────────────────────────────────
     if (role === 'parent') {
-      const { name, email, password } = body
+      const { name, email, password, inviteToken } = body
 
       if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
       if (!email?.trim()) return NextResponse.json({ error: 'email is required' }, { status: 400 })
@@ -57,6 +57,21 @@ export async function POST(request) {
       const grantFreeMonth = await testerFreeAccessEnabled(db)
       const trialFields = grantFreeMonth ? buildFreeTrialGrant() : {}
 
+      // Founding-family invite: if they arrived via a valid /join invite, tag the
+      // account so checkout can offer the founding plan, and mark the waitlister
+      // as signed up (conversion is stamped later, on first payment).
+      let fromFoundingInvite = false
+      if (inviteToken) {
+        const w = await db.collection('waitlist').findOne({ inviteToken })
+        if (w) {
+          fromFoundingInvite = true
+          db.collection('waitlist').updateOne(
+            { inviteToken, signedUpAt: { $exists: false } },
+            { $set: { signedUpAt: new Date(), signedUpParentId: parentId } }
+          ).catch(() => {})
+        }
+      }
+
       await db.collection('parents').insertOne({
         id: parentId,
         name: name.trim(),
@@ -65,6 +80,7 @@ export async function POST(request) {
         phone: body.phone?.trim() || '',
         children: [],
         created_at: new Date(),
+        ...(fromFoundingInvite ? { foundingFamily: true, foundingInviteToken: inviteToken } : {}),
         ...trialFields,
       })
 

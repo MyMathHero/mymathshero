@@ -7,6 +7,7 @@ import Navbar from './Navbar'
 const HIDDEN_ON = new Set([
   '/coming-soon',
   '/thankyou',
+  '/join', // focused founding-family invite landing — own layout, no marketing nav
 ])
 
 export default function ConditionalNavbar() {
