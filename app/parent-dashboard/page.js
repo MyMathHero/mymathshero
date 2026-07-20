@@ -72,6 +72,20 @@ function AccountTile({ icon, title, desc, onClick }) {
   )
 }
 
+// Read-only labelled row for the "Personal details" panel (matches the Name/Email
+// row styling, minus the Edit button).
+function ProfileDetailRow({ label, value }) {
+  return (
+    <div style={{
+      padding: '16px 0',
+      borderBottom: '1px solid var(--border-light)',
+    }}>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 2px' }}>{label}</p>
+      <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0, fontSize: 14 }}>{value}</p>
+    </div>
+  )
+}
+
 export default function ParentDashboard() {
   const { flags } = useFeatureFlags()
   const [step, setStep] = useState('loading') // loading, landing, register, addChild, childCreated, dashboard
@@ -138,7 +152,15 @@ export default function ParentDashboard() {
 
         if (auth.authenticated && auth.user?.role === 'parent') {
           const parentId = auth.user.userId
-          setParentData({ id: parentId, name: auth.user.name, email: auth.user.email })
+          setParentData({
+            id: parentId,
+            name: auth.user.name,
+            email: auth.user.email,
+            phone: auth.user.phone || null,
+            memberSince: auth.user.memberSince || null,
+            plan: auth.user.plan || null,
+            foundingFamily: auth.user.foundingFamily || false,
+          })
           // Fire-and-forget subscription status load so the sidebar can render
           // billing state. Failures are swallowed; we just don't show the
           // section until a value lands.
@@ -1513,6 +1535,24 @@ export default function ParentDashboard() {
                       </div>
                     </div>
                   )}
+
+                  {/* Read-only account details (like a proper account page). */}
+                  <ProfileDetailRow label="Phone" value={parentData?.phone || 'Not added'} />
+                  <ProfileDetailRow
+                    label="Member since"
+                    value={parentData?.memberSince
+                      ? new Date(parentData.memberSince).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+                      : '—'}
+                  />
+                  <ProfileDetailRow
+                    label="Plan"
+                    value={
+                      parentData?.foundingFamily ? '🎁 Founding Family'
+                      : parentData?.plan === 'premium' ? '⭐ Premium'
+                      : parentData?.plan === 'standard' ? '📚 Standard'
+                      : 'Free'
+                    }
+                  />
 
                   {/* Password */}
                   <button
