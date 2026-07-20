@@ -25,7 +25,11 @@ export async function GET(request) {
     const db = await connectDB()
     const parent = await db.collection('parents').findOne(
       { id: payload.userId },
-      { projection: { _id: 0, id: 1, name: 1, email: 1 } }
+      // Non-sensitive profile fields only — never the password hash or Stripe IDs.
+      { projection: {
+        _id: 0, id: 1, name: 1, email: 1, phone: 1,
+        created_at: 1, plan: 1, foundingFamily: 1,
+      } }
     )
     if (!parent) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     return NextResponse.json({ profile: parent })

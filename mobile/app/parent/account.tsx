@@ -436,6 +436,29 @@ export default function ParentAccountScreen() {
                 </View>
               </View>
             )}
+            {/* Read-only account details (mirrors the web profile). */}
+            <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+              <Text style={s.label}>Phone</Text>
+              <Text style={[s.value, { fontSize: 13 }]}>{parentData?.phone || 'Not added'}</Text>
+            </View>
+            <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+              <Text style={s.label}>Member since</Text>
+              <Text style={[s.value, { fontSize: 13 }]}>
+                {parentData?.created_at
+                  ? new Date(parentData.created_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : '—'}
+              </Text>
+            </View>
+            <View style={[s.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+              <Text style={s.label}>Plan</Text>
+              <Text style={[s.value, { fontSize: 13 }]}>
+                {parentData?.foundingFamily ? '🎁 Founding Family'
+                  : parentData?.plan === 'premium' ? '⭐ Premium'
+                  : parentData?.plan === 'standard' ? '📚 Standard'
+                  : 'Free'}
+              </Text>
+            </View>
+
             <TouchableOpacity
               style={s.actionRow}
               onPress={() => setShowChangePw(!showChangePw)}
