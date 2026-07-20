@@ -2,7 +2,7 @@ import { MongoClient } from 'mongodb'
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getRequestToken, verifyToken } from '@/lib/auth'
-import { sendEmail } from '@/lib/email'
+import { sendEmail, sendSupportConfirmation } from '@/lib/email'
 import { notifyAdmin } from '@/lib/notifications'
 
 export const runtime = 'nodejs'
@@ -182,6 +182,18 @@ export async function POST(request) {
         body: `<strong>${subject}</strong> (${category})<br><br>${message}`,
       }),
     }).catch(() => {})
+
+    // Confirm to the USER that we got their message (only if we have an email).
+    if (email) {
+      sendSupportConfirmation({
+        userEmail: email,
+        userName: payload.name || parentName || 'there',
+        ticketId,
+        subject,
+        message,
+        estimatedResponse: '1–2 business days',
+      }).catch(() => {})
+    }
 
     // Admin-feed notification so it surfaces in the admin console too.
     notifyAdmin(db, {

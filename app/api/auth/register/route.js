@@ -79,6 +79,12 @@ export async function POST(request) {
         }).catch(() => {})
       } catch { /* non-fatal */ }
 
+      // Fire-and-forget account welcome (don't block the response on email).
+      try {
+        const { sendAccountWelcome } = await import('@/lib/email')
+        sendAccountWelcome({ parentEmail: normalizedEmail, parentName: name.trim() }).catch(() => {})
+      } catch { /* non-fatal */ }
+
       // Log the parent in immediately so they land on the dashboard after
       // onboarding instead of bouncing back to the "Create account" landing.
       const token = await createToken({
