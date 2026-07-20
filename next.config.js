@@ -24,16 +24,27 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // ── Default: pages may only be framed by our OWN origin. This blocks
-      //    clickjacking of login / dashboards / payment pages. Arcade games are
-      //    same-origin (/games/*), so they still embed fine. The mobile app
-      //    opens payment pages in a WebView, which is NOT subject to
-      //    frame-ancestors/X-Frame-Options, so this doesn't affect mobile. ──
+      // ── Default: pages may only be framed by our OWN origin, plus Google Tag
+      //    Manager / Tag Assistant (which previews the site inside an iframe —
+      //    without this, GTM Preview fails to load). Everything else is blocked,
+      //    so login / dashboards / payment pages stay safe from clickjacking.
+      //
+      //    NOTE: we deliberately do NOT send X-Frame-Options. It's the legacy
+      //    header and only understands SAMEORIGIN/DENY — it cannot whitelist
+      //    Google, and (being more restrictive) it would override the CSP in
+      //    browsers that honour both. CSP frame-ancestors is the modern,
+      //    per-origin equivalent and is supported by all current browsers.
+      //
+      //    Arcade games are same-origin (/games/*) so they still embed; mobile
+      //    WebViews aren't subject to these headers at all. ──
       {
         source: "/((?!api/).*)",
         headers: [
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self';" },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "frame-ancestors 'self' https://tagassistant.google.com https://*.googletagmanager.com;",
+          },
           // Baseline hardening headers (safe, no behaviour change).
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
