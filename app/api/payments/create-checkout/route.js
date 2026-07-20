@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { MongoClient } from 'mongodb'
 import { STRIPE_CONFIG } from '@/lib/stripeConfig'
+import { getRequestToken, verifyToken } from '@/lib/auth'
 
 // Whether the launch "first month free" promo is on (admin feature flag).
 async function freeFirstMonthEnabled(db) {
@@ -48,6 +49,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Stripe is not configured' }, { status: 503 })
     }
 
+    // ── Auth: the caller must be a logged-in parent, and may only start a
+    //    checkout for THEIR OWN account. Identity comes from the token, never
+    //    from the request body — so nobody can pass someone else's parentId. ──
+    const token = getRequestToken(request)
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const auth = await verifyToken(token)
+    if (!auth?.userId || auth.role !== 'parent') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const {
       parentId, priceId, planKey, email,
       isFoundingFamily, applyFreeMonth,
@@ -56,6 +69,10 @@ export async function POST(request) {
 
     if (!parentId) {
       return NextResponse.json({ error: 'parentId is required' }, { status: 400 })
+    }
+    // Reject any attempt to check out for a different account.
+    if (parentId !== auth.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const db = await connectDB()
