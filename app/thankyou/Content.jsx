@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 import { Analytics } from '@/lib/analytics'
@@ -53,15 +52,23 @@ function Confetti() {
 }
 
 function ThankYouInner() {
-  const params = useSearchParams()
-  const name = (params.get('name') || '').trim()
-  // We no longer expose the queue number — the form just tells us whether they
-  // made the founding-family window.
-  const founding = params.get('founding') === '1'
+  // Personalisation is handed over in sessionStorage by the waitlist form, so
+  // the URL stays clean (/thankyou — no name or status in the query string).
+  // If it's missing (direct visit, storage blocked, refresh in a new tab) the
+  // page simply renders the generic version.
+  const [name, setName] = useState('')
+  const [founding, setFounding] = useState(false)
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
+
+    let ty = {}
+    try { ty = JSON.parse(sessionStorage.getItem('mmh_ty') || '{}') } catch { /* ignore */ }
+    const foundingFamily = !!ty.founding
+    setName((ty.name || '').trim())
+    setFounding(foundingFamily)
+
     // ── Marketing conversion tracking ──────────────────────────────────────
     // Fire the conversion EXACTLY ONCE per page load. This is the marketing
     // signal: GA4 event `waitlist_confirmed` (mark it a Key event/conversion in
@@ -71,7 +78,6 @@ function ThankYouInner() {
     if (typeof window !== 'undefined' && window.__waitlistConfirmedFired) return
     if (typeof window !== 'undefined') window.__waitlistConfirmedFired = true
 
-    const foundingFamily = !!founding
     Analytics.waitlistConfirmed({ foundingFamily })
     if (typeof window !== 'undefined' && Array.isArray(window.dataLayer)) {
       window.dataLayer.push({

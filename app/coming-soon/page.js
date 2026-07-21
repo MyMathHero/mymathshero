@@ -61,14 +61,19 @@ export default function ComingSoonPage() {
       })
       const data = await res.json().catch(() => ({}))
       Analytics.waitlistJoined(childGrade || null)
-      // Off to the dedicated thank-you page. We intentionally DO NOT pass the
-      // waitlist number (better for marketing to keep it a mystery) — only the
-      // first name + whether they made the founding-family window.
-      const params = new URLSearchParams()
-      if (data?.foundingFamily || (data?.position && Number(data.position) <= 1000)) params.set('founding', '1')
-      if (firstName.trim()) params.set('name', firstName.trim())
+      // Off to the dedicated thank-you page. The URL stays CLEAN (/thankyou with
+      // no query string) — the personalisation is handed over in sessionStorage
+      // instead, so no name/status is exposed in the URL, analytics, or if the
+      // link is shared. (We also never pass the waitlist number — deliberate.)
+      try {
+        const founding = !!(data?.foundingFamily || (data?.position && Number(data.position) <= 1000))
+        sessionStorage.setItem('mmh_ty', JSON.stringify({
+          name: firstName.trim() || '',
+          founding,
+        }))
+      } catch { /* storage blocked — the page just shows the generic version */ }
       setSubmitted(true)
-      router.push(`/thankyou${params.toString() ? `?${params}` : ''}`)
+      router.push('/thankyou')
     } catch {
       // Network error — still send them to a friendly thank-you rather than a
       // dead end (their email may well have been captured).
