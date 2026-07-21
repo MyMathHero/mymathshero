@@ -1,11 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-
-// Premium 3D Hero mascot — client-only (WebGL), 2D image shown until it loads.
-const Hero3D = dynamic(() => import('@/components/Hero3D'), { ssr: false })
 import MathCountdownBar from '@/components/MathCountdownBar'
 import { LAUNCH_DATE_DISPLAY } from '@/lib/launchDate'
 import { Analytics } from '@/lib/analytics'
@@ -267,9 +263,14 @@ export default function ComingSoonPage() {
             </ul>
           </Reveal>
           <Reveal from="left" delay={0.1} style={{ display: 'flex', justifyContent: 'center' }}>
-            <div className="cs-meet-hero-3d">
-              <Hero3D height={440} />
-            </div>
+            {/* Cropped + edge-feathered Hero artwork (transparent PNG) so it
+                melts into the cream page instead of reading as a rectangle. */}
+            <img
+              src="/assets/robot/meethero-cut.png"
+              alt="Hero, the MyMathsHero AI maths tutor, surrounded by floating maths symbols"
+              className="cs-meet-hero-art"
+              draggable={false}
+            />
           </Reveal>
         </div>
       </section>
@@ -715,7 +716,13 @@ const CSS = `
 
       /* Meet Hero image (replaces the old dashboard mock) */
       .cs-meet-hero-img { width: 100%; max-width: 380px; height: auto; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
-      .cs-meet-hero-3d { width: 100%; max-width: 440px; filter: drop-shadow(0 24px 50px rgba(27,43,75,0.22)); }
+      /* Meet-Hero artwork. Edges are already feathered in the PNG, so NO
+         drop-shadow here (a shadow would trace the invisible bounding box).
+         Gentle idle float keeps it feeling alive. */
+      .cs-meet-hero-art { width: 100%; max-width: 460px; height: auto; display: block;
+        animation: csHeroArtFloat 6s ease-in-out infinite; }
+      @keyframes csHeroArtFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+      @media (prefers-reduced-motion: reduce) { .cs-meet-hero-art { animation: none; } }
 
       /* Centered eyebrow tag for the How-it-works heading */
       .cs-center-tag { display: block; width: fit-content; margin: 0 auto 14px; }
