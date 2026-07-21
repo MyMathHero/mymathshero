@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 // sits there and looks broken. So we detect the rejected play() and surface a
 // real Play button instead of failing silently.
 //
-//   <ScrollVideo src="/assets/robot/meetherovideo.MP4" poster="/…png" />
+//   <ScrollVideo src="/assets/robot/meetherovideo.webm" loop />
 
 export default function ScrollVideo({
   src,

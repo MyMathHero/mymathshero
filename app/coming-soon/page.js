@@ -232,9 +232,8 @@ export default function ComingSoonPage() {
               Meet <span className="cs-video-title-hero">Hero</span>
             </h2>
           </Reveal>
-          {/* Animated WebP — loops natively and needs no autoplay permission,
-              so it can never fall back to a poster + play button. */}
-          <ScrollVideo src="/assets/robot/meetherovideo.webp" />
+          {/* VP9/Opus WebM (3.3 MB) — muted + looping, plays on scroll. */}
+          <ScrollVideo src="/assets/robot/meetherovideo.webm" loop />
         </div>
       </section>
 
