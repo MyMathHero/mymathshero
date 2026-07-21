@@ -232,8 +232,14 @@ export default function ComingSoonPage() {
               Meet <span className="cs-video-title-hero">Hero</span>
             </h2>
           </Reveal>
-          {/* VP9/Opus WebM (3.3 MB) — muted + looping, plays on scroll. */}
-          <ScrollVideo src="/assets/robot/meetherovideo.webm" loop />
+          {/* VP9/Opus WebM (3.3 MB) with an H.264 MP4 fallback (2.0 MB) for
+              Safari/iOS, which has patchy VP9 support. Browsers pick the first
+              source they can play. */}
+          <ScrollVideo
+            src="/assets/robot/meetherovideo.webm"
+            fallbackSrc="/assets/robot/meetherovideobackup.mp4"
+            loop
+          />
         </div>
       </section>
 

@@ -14,8 +14,23 @@ import { useEffect, useRef, useState } from 'react'
 //
 //   <ScrollVideo src="/assets/robot/meetherovideo.webm" loop />
 
+// Map an extension to the MIME type the browser needs in <source type="…">, so
+// it can pick a playable file WITHOUT downloading each one to find out.
+function mimeFor(url = '') {
+  if (/\.webm(\?|$)/i.test(url)) return 'video/webm'
+  if (/\.(mp4|m4v)(\?|$)/i.test(url)) return 'video/mp4'
+  if (/\.mov(\?|$)/i.test(url)) return 'video/quicktime'
+  if (/\.ogv(\?|$)/i.test(url)) return 'video/ogg'
+  return undefined
+}
+
 export default function ScrollVideo({
   src,
+  // Fallback file(s) for browsers that can't play `src` — e.g. an H.264 MP4 for
+  // Safari/iOS, which has patchy VP9 WebM support. String or array; listed after
+  // `src`, so the browser prefers the smaller/modern file and falls back only if
+  // it must.
+  fallbackSrc = null,
   poster,
   className = '',
   rounded = 24,
@@ -156,7 +171,6 @@ export default function ScrollVideo({
       ) : (
         <video
           ref={videoRef}
-          src={src}
           poster={poster}
           muted
           loop={loop}
@@ -172,7 +186,13 @@ export default function ScrollVideo({
             background: '#000',
           }}
           {...rest}
-        />
+        >
+          {/* Listed in preference order — the browser plays the FIRST one it
+              supports, so Safari/iOS falls through to the H.264 MP4. */}
+          {[src, ...(Array.isArray(fallbackSrc) ? fallbackSrc : fallbackSrc ? [fallbackSrc] : [])]
+            .filter(Boolean)
+            .map((s) => <source key={s} src={s} type={mimeFor(s)} />)}
+        </video>
       )}
 
       {/* Tap-to-play overlay — only when autoplay was actually blocked. */}
