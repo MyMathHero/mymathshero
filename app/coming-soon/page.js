@@ -753,8 +753,12 @@ const CSS = `
          the kids read big, while never overlapping the form. */
       /* Artwork spans the card top-to-bottom (its own column), so Hero + the kids
          meet both edges and the image reads as part of the card. */
+      /* Taller than its slot and nudged down, so the float (which lifts it ~14px)
+         can never expose white space under the image. The card clips the excess
+         via overflow: hidden. */
       .cs-offer-art { position: relative; z-index: 1; grid-column: 3; align-self: stretch;
-        width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center bottom;
+        width: 100%; height: calc(100% + 40px); margin-bottom: -40px; max-width: none;
+        object-fit: cover; object-position: center bottom;
         border-radius: 0 28px 28px 0; pointer-events: none;
         animation: csOfferArtFloat 7s ease-in-out infinite; }
       @keyframes csOfferArtFloat {
