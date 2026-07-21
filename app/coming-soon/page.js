@@ -519,7 +519,11 @@ const CSS = `
       /* Big "Meet Hero" title above the marketing video. Gradient "Hero" with a
          soft sheen sweep; the whole title gently rises in via its Reveal wrapper. */
       .cs-video-title { text-align: center; font-size: clamp(40px, 6vw, 76px); font-weight: 900;
-        letter-spacing: -2px; line-height: 1.02; color: ${NAVY}; margin: 0 auto 34px; }
+        letter-spacing: -2px; line-height: 1.02; color: ${NAVY}; margin: 0 auto 26px; }
+      /* Tighten the video ↔ Meet-Hero seam: these two sections read as one beat,
+         so they don't need a full 96px gap on each side. */
+      .cs-video-section { padding-top: 64px; padding-bottom: 40px; }
+      #meet-hero { padding-top: 40px; }
       .cs-video-title-hero { position: relative;
         background: linear-gradient(100deg, #2563EB 0%, ${GOLD} 55%, #2563EB 100%);
         background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -768,6 +772,9 @@ const CSS = `
         .cs-meet-hero-img { max-width: 260px; }
         .cs-dash { grid-template-columns: 1fr !important; }
         .cs-section { padding: 64px 0; }
+        /* Same tightened seam on mobile. */
+        .cs-video-section { padding-top: 48px; padding-bottom: 28px; }
+        #meet-hero { padding-top: 28px; }
       }
       @media (max-width: 560px) {
         .cs-pillars, .cs-family-items { grid-template-columns: 1fr; }
