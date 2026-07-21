@@ -335,27 +335,47 @@ export default function ComingSoonPage() {
       <section id="waitlist" className="cs-section">
         <div className="cs-wrap">
           <div className="cs-offer">
-            {/* Hero peeks in near the form. Uses a transparent WebM when present
-                (real cutout, no box); falls back to the PNG until it's added. */}
-            <HeroPeek
-              webm="/assets/robot/Heropeekingfromsidewallani.webm"
-              png="/assets/robot/Heropeekingfromdown.png"
-              className="cs-offer-hero"
-            />
-
-            {/* Left — the offer */}
+            {/* Left — the offer card */}
             <Reveal from="right">
-              <div className="cs-gift-wrap" aria-hidden>
-                <div className="cs-gift-glow" />
-                <div className="cs-gift-big">🎁</div>
+              <div className="cs-offer-card">
+                <div className="cs-offer-pill">🏅 Founding Family</div>
+                <h2 className="cs-offer-title">
+                  Become One of Our First 1,000 Founding Families
+                </h2>
+                <p className="cs-offer-sub">
+                  Join Australia’s next-generation AI maths platform before public
+                  launch and receive exclusive founding benefits.
+                </p>
+
+                <div className="cs-perks">
+                  {[
+                    { icon: '🎁', label: '1 Month FREE' },
+                    { icon: '💰', label: 'Exclusive First-Year Pricing' },
+                    { icon: '🚀', label: 'Early Access Before Launch' },
+                    { icon: '⭐', label: 'Behind-the-Scenes Updates' },
+                  ].map((p) => (
+                    <div key={p.label} className="cs-perk">
+                      <span className="cs-perk-icon">{p.icon}</span>
+                      <span className="cs-perk-label">{p.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="cs-offer-save">Save $60 in Your First Year</div>
+                <p className="cs-offer-foot">
+                  🇦🇺 Built for Australian families · Australian Curriculum Aligned
+                </p>
               </div>
-              <ScrubReveal as="h2" className="cs-h2" style={{ color: '#2563EB' }}>Become a Founding Family</ScrubReveal>
-              <p className="cs-p">Join the first 1,000 Australian families and receive:</p>
-              <ul className="cs-check-list">
-                {OFFER_POINTS.map((o, i) => <li key={i}><span className="cs-check">✓</span>{o}</li>)}
-              </ul>
-              <div className="cs-save-badge">🎉 $60 off for the year!</div>
             </Reveal>
+
+            {/* Middle — Hero + kids artwork (feathered PNG, blends into the card) */}
+            <img
+              src="/assets/banneradd-cut.png"
+              alt=""
+              className="cs-offer-art"
+              aria-hidden
+              draggable={false}
+            />
 
             {/* Right — the working form (preserved contract) */}
             <Reveal from="left" delay={0.08}>
@@ -700,7 +720,40 @@ const CSS = `
       .cs-avatar { width: 40px; height: 40px; border-radius: 99px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; }
 
       /* Offer + form */
-      .cs-offer { position: relative; overflow: visible; background: linear-gradient(135deg, #EFF4FF, #FFF8E8); border: 1px solid #E7ECF3; border-radius: 28px; padding: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      /* 3 columns: offer card | Hero+kids artwork | waitlist form. */
+      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 40px 30px; display: grid; grid-template-columns: minmax(340px,1.25fr) minmax(0,0.85fr) minmax(300px,1fr); gap: 18px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+
+      /* Hero + kids artwork sitting behind/between the two columns. Edges are
+         feathered in the PNG, so it melts into the card. */
+      /* Artwork sits in the MIDDLE of the card, between the offer and the form,
+         so Hero + the kids are fully visible (never covered by the form). It's
+         feathered in the PNG, so it melts into the card background. */
+      .cs-offer-art { position: relative; z-index: 1; width: 112%; max-width: none; height: auto;
+        margin-left: -6%; object-fit: contain; align-self: center; pointer-events: none; }
+
+      /* Left offer card (glassy, sits above the artwork). */
+      .cs-offer-card { position: relative; z-index: 2; background: rgba(255,255,255,0.72);
+        -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
+        border: 1px solid rgba(255,255,255,0.8); border-radius: 26px; padding: 30px 30px 26px;
+        box-shadow: 0 24px 60px rgba(27,43,75,0.14); max-width: 520px; }
+      .cs-offer-pill { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, ${GOLD}, #E9C349);
+        color: ${NAVY}; font-weight: 800; font-size: 13px; padding: 7px 16px; border-radius: 99px; margin-bottom: 16px; }
+      .cs-offer-title { font-size: clamp(26px, 2.6vw, 36px); font-weight: 900; letter-spacing: -1px;
+        line-height: 1.14; color: ${NAVY}; margin: 0 0 14px; text-wrap: balance; }
+      .cs-offer-sub { font-size: 15.5px; line-height: 1.6; color: #475569; margin: 0 0 22px; }
+
+      /* 2x2 benefit tiles. */
+      .cs-perks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+      .cs-perk { background: rgba(255,255,255,0.9); border: 1px solid #EEF2F7; border-radius: 16px;
+        padding: 16px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
+        box-shadow: 0 6px 18px rgba(27,43,75,0.05); }
+      .cs-perk-icon { font-size: 26px; line-height: 1; }
+      .cs-perk-label { font-size: 13.5px; font-weight: 800; color: ${NAVY}; line-height: 1.3; }
+
+      .cs-offer-save { display: block; text-align: center; background: linear-gradient(135deg, ${GOLD}, #FFD700);
+        color: ${NAVY}; font-weight: 900; font-size: 17px; padding: 15px 22px; border-radius: 99px;
+        box-shadow: 0 12px 28px rgba(245,158,11,0.38); margin-bottom: 14px; }
+      .cs-offer-foot { text-align: center; font-size: 12.5px; font-weight: 600; color: #64748B; margin: 0; }
       .cs-gift { font-size: 52px; margin-bottom: 8px; }
       .cs-save-badge { display: inline-block; margin-top: 18px; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; font-weight: 900; font-size: 15px; padding: 12px 22px; border-radius: 99px; box-shadow: 0 10px 24px rgba(245,158,11,0.35); }
 
@@ -742,7 +795,7 @@ const CSS = `
       .cs-final-perks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
-      .cs-form-card { background: white; border-radius: 22px; padding: 30px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
+      .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
       .cs-form-title { font-size: 22px; font-weight: 900; color: ${NAVY}; margin: 0 0 4px; }
       .cs-form-sub { font-size: 14px; color: #64748B; margin: 0 0 18px; }
       .cs-form { display: flex; flex-direction: column; gap: 12px; }
@@ -799,7 +852,13 @@ const CSS = `
         .cs-family-head { white-space: normal; }
         .cs-family-items { grid-template-columns: 1fr 1fr; }
         .cs-testimonials { grid-template-columns: 1fr; }
-        .cs-offer { grid-template-columns: 1fr; padding: 30px; }
+        /* Stack on phones: offer card → artwork → form. */
+        .cs-offer { grid-template-columns: 1fr; padding: 24px 18px; gap: 18px; }
+        .cs-offer-art { width: 100%; max-width: 320px; max-height: none;
+          margin: 0 auto; display: block; }
+        .cs-offer-card { max-width: 100%; padding: 24px 20px; background: rgba(255,255,255,0.9); }
+        .cs-perks { gap: 10px; }
+        .cs-perk { padding: 14px 10px; }
         /* On mobile the peeking Hero moves up top-right, smaller, over the corner. */
         .cs-offer-hero { top: -96px; right: 6px; width: 108px; }
         .cs-meet-hero-img { max-width: 260px; }
