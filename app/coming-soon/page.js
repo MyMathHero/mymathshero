@@ -361,10 +361,12 @@ export default function ComingSoonPage() {
                   ))}
                 </div>
 
-                <div className="cs-offer-save">Save $60 in Your First Year</div>
-                <p className="cs-offer-foot">
-                  🇦🇺 Built for Australian families · Australian Curriculum Aligned
-                </p>
+                <a href="#waitlist-form" className="cs-offer-save">Reserve My Founding Family Spot</a>
+                <ul className="cs-trust-list">
+                  <li><span>🇦🇺</span> Australian Curriculum Aligned</li>
+                  <li><span>🤖</span> AI Personalised Learning</li>
+                  <li><span>🔒</span> Secure &amp; Child Safe</li>
+                </ul>
               </div>
             </Reveal>
 
@@ -373,8 +375,10 @@ export default function ComingSoonPage() {
               <div className="cs-form-card">
                 {!submitted ? (
                   <>
-                    <h3 className="cs-form-title">Join the Waitlist</h3>
-                    <p className="cs-form-sub">Secure your founding member benefits.</p>
+                    <h3 className="cs-form-title" id="waitlist-form">Join the Waitlist</h3>
+                    <p className="cs-form-sub">
+                      It takes less than 30 seconds. No payment required.
+                    </p>
                     <form onSubmit={handleSubmit} className="cs-form" noValidate>
                       <div className="cs-name-row">
                         <input type="text" placeholder="Parent's First Name" autoComplete="given-name"
@@ -399,6 +403,10 @@ export default function ComingSoonPage() {
                         <option value="5">Year 5</option>
                         <option value="6">Year 6</option>
                       </select>
+                      {/* Scarcity cue, right where the decision happens. */}
+                      <p className="cs-urgency">
+                        ⭐ Only the first 1,000 families receive Founding Family pricing
+                      </p>
                       <button type="submit" disabled={submitting || !email || !firstName}
                         className="cs-submit" style={{ opacity: submitting ? 0.7 : 1 }}>
                         {submitting ? 'Reserving…' : 'Yes! Reserve My Spot →'}
@@ -729,7 +737,10 @@ const CSS = `
          artwork shows through from behind. */
       /* Card | form | artwork. The art sits to the RIGHT of the form (its own
          space), so Hero + the kids are never covered. */
-      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 40px 20px 40px 34px; display: grid; grid-template-columns: minmax(0,0.9fr) minmax(266px,0.68fr) minmax(0,0.78fr); gap: 16px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      /* Wider offer card so the headline stops wrapping to 4 lines; artwork gets
+         its own column and runs the FULL height of the card. */
+      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 0 0 0 34px; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(280px,0.75fr) minmax(0,0.72fr); gap: 18px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      .cs-offer > div:first-of-type { padding: 40px 0; }   /* offer-card column */
 
       /* Hero + kids artwork sitting behind/between the two columns. Edges are
          feathered in the PNG, so it melts into the card. */
@@ -742,9 +753,11 @@ const CSS = `
       /* Artwork = the 3rd column, sitting to the RIGHT of the form. Scaled up
          (and allowed to bleed past its column + the card's padding) so Hero and
          the kids read big, while never overlapping the form. */
-      .cs-offer-art { position: relative; z-index: 1; grid-column: 3; align-self: end;
-        width: 126%; max-width: none; height: auto; margin: 0 -13% -40px -13%;
-        object-fit: contain; pointer-events: none;
+      /* Artwork spans the card top-to-bottom (its own column), so Hero + the kids
+         meet both edges and the image reads as part of the card. */
+      .cs-offer-art { position: relative; z-index: 1; grid-column: 3; align-self: stretch;
+        width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center bottom;
+        border-radius: 0 28px 28px 0; pointer-events: none;
         animation: csOfferArtFloat 7s ease-in-out infinite; }
       @keyframes csOfferArtFloat {
         0%, 100% { transform: translateY(0); }
@@ -769,17 +782,22 @@ const CSS = `
       .cs-offer-sub { font-size: 15.5px; line-height: 1.6; color: #475569; margin: 0 0 22px; }
 
       /* 2x2 benefit tiles. */
-      .cs-perks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
-      .cs-perk { background: rgba(255,255,255,0.9); border: 1px solid #EEF2F7; border-radius: 16px;
-        padding: 16px 12px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;
-        box-shadow: 0 6px 18px rgba(27,43,75,0.05); }
-      .cs-perk-icon { font-size: 26px; line-height: 1; }
-      .cs-perk-label { font-size: 13.5px; font-weight: 800; color: ${NAVY}; line-height: 1.3; }
+      /* Benefit tiles ~18% larger so each one feels valuable. */
+      .cs-perks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+      .cs-perk { background: rgba(255,255,255,0.92); border: 1px solid #EEF2F7; border-radius: 18px;
+        padding: 20px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;
+        box-shadow: 0 8px 22px rgba(27,43,75,0.06); }
+      .cs-perk-icon { font-size: 32px; line-height: 1; }
+      .cs-perk-label { font-size: 15px; font-weight: 800; color: ${NAVY}; line-height: 1.3; }
 
       .cs-offer-save { display: block; text-align: center; background: linear-gradient(135deg, ${GOLD}, #FFD700);
-        color: ${NAVY}; font-weight: 900; font-size: 17px; padding: 15px 22px; border-radius: 99px;
-        box-shadow: 0 12px 28px rgba(245,158,11,0.38); margin-bottom: 14px; }
-      .cs-offer-foot { text-align: center; font-size: 12.5px; font-weight: 600; color: #64748B; margin: 0; }
+        color: ${NAVY}; font-weight: 900; font-size: 17px; padding: 16px 22px; border-radius: 99px;
+        box-shadow: 0 12px 28px rgba(245,158,11,0.38); margin-bottom: 16px; text-decoration: none; }
+
+      /* Scannable trust row (icons instead of one long sentence). */
+      .cs-trust-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+      .cs-trust-list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 700; color: #475569; }
+      .cs-trust-list span { font-size: 16px; line-height: 1; }
       .cs-gift { font-size: 52px; margin-bottom: 8px; }
       .cs-save-badge { display: inline-block; margin-top: 18px; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; font-weight: 900; font-size: 15px; padding: 12px 22px; border-radius: 99px; box-shadow: 0 10px 24px rgba(245,158,11,0.35); }
 
@@ -822,7 +840,12 @@ const CSS = `
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
       .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
-      .cs-form-title { font-size: 22px; font-weight: 900; color: ${NAVY}; margin: 0 0 4px; }
+      /* Form headline ~20% larger for hierarchy. */
+      .cs-form-title { font-size: 27px; font-weight: 900; color: ${NAVY}; margin: 0 0 6px; letter-spacing: -0.5px; }
+      /* Scarcity cue directly above the submit button. */
+      .cs-urgency { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 12px;
+        background: rgba(196,154,26,0.10); border: 1px solid rgba(196,154,26,0.28); border-radius: 12px;
+        padding: 10px 12px; font-size: 12.5px; font-weight: 700; color: #7A5E10; line-height: 1.4; }
       .cs-form-sub { font-size: 14px; color: #64748B; margin: 0 0 18px; }
       .cs-form { display: flex; flex-direction: column; gap: 12px; }
       .cs-name-row { display: flex; gap: 12px; }
@@ -881,8 +904,10 @@ const CSS = `
         /* Stack on phones: offer card → artwork → form (art returns to flow so
            it never sits behind the text on a narrow screen). */
         .cs-offer { grid-template-columns: 1fr; padding: 24px 18px; gap: 18px; }
+        .cs-offer > div:first-of-type { padding: 0; }
         .cs-offer-art { position: static; grid-column: auto; height: auto; width: 100%;
-          max-width: 320px; margin: 0 auto; display: block; align-self: auto; }
+          max-width: 320px; margin: 0 auto; display: block; align-self: auto;
+          object-fit: contain; border-radius: 18px; }
         .cs-offer-card { max-width: 100%; padding: 24px 20px; background: rgba(255,255,255,0.9); }
         .cs-perks { gap: 10px; }
         .cs-perk { padding: 14px 10px; }

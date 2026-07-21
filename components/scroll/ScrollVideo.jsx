@@ -38,15 +38,34 @@ export default function ScrollVideo({
     if (!wrap || !video) return
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+    // Try to play, but only once the browser says it can. Calling play() before
+    // the media is ready rejects — which is what made the poster + tap button
+    // appear even though the file is fine. (This clip's moov atom sits at the
+    // END of the file, i.e. not "faststart", so readiness arrives late.)
+    const attempt = () => {
+      if (video.readyState >= 3) {          // HAVE_FUTURE_DATA — safe to play
+        video.play()
+          .then(() => { setPlaying(true); setNeedsTap(false) })
+          .catch(() => setNeedsTap(true))   // genuinely blocked → offer a tap
+        return
+      }
+      // Not ready yet: nudge the download and retry when it becomes playable.
+      video.preload = 'auto'
+      try { video.load() } catch { /* ignore */ }
+      const onReady = () => {
+        video.play()
+          .then(() => { setPlaying(true); setNeedsTap(false) })
+          .catch(() => setNeedsTap(true))
+      }
+      video.addEventListener('canplay', onReady, { once: true })
+    }
+
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setRevealed(true)
           if (reduce) { setNeedsTap(true); return } // respect the pref, but let them opt in
-          video.play()
-            .then(() => { setPlaying(true); setNeedsTap(false) })
-            // Blocked (Low Power Mode, data saver, in-app browser…) → offer a tap.
-            .catch(() => setNeedsTap(true))
+          attempt()
         } else {
           video.pause()
           setPlaying(false)
