@@ -333,7 +333,9 @@ export default function ComingSoonPage() {
 
       {/* ══════════════ FOUNDING FAMILY + WAITLIST FORM ══════════════ */}
       <section id="waitlist" className="cs-section">
-        <div className="cs-wrap">
+        {/* Wider container than the rest of the page — this section carries three
+            columns (offer / form / artwork) and reads cramped at 1120px. */}
+        <div className="cs-wrap cs-wrap-wide">
           <div className="cs-offer">
             {/* Left — the offer card */}
             <Reveal from="right">
@@ -557,6 +559,8 @@ function GlobalCss() {
 
 const CSS = `
       .cs-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+      /* Wider variant for the 3-column waitlist section. */
+      .cs-wrap-wide { max-width: 1340px; }
       .cs-section { padding: 96px 0; }
       .cs-band { background: white; }
       .cs-center { text-align: center; }
@@ -739,8 +743,8 @@ const CSS = `
          space), so Hero + the kids are never covered. */
       /* Wider offer card so the headline stops wrapping to 4 lines; artwork gets
          its own column and runs the FULL height of the card. */
-      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 0 0 0 34px; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(280px,0.75fr) minmax(0,0.72fr); gap: 18px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
-      .cs-offer > div:first-of-type { padding: 40px 0; }   /* offer-card column */
+      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 0 0 0 44px; display: grid; grid-template-columns: minmax(0,1.2fr) minmax(340px,0.85fr) minmax(0,0.78fr); gap: 32px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      .cs-offer > div:first-of-type { padding: 48px 0; }   /* offer-card column */
 
       /* Hero + kids artwork sitting behind/between the two columns. Edges are
          feathered in the PNG, so it melts into the card. */
@@ -773,8 +777,8 @@ const CSS = `
          crisp, with a blur so the art softly reads through the edges. */
       .cs-offer-card { position: relative; z-index: 2; background: rgba(255,255,255,0.9);
         -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15);
-        border: 1px solid rgba(255,255,255,0.9); border-radius: 26px; padding: 30px 30px 26px;
-        box-shadow: 0 24px 60px rgba(27,43,75,0.16); max-width: 540px; }
+        border: 1px solid rgba(255,255,255,0.9); border-radius: 26px; padding: 36px 36px 32px;
+        box-shadow: 0 24px 60px rgba(27,43,75,0.16); max-width: 100%; }
       .cs-offer-pill { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, ${GOLD}, #E9C349);
         color: ${NAVY}; font-weight: 800; font-size: 13px; padding: 7px 16px; border-radius: 99px; margin-bottom: 16px; }
       .cs-offer-title { font-size: clamp(26px, 2.6vw, 36px); font-weight: 900; letter-spacing: -1px;
@@ -839,7 +843,7 @@ const CSS = `
       .cs-final-perks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
-      .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 26px 22px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
+      .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 30px 28px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
       /* Form headline ~20% larger for hierarchy. */
       .cs-form-title { font-size: 27px; font-weight: 900; color: ${NAVY}; margin: 0 0 6px; letter-spacing: -0.5px; }
       /* Scarcity cue directly above the submit button. */
