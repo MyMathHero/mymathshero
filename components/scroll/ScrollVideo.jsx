@@ -21,6 +21,9 @@ export default function ScrollVideo({
   rounded = 24,
   loop = true,
   maxWidth = 860,
+  // Stop (or loop back) at this many seconds — for trimming a tail you don't
+  // want shown, without re-encoding the file.
+  stopAt = null,
   ...rest
 }) {
   const wrapRef = useRef(null)
@@ -56,6 +59,27 @@ export default function ScrollVideo({
     io.observe(wrap)
     return () => io.disconnect()
   }, [])
+
+  // Enforce `stopAt`: cut the clip short without re-encoding. If the video is
+  // set to loop, restart from 0 at that point; otherwise pause on the last frame.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !stopAt) return
+    const onTime = () => {
+      if (video.currentTime >= stopAt) {
+        if (loop) {
+          video.currentTime = 0
+          video.play().catch(() => {})
+        } else {
+          video.pause()
+          video.currentTime = stopAt
+          setPlaying(false)
+        }
+      }
+    }
+    video.addEventListener('timeupdate', onTime)
+    return () => video.removeEventListener('timeupdate', onTime)
+  }, [stopAt, loop])
 
   function tapToPlay() {
     const video = videoRef.current

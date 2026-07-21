@@ -232,7 +232,14 @@ export default function ComingSoonPage() {
               Meet <span className="cs-video-title-hero">Hero</span>
             </h2>
           </Reveal>
-          <ScrollVideo src="/assets/robot/meetherovideo.MP4" poster="/assets/robot/hero-robot.png" />
+          {/* The clip runs 15s but the last ~2s aren't wanted — stop at 13s and
+              hold on that frame (loop off so it doesn't restart). */}
+          <ScrollVideo
+            src="/assets/robot/meetherovideo.MP4"
+            poster="/assets/robot/hero-robot.png"
+            stopAt={13}
+            loop={false}
+          />
         </div>
       </section>
 
