@@ -368,15 +368,6 @@ export default function ComingSoonPage() {
               </div>
             </Reveal>
 
-            {/* Middle — Hero + kids artwork (feathered PNG, blends into the card) */}
-            <img
-              src="/assets/banneradd-cut.png"
-              alt=""
-              className="cs-offer-art"
-              aria-hidden
-              draggable={false}
-            />
-
             {/* Right — the working form (preserved contract) */}
             <Reveal from="left" delay={0.08}>
               <div className="cs-form-card">
@@ -426,6 +417,16 @@ export default function ComingSoonPage() {
                 )}
               </div>
             </Reveal>
+
+            {/* Right — Hero + kids artwork (feathered PNG, blends into the card).
+                Sits beside the form so it's never covered. */}
+            <img
+              src="/assets/banneradd-cut.png"
+              alt=""
+              className="cs-offer-art"
+              aria-hidden
+              draggable={false}
+            />
           </div>
         </div>
       </section>
@@ -721,21 +722,46 @@ const CSS = `
 
       /* Offer + form */
       /* 3 columns: offer card | Hero+kids artwork | waitlist form. */
-      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 40px 30px; display: grid; grid-template-columns: minmax(340px,1.25fr) minmax(0,0.85fr) minmax(300px,1fr); gap: 18px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      /* 2 columns (offer card | form). The artwork is an absolutely-positioned
+         layer BEHIND the card, so Hero + the kids overlap its right edge exactly
+         like the reference. */
+      /* Card left, form right, with a deliberate GAP between them where the
+         artwork shows through from behind. */
+      /* Card | form | artwork. The art sits to the RIGHT of the form (its own
+         space), so Hero + the kids are never covered. */
+      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 40px 20px 40px 34px; display: grid; grid-template-columns: minmax(0,0.9fr) minmax(266px,0.68fr) minmax(0,0.78fr); gap: 16px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
 
       /* Hero + kids artwork sitting behind/between the two columns. Edges are
          feathered in the PNG, so it melts into the card. */
       /* Artwork sits in the MIDDLE of the card, between the offer and the form,
          so Hero + the kids are fully visible (never covered by the form). It's
          feathered in the PNG, so it melts into the card background. */
-      .cs-offer-art { position: relative; z-index: 1; width: 112%; max-width: none; height: auto;
-        margin-left: -6%; object-fit: contain; align-self: center; pointer-events: none; }
+      /* Big artwork layer BEHIND everything (z-index 0 — the Reveal wrappers
+         create their own stacking contexts, so the card/form sit above it via
+         their own z-index). Anchored to the card's bottom edge, gently floating. */
+      /* Artwork = the 3rd column, sitting to the RIGHT of the form. Scaled up
+         (and allowed to bleed past its column + the card's padding) so Hero and
+         the kids read big, while never overlapping the form. */
+      .cs-offer-art { position: relative; z-index: 1; grid-column: 3; align-self: end;
+        width: 126%; max-width: none; height: auto; margin: 0 -13% -40px -13%;
+        object-fit: contain; pointer-events: none;
+        animation: csOfferArtFloat 7s ease-in-out infinite; }
+      @keyframes csOfferArtFloat {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-14px); }
+      }
+      @media (prefers-reduced-motion: reduce) { .cs-offer-art { animation: none; } }
+      /* The two Reveal wrappers are direct grid children — lift BOTH above the
+         artwork layer, otherwise the art paints over the card text and form. */
+      .cs-offer > div { position: relative; z-index: 2; }
 
       /* Left offer card (glassy, sits above the artwork). */
-      .cs-offer-card { position: relative; z-index: 2; background: rgba(255,255,255,0.72);
-        -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1);
-        border: 1px solid rgba(255,255,255,0.8); border-radius: 26px; padding: 30px 30px 26px;
-        box-shadow: 0 24px 60px rgba(27,43,75,0.14); max-width: 520px; }
+      /* Frosted card in FRONT of the artwork — nearly opaque so the text stays
+         crisp, with a blur so the art softly reads through the edges. */
+      .cs-offer-card { position: relative; z-index: 2; background: rgba(255,255,255,0.9);
+        -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15);
+        border: 1px solid rgba(255,255,255,0.9); border-radius: 26px; padding: 30px 30px 26px;
+        box-shadow: 0 24px 60px rgba(27,43,75,0.16); max-width: 540px; }
       .cs-offer-pill { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, ${GOLD}, #E9C349);
         color: ${NAVY}; font-weight: 800; font-size: 13px; padding: 7px 16px; border-radius: 99px; margin-bottom: 16px; }
       .cs-offer-title { font-size: clamp(26px, 2.6vw, 36px); font-weight: 900; letter-spacing: -1px;
@@ -852,10 +878,11 @@ const CSS = `
         .cs-family-head { white-space: normal; }
         .cs-family-items { grid-template-columns: 1fr 1fr; }
         .cs-testimonials { grid-template-columns: 1fr; }
-        /* Stack on phones: offer card → artwork → form. */
+        /* Stack on phones: offer card → artwork → form (art returns to flow so
+           it never sits behind the text on a narrow screen). */
         .cs-offer { grid-template-columns: 1fr; padding: 24px 18px; gap: 18px; }
-        .cs-offer-art { width: 100%; max-width: 320px; max-height: none;
-          margin: 0 auto; display: block; }
+        .cs-offer-art { position: static; grid-column: auto; height: auto; width: 100%;
+          max-width: 320px; margin: 0 auto; display: block; align-self: auto; }
         .cs-offer-card { max-width: 100%; padding: 24px 20px; background: rgba(255,255,255,0.9); }
         .cs-perks { gap: 10px; }
         .cs-perk { padding: 14px 10px; }
