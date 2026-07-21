@@ -26,13 +26,33 @@ export default function ScrollVideo({
   stopAt = null,
   ...rest
 }) {
+  // Animated images (.webp / .gif / .apng) aren't <video>: they loop natively,
+  // need no autoplay permission, and can't be paused — so render an <img> and
+  // skip all the play()/tap-to-play machinery below.
+  const isAnimatedImage = /\.(webp|gif|apng)(\?|$)/i.test(src || '')
+
   const wrapRef = useRef(null)
   const videoRef = useRef(null)
   const [revealed, setRevealed] = useState(false)
   const [needsTap, setNeedsTap] = useState(false)   // autoplay was blocked
   const [playing, setPlaying] = useState(false)
 
+  // Animated-image path: just fade it in when it scrolls into view (it loops on
+  // its own and there's nothing to play/pause).
   useEffect(() => {
+    if (!isAnimatedImage) return
+    const wrap = wrapRef.current
+    if (!wrap) return
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setRevealed(true); io.disconnect() } },
+      { threshold: 0.15 }
+    )
+    io.observe(wrap)
+    return () => io.disconnect()
+  }, [isAnimatedImage])
+
+  useEffect(() => {
+    if (isAnimatedImage) return
     const wrap = wrapRef.current
     const video = videoRef.current
     if (!wrap || !video) return
@@ -118,28 +138,45 @@ export default function ScrollVideo({
         transition: 'opacity 0.8s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1)',
       }}
     >
-      <video
-        ref={videoRef}
-        src={src}
-        poster={poster}
-        muted
-        loop={loop}
-        playsInline
-        controls={needsTap}          // if we can't autoplay, give them real controls
-        preload="metadata"
-        onPlay={() => { setPlaying(true); setNeedsTap(false) }}
-        onPause={() => setPlaying(false)}
-        style={{
-          width: '100%', height: 'auto', display: 'block',
-          borderRadius: rounded,
-          boxShadow: '0 30px 70px rgba(27,43,75,0.22)',
-          background: '#000',
-        }}
-        {...rest}
-      />
+      {isAnimatedImage ? (
+        // Animated WebP/GIF: loops by itself, no autoplay policy to satisfy.
+        <img
+          src={src}
+          alt=""
+          aria-hidden
+          draggable={false}
+          style={{
+            width: '100%', height: 'auto', display: 'block',
+            borderRadius: rounded,
+            boxShadow: '0 30px 70px rgba(27,43,75,0.22)',
+            background: '#000',
+          }}
+          {...rest}
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          muted
+          loop={loop}
+          playsInline
+          controls={needsTap}          // if we can't autoplay, give them real controls
+          preload="metadata"
+          onPlay={() => { setPlaying(true); setNeedsTap(false) }}
+          onPause={() => setPlaying(false)}
+          style={{
+            width: '100%', height: 'auto', display: 'block',
+            borderRadius: rounded,
+            boxShadow: '0 30px 70px rgba(27,43,75,0.22)',
+            background: '#000',
+          }}
+          {...rest}
+        />
+      )}
 
       {/* Tap-to-play overlay — only when autoplay was actually blocked. */}
-      {needsTap && !playing && (
+      {!isAnimatedImage && needsTap && !playing && (
         <button
           onClick={tapToPlay}
           aria-label="Play video"
