@@ -239,11 +239,26 @@ export async function POST(request) {
     //    they Accept/Decline; retry the next player; fall back to the bot after a
     //    genuine search. `find` picks a candidate + creates ONE pending invite. ─
     if (action === 'find') {
-      // Already in an active match? Return it (resume).
+      // Already in a LIVE match? Resume it. A match only counts as live if I've
+      // sent a heartbeat recently — otherwise it's one I abandoned (closed the
+      // tab / navigated away), and resuming it would dump the student straight
+      // back into a stale game (this is why "enter Challenge → instantly in a
+      // bot match" happened). Abandon stale ones instead of resuming.
       const active = await db.collection('challenge_matches').findOne({
         status: 'active', 'players.studentId': studentId,
       })
-      if (active) return NextResponse.json({ match: publicMatch(active, studentId) })
+      if (active) {
+        const me = (active.players || []).find(p => p.studentId === studentId)
+        const seen = new Date(me?.lastActive || active.startedAt || active.createdAt).getTime()
+        if (Date.now() - seen <= MATCH_GRACE_MS) {
+          return NextResponse.json({ match: publicMatch(active, studentId) })
+        }
+        // Stale → retire it so a fresh search can start.
+        await db.collection('challenge_matches').updateOne(
+          { _id: active._id, status: 'active' },
+          { $set: { status: 'abandoned', endedBy: 'abandoned', completedAt: new Date() } }
+        )
+      }
 
       // Was my invite ACCEPTED while I was polling? Return the resulting match.
       const acceptedInvite = await db.collection('challenge_matches').findOne({
@@ -284,8 +299,11 @@ export async function POST(request) {
       const already = Array.isArray(body.tried) ? body.tried : []
       const candidate = await findCandidate(db, student, already)
       if (!candidate) {
-        // No one available at all → straight to the Hero Bot.
-        return await startBotMatch(db, student, count)
+        // Nobody available RIGHT NOW. Don't jump straight to the bot — keep
+        // searching until SEARCH_MAX_MS elapses (checked at the top of the next
+        // poll), so a real player who comes online mid-search can still match.
+        // Only when the window is genuinely exhausted do we fall back.
+        return NextResponse.json({ searching: true, invited: null, tried: already, searchStart })
       }
       const invitee = await db.collection('children').findOne({ id: candidate.id })
       const questions = await sampleQuestions(db, student.grade, count)
@@ -312,7 +330,20 @@ export async function POST(request) {
       const active = await db.collection('challenge_matches').findOne({
         status: 'active', 'players.studentId': studentId,
       })
-      return NextResponse.json({ match: active ? publicMatch(active, studentId) : null })
+      if (!active) return NextResponse.json({ match: null })
+      // Same staleness rule as `find`: only resume a match I'm actually still in.
+      // An abandoned one is retired, not resumed (otherwise opening the arena
+      // drops the student back into an old game — typically the Hero Bot).
+      const me = (active.players || []).find(p => p.studentId === studentId)
+      const seen = new Date(me?.lastActive || active.startedAt || active.createdAt).getTime()
+      if (Date.now() - seen > MATCH_GRACE_MS) {
+        await db.collection('challenge_matches').updateOne(
+          { _id: active._id, status: 'active' },
+          { $set: { status: 'abandoned', endedBy: 'abandoned', completedAt: new Date() } }
+        )
+        return NextResponse.json({ match: null })
+      }
+      return NextResponse.json({ match: publicMatch(active, studentId) })
     }
 
     // ── INBOX: does THIS student have an incoming pending invite? (poll ~2s) ──
@@ -426,6 +457,9 @@ export async function POST(request) {
             ...(correct ? { 'players.$.correct': 1 } : {}),
             'players.$.timeMs': Math.max(0, Math.round(timeMs)),
           },
+          // Answering is proof of life — keep the forfeit grace window fresh so a
+          // student thinking hard about a question is never wrongly forfeited.
+          $set: { 'players.$.lastActive': new Date() },
         }
       )
       const updated = await db.collection('challenge_matches').findOne({ _id: id })
