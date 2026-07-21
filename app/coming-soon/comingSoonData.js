@@ -15,7 +15,9 @@ export const STEPS = [
 ]
 
 export const FAMILY_TRUST = [
-  { emoji: '🇦🇺', label: 'Australian Curriculum Aligned (Prep – Year 6)' },
+  // `sub` renders on its own line (see .cs-family-sub) so "(Prep – Year 6)"
+  // sits under the label instead of wrapping awkwardly on mobile.
+  { emoji: '🇦🇺', label: 'Australian Curriculum Aligned', sub: '(Prep – Year 6)' },
   { emoji: '👥', label: 'Built with Educators and Learning Experts' },
   { emoji: '🛡️', label: 'Safe, Secure & Ad-Free' },
   { emoji: '❤️', label: 'Made in Australia' },

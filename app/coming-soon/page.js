@@ -270,7 +270,7 @@ export default function ComingSoonPage() {
       </section>
 
       {/* ══════════════ DESIGNED FOR AUSTRALIAN FAMILIES ══════════════ */}
-      <section className="cs-section">
+      <section className="cs-section cs-family-section">
         <div className="cs-wrap">
           <Reveal>
             <div className="cs-family">
@@ -281,11 +281,18 @@ export default function ComingSoonPage() {
                 {FAMILY_TRUST.map((f, i) => (
                   <div key={i} className="cs-family-item">
                     <span className="cs-family-emoji">{f.emoji}</span>
-                    <span>{f.label}</span>
+                    <span>
+                      {f.label}
+                      {f.sub && <span className="cs-family-sub">{f.sub}</span>}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
+            {/* Curriculum coverage line — sits under the trust row. */}
+            <p className="cs-family-note">
+              Aligned with every Australian state and territory curriculum
+            </p>
           </Reveal>
         </div>
       </section>
@@ -523,7 +530,7 @@ const CSS = `
       /* Tighten the video ↔ Meet-Hero seam: these two sections read as one beat,
          so they don't need a full 96px gap on each side. */
       .cs-video-section { padding-top: 64px; padding-bottom: 40px; }
-      #meet-hero { padding-top: 40px; }
+      #meet-hero { padding-top: 40px; padding-bottom: 40px; }
       .cs-video-title-hero { position: relative;
         background: linear-gradient(100deg, #2563EB 0%, ${GOLD} 55%, #2563EB 100%);
         background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -657,6 +664,13 @@ const CSS = `
       .cs-step-arrow { display: none; }
 
       /* Australian families */
+      /* Tighter seam: the trust strip follows straight on from Meet Hero, so it
+         doesn't need a full 96px section gap above it. */
+      .cs-family-section { padding-top: 40px; }
+      /* "(Prep – Year 6)" on its own line under its label. */
+      .cs-family-sub { display: block; font-weight: 600; color: #64748B; margin-top: 2px; }
+      /* Curriculum coverage line under the trust strip. */
+      .cs-family-note { text-align: center; margin: 18px auto 0; font-size: 14.5px; font-weight: 600; color: #64748B; }
       .cs-family { background: white; border: 1px solid #E7ECF3; border-radius: 24px; padding: 32px 36px; display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: center; box-shadow: 0 12px 34px rgba(27,43,75,0.07); }
       .cs-family-head { font-size: 24px; font-weight: 900; color: ${NAVY}; line-height: 1.2; white-space: nowrap; }
       .cs-family-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
@@ -774,7 +788,8 @@ const CSS = `
         .cs-section { padding: 64px 0; }
         /* Same tightened seam on mobile. */
         .cs-video-section { padding-top: 48px; padding-bottom: 28px; }
-        #meet-hero { padding-top: 28px; }
+        #meet-hero { padding-top: 28px; padding-bottom: 28px; }
+        .cs-family-section { padding-top: 28px; }
       }
       @media (max-width: 560px) {
         .cs-pillars, .cs-family-items { grid-template-columns: 1fr; }
