@@ -909,14 +909,19 @@ const CSS = `
         .cs-family-head { white-space: normal; }
         .cs-family-items { grid-template-columns: 1fr 1fr; }
         .cs-testimonials { grid-template-columns: 1fr; }
-        /* Stack on phones: offer card → artwork → form (art returns to flow so
-           it never sits behind the text on a narrow screen). */
-        .cs-offer { grid-template-columns: 1fr; padding: 24px 18px; gap: 18px; }
+        /* Phones: same treatment as the mobile hero — the ARTWORK sits on top,
+           full-bleed, and the two cards overlap up into it. That removes the
+           third stacked block (art was its own screenful) and a lot of scroll. */
+        .cs-offer { grid-template-columns: 1fr; padding: 0 14px 22px; gap: 14px; }
         .cs-offer > div:first-of-type { padding: 0; }
-        .cs-offer-art { position: static; grid-column: auto; height: auto; width: 100%;
-          max-width: 320px; margin: 0 auto; display: block; align-self: auto;
-          object-fit: contain; border-radius: 18px; }
-        .cs-offer-card { max-width: 100%; padding: 24px 20px; background: rgba(255,255,255,0.9); }
+        .cs-offer-art { order: -1;                    /* image first */
+          position: static; grid-column: auto; align-self: auto;
+          width: calc(100% + 28px); margin: 0 -14px -54px;   /* full-bleed + overlap */
+          height: 260px; object-fit: cover; object-position: center 28%;
+          border-radius: 28px 28px 0 0; animation: none; }
+        /* Cards ride up over the base of the image, like the hero's pill does. */
+        .cs-offer-card, .cs-form-card { position: relative; z-index: 2; }
+        .cs-offer-card { max-width: 100%; padding: 22px 18px; background: rgba(255,255,255,0.96); }
         .cs-perks { gap: 10px; }
         .cs-perk { padding: 14px 10px; }
         /* On mobile the peeking Hero moves up top-right, smaller, over the corner. */
