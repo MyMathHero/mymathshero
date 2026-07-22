@@ -154,7 +154,7 @@ export default function ComingSoonPage() {
 
           <div className="cs-eyebrow">
             <span style={{ width: 8, height: 8, borderRadius: 99, background: GOLD }} />
-            Australia's AI maths tutor · Launching {LAUNCH_DATE_DISPLAY}
+            Founding Family registrations are now open · Launching {LAUNCH_DATE_DISPLAY}
           </div>
           <h1 className="cs-h1">
             Confidence starts<br />
@@ -201,7 +201,7 @@ export default function ComingSoonPage() {
             className="cs-mhero-img" draggable={false} />
           <div className="cs-mhero-eyebrow">
             <span style={{ width: 8, height: 8, borderRadius: 99, background: GOLD, flexShrink: 0 }} />
-            <span>Australia's AI maths tutor<br />Launching <b style={{ color: '#2563EB' }}>{LAUNCH_DATE_DISPLAY}</b></span>
+            <span>Founding Family registrations open<br />Launching <b style={{ color: '#2563EB' }}>{LAUNCH_DATE_DISPLAY}</b></span>
           </div>
         </div>
 
@@ -313,7 +313,7 @@ export default function ComingSoonPage() {
       {/* ══════════════ TESTIMONIALS ══════════════ */}
       <section className="cs-section cs-band">
         <div className="cs-wrap">
-          <Reveal><h2 className="cs-h2 cs-center">Trusted by Australian families <span className="cs-beta">(Beta Testing)</span></h2></Reveal>
+          <Reveal><h2 className="cs-h2 cs-center">What Our Beta Families Are Saying</h2></Reveal>
           <div className="cs-testimonials">
             {TESTIMONIALS.map((t, i) => (
               <Reveal key={i} delay={i * 0.1} from="up">
@@ -351,14 +351,15 @@ export default function ComingSoonPage() {
 
                 <div className="cs-perks">
                   {[
-                    { icon: '🎁', label: '1 Month FREE' },
-                    { icon: '💰', label: 'Exclusive First-Year Pricing' },
-                    { icon: '🚀', label: 'Early Access Before Launch' },
-                    { icon: '⭐', label: 'Behind-the-Scenes Updates' },
+                    { icon: '🎁', label: '1 Month FREE Premium' },
+                    { icon: '💎', label: 'Premium $19.99/mo', sub: 'usually $24.99' },
+                    { icon: '🚀', label: 'Priority Early Access' },
+                    { icon: '⭐', label: 'Exclusive Founder Updates' },
                   ].map((p) => (
                     <div key={p.label} className="cs-perk">
                       <span className="cs-perk-icon">{p.icon}</span>
                       <span className="cs-perk-label">{p.label}</span>
+                      {p.sub && <span className="cs-perk-sub">{p.sub}</span>}
                     </div>
                   ))}
                 </div>
@@ -473,14 +474,14 @@ export default function ComingSoonPage() {
                 png="/assets/robot/Heropeekingfromdown.png"
                 className="cs-final-peek"
               />
-              <h2 className="cs-h2 cs-center" style={{ color: 'white' }}>Ready to help your child enjoy maths?</h2>
+              <h2 className="cs-h2 cs-center" style={{ color: 'white' }}>Ready to Build Your Child&rsquo;s Maths Confidence?</h2>
               <p className="cs-p cs-center" style={{ color: 'rgba(255,255,255,0.85)', maxWidth: 560, margin: '0 auto 22px' }}>
                 Join Australia's first 1,000 Founding Families and receive:
               </p>
               <div className="cs-final-perks">
-                <div className="cs-final-perk"><span>🎁</span> One month FREE</div>
-                <div className="cs-final-perk"><span>💰</span> Exclusive first-year pricing</div>
-                <div className="cs-final-perk"><span>🚀</span> Early access</div>
+                <div className="cs-final-perk"><span>🎁</span> 1 Month FREE Premium</div>
+                <div className="cs-final-perk"><span>💎</span> Premium $19.99/mo</div>
+                <div className="cs-final-perk"><span>🚀</span> Priority early access</div>
               </div>
               <a href="#waitlist" className="cs-btn-gold" style={{ marginTop: 26 }}>Join the Waitlist →</a>
             </div>
@@ -797,6 +798,7 @@ const CSS = `
         box-shadow: 0 8px 22px rgba(27,43,75,0.06); }
       .cs-perk-icon { font-size: 32px; line-height: 1; }
       .cs-perk-label { font-size: 15px; font-weight: 800; color: ${NAVY}; line-height: 1.3; }
+      .cs-perk-sub { font-size: 11.5px; font-weight: 700; color: #94A3B8; margin-top: 2px; text-decoration: line-through; }
 
       .cs-offer-save { display: block; text-align: center; background: linear-gradient(135deg, ${GOLD}, #FFD700);
         color: ${NAVY}; font-weight: 900; font-size: 17px; padding: 16px 22px; border-radius: 99px;
@@ -847,20 +849,20 @@ const CSS = `
       .cs-final-perks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
-      .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 30px 28px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
+      .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 38px 34px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
       /* Form headline ~20% larger for hierarchy. */
-      .cs-form-title { font-size: 27px; font-weight: 900; color: ${NAVY}; margin: 0 0 6px; letter-spacing: -0.5px; }
+      .cs-form-title { font-size: 30px; font-weight: 900; color: ${NAVY}; margin: 0 0 8px; letter-spacing: -0.5px; }
       /* Scarcity cue directly above the submit button. */
       .cs-urgency { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 12px;
         background: rgba(196,154,26,0.10); border: 1px solid rgba(196,154,26,0.28); border-radius: 12px;
         padding: 10px 12px; font-size: 12.5px; font-weight: 700; color: #7A5E10; line-height: 1.4; }
-      .cs-form-sub { font-size: 14px; color: #64748B; margin: 0 0 18px; }
+      .cs-form-sub { font-size: 15px; color: #64748B; margin: 0 0 22px; }
       .cs-form { display: flex; flex-direction: column; gap: 12px; }
       .cs-name-row { display: flex; gap: 12px; }
-      .cs-input { flex: 1; width: 100%; min-width: 0; background: #F7F9FC; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 14px 16px; color: ${NAVY}; font-size: 15px; outline: none; font-family: inherit; transition: border-color .15s ease, box-shadow .15s ease; }
+      .cs-input { flex: 1; width: 100%; min-width: 0; background: #F7F9FC; border: 1.5px solid #E2E8F0; border-radius: 12px; padding: 16px 18px; color: ${NAVY}; font-size: 16px; outline: none; font-family: inherit; transition: border-color .15s ease, box-shadow .15s ease; }
       .cs-input:focus { border-color: ${GOLD}; box-shadow: 0 0 0 3px rgba(196,154,26,0.15); }
       .cs-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2394A3B8' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
-      .cs-submit { margin-top: 4px; width: 100%; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; border: none; border-radius: 12px; padding: 16px; font-weight: 900; font-size: 16px; cursor: pointer; box-shadow: 0 10px 26px rgba(245,158,11,0.4); font-family: inherit; transition: transform .15s ease; }
+      .cs-submit { margin-top: 4px; width: 100%; background: linear-gradient(135deg, ${GOLD}, #FFD700); color: ${NAVY}; border: none; border-radius: 12px; padding: 18px; font-weight: 900; font-size: 17px; cursor: pointer; box-shadow: 0 10px 26px rgba(245,158,11,0.4); font-family: inherit; transition: transform .15s ease; }
       .cs-submit:hover:not(:disabled) { transform: translateY(-1px); }
       .cs-err { color: #DC2626; font-size: 13px; margin: 10px 0 0; }
       .cs-fineprint { color: #94A3B8; font-size: 11.5px; margin: 14px 0 0; line-height: 1.5; }

@@ -30,14 +30,14 @@ export const TESTIMONIALS = [
 ]
 
 export const OFFER_POINTS = [
-  '1 month FREE',
-  'Exclusive first-year Founding Family pricing',
-  'Early access before the public launch',
-  'Exclusive updates and behind-the-scenes news',
+  '1 Month FREE Premium',
+  'Premium $19.99/mo for your first year (usually $24.99)',
+  'Priority early access before the public launch',
+  'Exclusive founder updates and behind-the-scenes news',
 ]
 
 export const FAQS = [
-  { q: 'How much will MyMathsHero cost?', a: 'Standard and Premium plans will be available when we launch. Founding Families receive exclusive first-year pricing, including one month free.' },
+  { q: 'How much will MyMathsHero cost?', a: 'Standard and Premium plans will be available at launch. Founding Families will receive one month free and exclusive first-year Premium pricing. Full pricing will be confirmed before launch.' },
   { q: 'How does Hero use AI?', a: 'Hero uses AI to personalise maths learning, explain concepts step by step and adapt lessons based on your child\'s progress. Parents remain in control, and Hero is designed to support learning rather than replace teachers.' },
   { q: 'Can I track my child\'s progress?', a: 'Yes. Parents receive easy-to-understand progress reports showing strengths, areas for improvement and overall learning growth.' },
   { q: 'What age groups is MyMathsHero for?', a: 'MyMathsHero is designed for Australian primary school children from Prep to Year 6. The platform adapts to each child\'s learning level, helping them build confidence while working through age-appropriate maths concepts.' },
