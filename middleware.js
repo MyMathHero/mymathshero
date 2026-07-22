@@ -82,7 +82,9 @@ export const config = {
   //   - /games/*     (self-hosted arcade games — must load in the app WebView
   //                   and arcade iframe even while coming-soon mode is on)
   //   - favicon/sw/manifest
+  //   - robots.txt / sitemap.xml (SEO files — must serve raw, NOT redirect to
+  //     /coming-soon, or Google can't read the sitemap)
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|games|favicon.ico|sw.js|manifest.json|robots.txt).*)',
+    '/((?!api|_next/static|_next/image|assets|games|favicon.ico|sw.js|manifest.json|robots.txt|sitemap.xml).*)',
   ],
 }
