@@ -166,7 +166,7 @@ export default function ComingSoonPage() {
             <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
           </p>
           <div className="cs-hero-cta-row">
-            <a href="#waitlist" className="cs-btn-gold">Join the Waitlist →</a>
+            <a href="#waitlist-form" className="cs-btn-gold">Join the Waitlist →</a>
             <a href="#meet-hero" className="cs-btn-ghost">See how it works</a>
           </div>
           <div className="cs-hero2-badge">
@@ -193,7 +193,7 @@ export default function ComingSoonPage() {
           <div className="cs-mhero-launch">
             <span>🚀</span> LAUNCHING <b style={{ color: GOLD }}>{LAUNCH_DATE_DISPLAY}</b>
           </div>
-          <a href="#waitlist" className="cs-btn-gold cs-mhero-cta">Join the Waitlist →</a>
+          <a href="#waitlist-form" className="cs-btn-gold cs-mhero-cta">Join the Waitlist →</a>
         </div>
 
         <div className="cs-mhero-imgwrap">
@@ -213,7 +213,7 @@ export default function ComingSoonPage() {
             MyMathsHero is Australia's AI maths tutor for primary school children Prep to Year 6 — personalised learning that helps your child{' '}
             <b style={{ color: '#2563EB' }}>understand</b>, <b style={{ color: '#16A34A' }}>improve</b> and <b style={{ color: GOLD }}>thrive</b>.
           </p>
-          <a href="#waitlist" className="cs-btn-gold cs-mhero-cta2">Join the Waitlist →</a>
+          <a href="#waitlist-form" className="cs-btn-gold cs-mhero-cta2">Join the Waitlist →</a>
           <a href="#meet-hero" className="cs-mhero-see">See how it works ⌄</a>
         </div>
       </section>
@@ -483,7 +483,7 @@ export default function ComingSoonPage() {
                 <div className="cs-final-perk"><span>💎</span> Premium $19.99/mo</div>
                 <div className="cs-final-perk"><span>🚀</span> Priority early access</div>
               </div>
-              <a href="#waitlist" className="cs-btn-gold" style={{ marginTop: 26 }}>Join the Waitlist →</a>
+              <a href="#waitlist-form" className="cs-btn-gold" style={{ marginTop: 26 }}>Join the Waitlist →</a>
             </div>
           </Reveal>
         </div>
@@ -852,8 +852,10 @@ const CSS = `
       .cs-final-perk { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: white; font-weight: 700; font-size: 15px; padding: 10px 18px; border-radius: 14px; }
       .cs-final-perk span { font-size: 18px; }
       .cs-form-card { position: relative; z-index: 2; background: white; border-radius: 22px; padding: 38px 34px; box-shadow: 0 20px 50px rgba(27,43,75,0.14); border: 1px solid #E7ECF3; }
-      /* Form headline ~20% larger for hierarchy. */
-      .cs-form-title { font-size: 30px; font-weight: 900; color: ${NAVY}; margin: 0 0 8px; letter-spacing: -0.5px; }
+      /* Form headline ~20% larger for hierarchy. scroll-margin so the anchor jump
+         (from the Join-the-Waitlist CTAs) leaves room for the sticky top bar
+         instead of tucking the heading under it. */
+      .cs-form-title { font-size: 30px; font-weight: 900; color: ${NAVY}; margin: 0 0 8px; letter-spacing: -0.5px; scroll-margin-top: 90px; }
       /* Scarcity cue directly above the submit button. */
       .cs-urgency { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 12px;
         background: rgba(196,154,26,0.10); border: 1px solid rgba(196,154,26,0.28); border-radius: 12px;
