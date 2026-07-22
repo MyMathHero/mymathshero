@@ -561,7 +561,7 @@ function GlobalCss() {
 const CSS = `
       .cs-wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
       /* Wider variant for the 3-column waitlist section. */
-      .cs-wrap-wide { max-width: 1340px; }
+      .cs-wrap-wide { max-width: 1440px; }
       .cs-section { padding: 96px 0; }
       .cs-band { background: white; }
       .cs-center { text-align: center; }
@@ -744,7 +744,9 @@ const CSS = `
          space), so Hero + the kids are never covered. */
       /* Wider offer card so the headline stops wrapping to 4 lines; artwork gets
          its own column and runs the FULL height of the card. */
-      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 0 0 0 44px; display: grid; grid-template-columns: minmax(0,1.2fr) minmax(340px,0.85fr) minmax(0,0.78fr); gap: 32px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
+      /* Card | form | art. Offer card trimmed and form grown so the two cards
+         read as roughly the same size (the section is wider to absorb it). */
+      .cs-offer { position: relative; overflow: hidden; background: linear-gradient(135deg, #F6F8FE, #FFFDF7); border: 1px solid #E7ECF3; border-radius: 28px; padding: 0 0 0 40px; display: grid; grid-template-columns: minmax(0,1fr) minmax(380px,1fr) minmax(0,0.74fr); gap: 28px; align-items: center; box-shadow: 0 20px 60px rgba(27,43,75,0.10); }
       .cs-offer > div:first-of-type { padding: 48px 0; }   /* offer-card column */
 
       /* Hero + kids artwork sitting behind/between the two columns. Edges are
