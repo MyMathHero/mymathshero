@@ -170,7 +170,7 @@ export default function ComingSoonPage() {
             <a href="#meet-hero" className="cs-btn-ghost">See how it works</a>
           </div>
           <div className="cs-hero2-badge">
-            <span>👨‍👩‍👧</span> First 1,000 families: <b style={{ color: GOLD }}>one month FREE</b> + founding pricing.
+            <span>👨‍👩‍👧</span> First 1,000 families: <b style={{ color: GOLD }}>First month free</b> + founding pricing.
           </div>
          </div>
         </div>
@@ -231,6 +231,9 @@ export default function ComingSoonPage() {
             <h2 className="cs-video-title">
               Meet <span className="cs-video-title-hero">Hero</span>
             </h2>
+            <p className="cs-video-sub">
+              Meet Hero, your child&rsquo;s friendly AI maths tutor — designed to explain concepts, build confidence and make learning enjoyable.
+            </p>
           </Reveal>
           {/* VP9/Opus WebM (3.3 MB) with an H.264 MP4 fallback (2.0 MB) for
               Safari/iOS, which has patchy VP9 support. Browsers pick the first
@@ -288,7 +291,7 @@ export default function ComingSoonPage() {
           <Reveal>
             <div className="cs-family">
               <div className="cs-family-head">
-                Designed for<br /><span style={{ color: GOLD, borderBottom: `3px solid ${GOLD}`, paddingBottom: 2 }}>Australian Families</span>
+                Built for<br /><span style={{ color: GOLD, borderBottom: `3px solid ${GOLD}`, paddingBottom: 2 }}>Australian Families</span>
               </div>
               <div className="cs-family-items">
                 {FAMILY_TRUST.map((f, i) => (
@@ -304,7 +307,7 @@ export default function ComingSoonPage() {
             </div>
             {/* Curriculum coverage line — sits under the trust row. */}
             <p className="cs-family-note">
-              Aligned with every Australian state and territory curriculum
+              Aligned with the curriculum in every Australian state and territory.
             </p>
           </Reveal>
         </div>
@@ -351,22 +354,27 @@ export default function ComingSoonPage() {
 
                 <div className="cs-perks">
                   {[
-                    { icon: '🎁', label: '1 Month FREE Premium' },
-                    { icon: '💎', label: 'Premium $19.99/mo', sub: 'usually $24.99' },
+                    { icon: '🎁', label: 'First Month FREE' },
+                    { icon: '💎', label: 'Premium $19.99/mo', was: '$24.99', note: 'Premium included', glow: true },
                     { icon: '🚀', label: 'Priority Early Access' },
                     { icon: '⭐', label: 'Exclusive Founder Updates' },
                   ].map((p) => (
-                    <div key={p.label} className="cs-perk">
+                    <div key={p.label} className={`cs-perk${p.glow ? ' cs-perk-glow' : ''}`}>
                       <span className="cs-perk-icon">{p.icon}</span>
                       <span className="cs-perk-label">{p.label}</span>
-                      {p.sub && <span className="cs-perk-sub">{p.sub}</span>}
+                      {(p.was || p.note) && (
+                        <span className="cs-perk-sub">
+                          {p.was && <span className="cs-perk-was">normally {p.was}</span>}
+                          {p.note && <span className="cs-perk-note">{p.note}</span>}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 <a href="#waitlist-form" className="cs-offer-save">Reserve My Founding Family Spot</a>
                 <ul className="cs-trust-list">
-                  <li><span>🇦🇺</span> Australian Curriculum Aligned</li>
+                  <li><span>🇦🇺</span> Aligned with the Australian Curriculum</li>
                   <li><span>🤖</span> AI Personalised Learning</li>
                   <li><span>🔒</span> Secure &amp; Child Safe</li>
                 </ul>
@@ -479,7 +487,7 @@ export default function ComingSoonPage() {
                 Join Australia's first 1,000 Founding Families and receive:
               </p>
               <div className="cs-final-perks">
-                <div className="cs-final-perk"><span>🎁</span> 1 Month FREE Premium</div>
+                <div className="cs-final-perk"><span>🎁</span> First Month FREE</div>
                 <div className="cs-final-perk"><span>💎</span> Premium $19.99/mo</div>
                 <div className="cs-final-perk"><span>🚀</span> Priority early access</div>
               </div>
@@ -573,7 +581,10 @@ const CSS = `
       /* Big "Meet Hero" title above the marketing video. Gradient "Hero" with a
          soft sheen sweep; the whole title gently rises in via its Reveal wrapper. */
       .cs-video-title { text-align: center; font-size: clamp(40px, 6vw, 76px); font-weight: 900;
-        letter-spacing: -2px; line-height: 1.02; color: ${NAVY}; margin: 0 auto 26px; }
+        letter-spacing: -2px; line-height: 1.02; color: ${NAVY}; margin: 0 auto 16px; }
+      /* Intro line under the "Meet Hero" title, above the marketing video. */
+      .cs-video-sub { text-align: center; max-width: 640px; margin: 0 auto 30px;
+        font-size: clamp(16px, 2.2vw, 19px); line-height: 1.55; color: #475569; font-weight: 500; }
       /* Tighten the video ↔ Meet-Hero seam: these two sections read as one beat,
          so they don't need a full 96px gap on each side. */
       .cs-video-section { padding-top: 64px; padding-bottom: 40px; }
@@ -800,7 +811,43 @@ const CSS = `
         box-shadow: 0 8px 22px rgba(27,43,75,0.06); }
       .cs-perk-icon { font-size: 32px; line-height: 1; }
       .cs-perk-label { font-size: 15px; font-weight: 800; color: ${NAVY}; line-height: 1.3; }
-      .cs-perk-sub { font-size: 11.5px; font-weight: 700; color: #94A3B8; margin-top: 2px; text-decoration: line-through; }
+      /* Sub line: old price is struck (line-through), but the "Premium included"
+         note is NOT — so it renders as its own clean, un-struck line. */
+      .cs-perk-sub { font-size: 11.5px; font-weight: 700; margin-top: 2px;
+        display: flex; flex-direction: column; align-items: center; gap: 3px; }
+      .cs-perk-was { color: #94A3B8; text-decoration: line-through; }
+      .cs-perk-note { color: #16A34A; font-weight: 800; }
+
+      /* ── Glowing "price" perk — a light travels around the border and the whole
+         tile pulses, drawing the eye to the discount. Pure CSS, GPU-cheap. ── */
+      .cs-perk-glow { position: relative; z-index: 0; background: #fff;
+        border-color: transparent; animation: csPerkPulse 2.8s ease-in-out infinite; }
+      /* The moving light: a conic gradient rotating behind the tile, masked to a
+         thin ring so only the border glows (the tile face covers the middle). */
+      .cs-perk-glow::before { content: ''; position: absolute; inset: -2.5px; z-index: -1;
+        border-radius: 20px; padding: 2.5px;
+        background: conic-gradient(from 0deg, transparent 0deg, rgba(196,154,26,0.35) 30deg, ${GOLD} 65deg, #FFF1B8 90deg, #FFD700 115deg, rgba(196,154,26,0.35) 150deg, transparent 180deg, transparent 360deg);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        mask-composite: exclude;
+        animation: csPerkSpin 2.6s linear infinite; }
+      /* Soft outer halo that breathes in time with the border. */
+      .cs-perk-glow::after { content: ''; position: absolute; inset: 0; z-index: -2;
+        border-radius: 18px; box-shadow: 0 0 0 0 rgba(196,154,26,0);
+        animation: csPerkHalo 2.6s ease-in-out infinite; }
+      @keyframes csPerkSpin { to { transform: rotate(360deg); } }
+      @keyframes csPerkHalo {
+        0%, 100% { box-shadow: 0 0 18px 2px rgba(196,154,26,0.35); }
+        50%      { box-shadow: 0 0 34px 8px rgba(255,215,0,0.6); }
+      }
+      @keyframes csPerkPulse {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50%      { transform: translateY(-1px) scale(1.015); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cs-perk-glow, .cs-perk-glow::before, .cs-perk-glow::after { animation: none; }
+        .cs-perk-glow::before { background: ${GOLD}; }
+      }
 
       .cs-offer-save { display: block; text-align: center; background: linear-gradient(135deg, ${GOLD}, #FFD700);
         color: ${NAVY}; font-weight: 900; font-size: 17px; padding: 16px 22px; border-radius: 99px;

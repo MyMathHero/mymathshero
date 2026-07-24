@@ -17,32 +17,32 @@ export const STEPS = [
 export const FAMILY_TRUST = [
   // `sub` renders on its own line (see .cs-family-sub) so "(Prep – Year 6)"
   // sits under the label instead of wrapping awkwardly on mobile.
-  { emoji: '🇦🇺', label: 'Australian Curriculum Aligned', sub: '(Prep – Year 6)' },
+  { emoji: '🇦🇺', label: 'Aligned with the Australian Curriculum', sub: '(Prep – Year 6)' },
   { emoji: '👥', label: 'Built with Educators and Learning Experts' },
   { emoji: '🛡️', label: 'Safe, Secure & Ad-Free' },
   { emoji: '❤️', label: 'Made in Australia' },
 ]
 
 export const TESTIMONIALS = [
-  { quote: 'My daughter asked to use it again the next day! That never happens with maths.', author: 'Parent of Year 3 student', initials: 'SM', avatarBg: '#2563EB' },
-  { quote: 'Hero explains it in a way that finally clicks for my son. His confidence has grown so much.', author: 'Parent of Year 5 student', initials: 'DJ', avatarBg: '#16A34A' },
-  { quote: 'The progress reports are fantastic. I can see exactly where my child needs support.', author: 'Parent of Year 2 student', initials: 'AL', avatarBg: '#C49A1A' },
+  { quote: 'My daughter asked to use it again the next day! That never happens with maths.', author: 'Sarah M. · Parent of Year 3 student', initials: 'SM', avatarBg: '#2563EB' },
+  { quote: 'Hero explains it in a way that finally clicks for my son. His confidence has grown so much.', author: 'Daniel J. · Parent of Year 5 student', initials: 'DJ', avatarBg: '#16A34A' },
+  { quote: 'The progress reports are fantastic. I can see exactly where my child needs support.', author: 'Amanda L. · Parent of Year 2 student', initials: 'AL', avatarBg: '#C49A1A' },
 ]
 
 export const OFFER_POINTS = [
-  '1 Month FREE Premium',
-  'Premium $19.99/mo for your first year (usually $24.99)',
+  'First Month FREE',
+  'Premium $19.99/mo for your first year (normally $24.99) — Premium access included',
   'Priority early access before the public launch',
   'Exclusive founder updates and behind-the-scenes news',
 ]
 
 export const FAQS = [
-  { q: 'How much will MyMathsHero cost?', a: 'Standard and Premium plans will be available at launch. Founding Families will receive one month free and exclusive first-year Premium pricing. Full pricing will be confirmed before launch.' },
+  { q: 'How much will MyMathsHero cost?', a: 'Standard and Premium plans will be available at launch. Founding Families will receive their first month free and exclusive first-year Premium pricing. Full pricing will be confirmed before launch.' },
   { q: 'How does Hero use AI?', a: 'Hero uses AI to personalise maths learning, explain concepts step by step and adapt lessons based on your child\'s progress. Parents remain in control, and Hero is designed to support learning rather than replace teachers.' },
   { q: 'Can I track my child\'s progress?', a: 'Yes. Parents receive easy-to-understand progress reports showing strengths, areas for improvement and overall learning growth.' },
   { q: 'What age groups is MyMathsHero for?', a: 'MyMathsHero is designed for Australian primary school children from Prep to Year 6. The platform adapts to each child\'s learning level, helping them build confidence while working through age-appropriate maths concepts.' },
   { q: 'Is MyMathsHero aligned to the Australian Curriculum?', a: 'Yes. Our maths content is designed to align with the Australian Curriculum, helping children practise the key concepts they learn at school — across number, addition and subtraction, multiplication and division, fractions, measurement, geometry, statistics, probability, algebra and problem solving.' },
-  { q: 'How does the founding family offer work?', a: 'The first 1,000 families to join receive one month free, Founding Family pricing of $19.99 per month for the first year (normally $24.99), and early access before public launch. Simply join the waitlist to reserve your spot.' },
+  { q: 'How does the founding family offer work?', a: 'The first 1,000 families to join receive their first month free, Founding Family pricing of $19.99 per month for the first year (normally $24.99), and early access before public launch. Simply join the waitlist to reserve your spot.' },
   { q: 'When will MyMathsHero launch?', a: 'MyMathsHero is launching in September 2026. Join the waitlist and we\'ll email you with launch updates, early-access information and details about the Founding Family offer.' },
   { q: 'Is MyMathsHero safe for children?', a: 'Yes. Child safety is a priority. There are no public chat features and children cannot communicate freely with other users. Features such as Hero Speed Challenge focus on friendly maths competition without messaging or social interaction.' },
   { q: 'Does it replace school or tutoring?', a: 'No. MyMathsHero is designed to support classroom learning, homework and tutoring. It provides additional personalised practice that helps children reinforce the concepts they are learning at school.' },
